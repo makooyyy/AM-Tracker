@@ -93,7 +93,7 @@
   // "add"/"rated"/"award" are also used to seed a one-time XP baseline from
   // the library's existing history (see seedXpFromCurrentState), so a
   // long-time user doesn't start at rank zero after this update.
-  var XP_VALUES = { add: 5, rated: 25, status: 3, award: 15, delete: 0 };
+  var XP_VALUES = { add: 5, rated: 25, rated_review: 45, status: 3, award: 15, delete: 0 };
 
   // Rank tiers, lowest first. Each needs a strictly higher minXp than the last.
   var RANKS = [
@@ -222,6 +222,16 @@
 
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
+    {
+      version: "57",
+      type: "feature",
+      title: "Рецензия при первой оценке — больше опыта",
+      items: [
+        "При первой оценке тайтла — выбор: «Без рецензии» (как раньше) или «С рецензией»",
+        "«С рецензией» требует пару слов в заметках перед тем, как оценка засчитается, зато даёт заметно больше опыта (45 XP против 25)",
+        "В дневнике тайтла такая оценка помечена отдельной иконкой 📝"
+      ]
+    },
     {
       version: "56",
       type: "update",
@@ -2555,8 +2565,20 @@
     }
 
     if (editable) {
-      html += '<button class="mt-primary-btn" id="finish-rating-btn" data-manhwa-id="' + m.id +
-        '" style="width:100%">Готово</button>';
+      if (isNew) {
+        html +=
+          '<div class="mt-form-row">' +
+          '<button class="mt-ghost-btn" id="finish-rating-btn" data-manhwa-id="' + m.id +
+          '" style="flex:1">✓ Без рецензии</button>' +
+          '<button class="mt-primary-btn" id="finish-rating-review-btn" data-manhwa-id="' + m.id +
+          '" style="flex:1">📝 С рецензией</button>' +
+          "</div>" +
+          '<div class="mt-ceremony-hint" style="text-align:center;margin-top:8px">' +
+          "За рецензию (пара слов в заметках выше) — больше опыта</div>";
+      } else {
+        html += '<button class="mt-primary-btn" id="finish-rating-btn" data-manhwa-id="' + m.id +
+          '" style="width:100%">Готово</button>';
+      }
     } else {
       html += '<button class="mt-ghost-btn" id="unlock-rating-btn" data-manhwa-id="' + m.id +
         '" style="width:100%">✎ Изменить</button>';
@@ -2630,6 +2652,7 @@
   function activityIcon(e) {
     if (e.type === "add") return "➕";
     if (e.type === "rated") return "⭐";
+    if (e.type === "rated_review") return "📝";
     if (e.type === "status") {
       var st = e.extra && statusById(e.extra.status);
       return st ? '<span class="mt-activity-dot" style="background:' + st.color + '"></span>' : "•";
@@ -2642,9 +2665,10 @@
   function activityLineText(e) {
     var t = escapeHtml(e.title || "");
     if (e.type === "add") return "Добавлен тайтл «" + t + "»";
-    if (e.type === "rated") {
+    if (e.type === "rated" || e.type === "rated_review") {
       var score = e.extra && e.extra.score !== null && e.extra.score !== undefined ? Math.round(e.extra.score) : null;
-      return "Оценён «" + t + "»" + (score !== null ? " — " + score + "/100" : "");
+      var withReview = e.type === "rated_review";
+      return "Оценён «" + t + "»" + (withReview ? " с рецензией" : "") + (score !== null ? " — " + score + "/100" : "");
     }
     if (e.type === "status") {
       var st = e.extra && statusById(e.extra.status);
@@ -3472,19 +3496,36 @@
       }
     });
 
-    var finishBtn = document.getElementById("finish-rating-btn");
-    if (finishBtn) finishBtn.addEventListener("click", function () {
-      var id = finishBtn.getAttribute("data-manhwa-id");
+    function finalizeRating(id, withReview) {
       var m = findManhwa(id);
       var wasNew = m && m.rated === false;
       if (m) m.rated = true;
       delete state.unlockedIds[id];
       save();
       if (wasNew && m) {
-        logActivity("rated", m.id, m.title, { score: average(m.criteria) });
+        logActivity(withReview ? "rated_review" : "rated", m.id, m.title, { score: average(m.criteria) });
         state.revealManhwaId = id;
       }
       render();
+    }
+
+    var finishBtn = document.getElementById("finish-rating-btn");
+    if (finishBtn) finishBtn.addEventListener("click", function () {
+      finalizeRating(finishBtn.getAttribute("data-manhwa-id"), false);
+    });
+
+    var finishReviewBtn = document.getElementById("finish-rating-review-btn");
+    if (finishReviewBtn) finishReviewBtn.addEventListener("click", function () {
+      var id = finishReviewBtn.getAttribute("data-manhwa-id");
+      var m = findManhwa(id);
+      if (m && (!m.notes || !m.notes.trim())) {
+        state.error = "Сначала напиши пару слов в заметках выше — или выбери «Без рецензии».";
+        render();
+        var notesEl = document.getElementById("notes-textarea");
+        if (notesEl) notesEl.focus();
+        return;
+      }
+      finalizeRating(id, true);
     });
 
     var unlockBtn = document.getElementById("unlock-rating-btn");
