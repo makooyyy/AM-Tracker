@@ -343,6 +343,15 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "59",
+      type: "update",
+      title: "Чище шапка библиотеки",
+      items: [
+        "Убрали подзаголовок «Рисовка, сюжет, персонажи — раздельно»",
+        "Кнопка «Жанры» теперь показывается только в режиме поиска, а не постоянно"
+      ]
+    },
+    {
       version: "58",
       type: "feature",
       title: "Достижения",
@@ -2159,7 +2168,7 @@
     var genreList = allGenresSorted();
     var genreToggleLabel = "Жанры" + (state.filterGenre !== "all" ? ": " + state.filterGenre : "");
     var genrePanel = "";
-    if (genreList.length > 0 && state.showGenreFilter) {
+    if (genreList.length > 0 && state.showGenreFilter && state.showSearch) {
       var genreChips = [{ id: "all", label: "Все жанры" }]
         .concat(genreList.map(function (g) { return { id: g, label: g }; }))
         .map(function (g) {
@@ -2188,7 +2197,6 @@
       (hasUnseen ? '<span class="mt-notify-dot"></span>' : "") + "</button>" +
       "</div>" +
       '<div class="mt-subrow">' +
-      '<div class="mt-subtitle">Рисовка, сюжет, персонажи — раздельно</div>' +
       '<div class="mt-subrow-actions">' +
       '<div class="mt-sort-group">' + btns + "</div>" +
       '<button class="mt-icon-round mt-icon-round-sm' + (state.showSearch ? " active" : "") +
@@ -2196,7 +2204,7 @@
       "</div></div>" +
       searchPanel +
       '<div class="mt-filter-row">' + filterBtns +
-      (genreList.length > 0
+      (genreList.length > 0 && state.showSearch
         ? '<button class="mt-genre-toggle-chip' + (state.showGenreFilter ? " active" : "") +
           '" id="genre-filter-toggle">' + genreToggleLabel + "</button>"
         : "") +
@@ -3284,7 +3292,11 @@
     var toggleSearchBtn = document.getElementById("toggle-search");
     if (toggleSearchBtn) toggleSearchBtn.addEventListener("click", function () {
       state.showSearch = !state.showSearch;
-      if (!state.showSearch) state.searchQuery = "";
+      if (!state.showSearch) {
+        state.searchQuery = "";
+        state.showGenreFilter = false;
+        state.filterGenre = "all";
+      }
       render();
       if (state.showSearch) {
         var el = document.getElementById("search-input");
