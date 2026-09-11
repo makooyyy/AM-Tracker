@@ -8,6 +8,7 @@
   var ACTIVITY_LOG_STORAGE_KEY = "manhwa-tracker:activity-log:v1";
   var ACTIVITY_LOG_MAX = 3000;
   var XP_STORAGE_KEY = "manhwa-tracker:xp:v1";
+  var ACHIEVEMENTS_STORAGE_KEY = "manhwa-tracker:achievements:v1";
   var CHANGELOG_SEEN_KEY = "manhwa-tracker:changelog-seen:v1";
 
   // Storage backend: IndexedDB (no practical size cap, unlike localStorage's
@@ -128,6 +129,125 @@
     return state.manhwas.length * XP_VALUES.add + ratedCount * XP_VALUES.rated + awardCount * XP_VALUES.award;
   }
 
+  /* ---------- achievements ---------- */
+  function ratedTitlesCount() {
+    var n = 0;
+    state.manhwas.forEach(function (m) { if (m.rated) n++; });
+    return n;
+  }
+  function droppedTitlesCount() {
+    var n = 0;
+    state.manhwas.forEach(function (m) { if (m.status === "dropped") n++; });
+    return n;
+  }
+  function reviewCount() {
+    return state.activityLog.filter(function (e) { return e.type === "rated_review"; }).length;
+  }
+  function totalAwardWinsCount() {
+    var n = 0;
+    Object.keys(state.awardWinners).forEach(function (mk) { n += Object.keys(state.awardWinners[mk]).length; });
+    return n;
+  }
+  function categoryEverWon(categoryKey) {
+    return Object.keys(state.awardWinners).some(function (mk) { return !!state.awardWinners[mk][categoryKey]; });
+  }
+  function anyMonthFullyDecided() {
+    return Object.keys(state.awardWinners).some(function (mk) {
+      var avail = availableCategoriesForMonth(mk);
+      if (!avail.length) return false;
+      return avail.every(function (ck) { return !!state.awardWinners[mk][ck]; });
+    });
+  }
+  function rockBottomEver() {
+    return state.activityLog.some(function (e) {
+      return (e.type === "rated" || e.type === "rated_review") && e.extra && e.extra.score === 1;
+    });
+  }
+  // Longest-ever run of consecutive calendar days with at least one logged
+  // action — checked against the full log, so an achievement stays earned
+  // even if the streak later breaks.
+  function longestStreakDays() {
+    var days = {};
+    state.activityLog.forEach(function (e) {
+      var d = new Date(e.ts);
+      days[d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())] = true;
+    });
+    var keys = Object.keys(days).sort();
+    var longest = 0, current = 0, prevTime = null;
+    keys.forEach(function (k) {
+      var t = new Date(k + "T00:00:00").getTime();
+      current = (prevTime !== null && t - prevTime === 86400000) ? current + 1 : 1;
+      if (current > longest) longest = current;
+      prevTime = t;
+    });
+    return longest;
+  }
+
+  var ACHIEVEMENTS = [
+    { id: "first_add", name: "Первый шаг", desc: "Добавь свой первый тайтл", icon: "🎬", xp: 10,
+      check: function () { return state.manhwas.length >= 1; } },
+    { id: "collect_50", name: "Коллекционер", desc: "50 тайтлов в библиотеке", icon: "📚", xp: 30,
+      check: function () { return state.manhwas.length >= 50; } },
+    { id: "collect_100", name: "Библиофил", desc: "100 тайтлов в библиотеке", icon: "🏛️", xp: 60,
+      check: function () { return state.manhwas.length >= 100; } },
+    { id: "collect_250", name: "Легендарная полка", desc: "250 тайтлов в библиотеке", icon: "🗿", xp: 120,
+      check: function () { return state.manhwas.length >= 250; } },
+    { id: "first_rated", name: "Первая оценка", desc: "Оцени свой первый тайтл", icon: "⭐", xp: 10,
+      check: function () { return ratedTitlesCount() >= 1; } },
+    { id: "rated_50", name: "Критик", desc: "Оцени 50 тайтлов", icon: "🧐", xp: 40,
+      check: function () { return ratedTitlesCount() >= 50; } },
+    { id: "rated_100", name: "Мастер оценок", desc: "Оцени 100 тайтлов", icon: "🎓", xp: 80,
+      check: function () { return ratedTitlesCount() >= 100; } },
+    { id: "first_review", name: "Рецензент", desc: "Напиши первую рецензию при оценке", icon: "📝", xp: 20,
+      check: function () { return reviewCount() >= 1; } },
+    { id: "review_10", name: "Плодовитый автор", desc: "Напиши 10 рецензий", icon: "🖋️", xp: 70,
+      check: function () { return reviewCount() >= 10; } },
+    { id: "first_award", name: "Первая победа", desc: "Выиграй первую номинацию в премии", icon: "🏆", xp: 20,
+      check: function () { return totalAwardWinsCount() >= 1; } },
+    { id: "award_10", name: "Хозяин наград", desc: "Выиграй 10 номинаций суммарно", icon: "🏅", xp: 70,
+      check: function () { return totalAwardWinsCount() >= 10; } },
+    { id: "ceremony_full", name: "Церемония закрыта", desc: "Реши все номинации хотя бы за один месяц", icon: "🎊", xp: 40,
+      check: function () { return anyMonthFullyDecided(); } },
+    { id: "worst_given", name: "Антигерой", desc: "Присуди «Худший тайтл месяца»", icon: "🤢", xp: 25,
+      check: function () { return categoryEverWon("worst"); } },
+    { id: "cover_given", name: "Модный критик", desc: "Присуди «Обложка месяца»", icon: "💅", xp: 25,
+      check: function () { return categoryEverWon("cover"); } },
+    { id: "rock_bottom", name: "Дно", desc: "Поставь тайтлу оценку 1 по всем критериям", icon: "🤮", xp: 25,
+      check: function () { return rockBottomEver(); } },
+    { id: "dropper_10", name: "Серийный дроппер", desc: "Дропни 10 тайтлов", icon: "📉", xp: 40,
+      check: function () { return droppedTitlesCount() >= 10; } },
+    { id: "streak_7", name: "Серия из 7", desc: "7 дней активности подряд", icon: "🔥", xp: 40,
+      check: function () { return longestStreakDays() >= 7; } },
+    { id: "streak_30", name: "Железная воля", desc: "30 дней активности подряд", icon: "🔥", xp: 100,
+      check: function () { return longestStreakDays() >= 30; } },
+    { id: "rank_legend", name: "Легенда", desc: "Достигни ранга «Легенда»", icon: "👑", xp: 0,
+      check: function () { return state.totalXp >= 13000; } }
+  ];
+
+  // Persists newly-met achievements permanently — once unlocked, never
+  // re-checked or revoked even if the underlying stat later drops (e.g. a
+  // title gets deleted). Called after every logged action.
+  function checkAchievements() {
+    var unlocked = [];
+    ACHIEVEMENTS.forEach(function (a) {
+      if (state.unlockedAchievements[a.id]) return;
+      if (a.check()) {
+        state.unlockedAchievements[a.id] = Date.now();
+        unlocked.push(a);
+      }
+    });
+    if (unlocked.length) {
+      var xpGain = 0;
+      unlocked.forEach(function (a) { xpGain += a.xp || 0; });
+      saveAchievements();
+      if (xpGain) {
+        state.totalXp += xpGain;
+        saveXp();
+      }
+    }
+    return unlocked;
+  }
+
   var STATUSES = [
     { id: "reading", label: "Читаю", color: "#22D3EE" },
     { id: "done", label: "Завершено", color: "#34D399" },
@@ -222,6 +342,17 @@
 
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
+    {
+      version: "58",
+      type: "feature",
+      title: "Достижения",
+      items: [
+        "На вкладке «Профиль» — 19 достижений за разные действия: рост библиотеки, оценки, рецензии, победы в премиях (включая «Худший тайтл» и «Обложку месяца»), дропы, серии дней подряд, максимальный ранг и антирекорд «Дно»",
+        "Каждое достижение даёт разовый бонус к опыту при разблокировке",
+        "Достижение остаётся навсегда, даже если позже показатель, за который оно дано, снизится (например, удалили тайтл)",
+        "При первом запуске после обновления уже накопленная история учитывается сразу — часть достижений может открыться в момент обновления"
+      ]
+    },
     {
       version: "57",
       type: "feature",
@@ -794,6 +925,7 @@
     awardEditUsed: {},
     activityLog: [],
     totalXp: 0,
+    unlockedAchievements: {},
     confirmEditWinnersMonth: null,
     awardsView: "month",
     awardsCategory: null,
@@ -1264,6 +1396,12 @@
     } catch (e) {
       target.totalXp = 0;
     }
+    try {
+      var rawAchv = window.localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY);
+      target.unlockedAchievements = rawAchv ? JSON.parse(rawAchv) : {};
+    } catch (e) {
+      target.unlockedAchievements = {};
+    }
   }
 
   function applyPostLoadMigrations() {
@@ -1323,6 +1461,14 @@
       state.totalXp = seedXpFromCurrentState();
       if (state.totalXp) saveXp();
     }
+
+    // Retroactively unlock anything already true from existing history —
+    // same reasoning as the XP seed above. No XP double-dip here: XP for
+    // achievements met at seed time is already folded into seedXpFromCurrentState's
+    // inputs (rated/add/award counts), so this only awards XP for achievements
+    // that AREN'T also double-counted — streaks, reviews, worst/cover awards,
+    // drops, rank — which is why rank_legend has 0 xp and the rest are additive extras.
+    checkAchievements();
   }
 
   // Loads app state. Prefers IndexedDB (no practical size cap); the very
@@ -1344,7 +1490,7 @@
           return Promise.all([
             safe(idbGet(STORAGE_KEY)), safe(idbGet(CHANGELOG_SEEN_KEY)), safe(idbGet(AWARDS_STORAGE_KEY)),
             safe(idbGet(AWARD_CANDIDATES_STORAGE_KEY)), safe(idbGet(AWARD_EDIT_USED_STORAGE_KEY)), safe(idbGet(ACTIVITY_LOG_STORAGE_KEY)),
-            safe(idbGet(XP_STORAGE_KEY))
+            safe(idbGet(XP_STORAGE_KEY)), safe(idbGet(ACHIEVEMENTS_STORAGE_KEY))
           ]).then(function (r) {
             state.manhwas = r[0] || [];
             state.changelogSeenVersion = r[1] || null;
@@ -1353,6 +1499,7 @@
             state.awardEditUsed = r[4] || {};
             state.activityLog = r[5] || [];
             state.totalXp = r[6] || 0;
+            state.unlockedAchievements = r[7] || {};
           });
         }
         loadFromLocalStorageInto(state);
@@ -1364,6 +1511,7 @@
           idbSet(AWARD_EDIT_USED_STORAGE_KEY, state.awardEditUsed),
           idbSet(ACTIVITY_LOG_STORAGE_KEY, state.activityLog),
           idbSet(XP_STORAGE_KEY, state.totalXp),
+          idbSet(ACHIEVEMENTS_STORAGE_KEY, state.unlockedAchievements),
           idbSet(IDB_MIGRATED_KEY, true)
         ]);
       })
@@ -1400,6 +1548,10 @@
     persistKey(XP_STORAGE_KEY, state.totalXp).catch(function () {});
   }
 
+  function saveAchievements() {
+    persistKey(ACHIEVEMENTS_STORAGE_KEY, state.unlockedAchievements).catch(function () {});
+  }
+
   // Records one diary entry. Only called for meaningful, user-initiated
   // moments (not every slider tick) — see the call sites. Caps the log so a
   // years-old install doesn't grow localStorage without bound.
@@ -1414,6 +1566,7 @@
       state.totalXp += xpGain;
       saveXp();
     }
+    checkAchievements();
   }
 
   /* ---------- svg pieces ---------- */
@@ -2817,6 +2970,29 @@
     );
   }
 
+  function renderAchievementsPanel() {
+    var unlockedCount = ACHIEVEMENTS.filter(function (a) { return !!state.unlockedAchievements[a.id]; }).length;
+    var rows = ACHIEVEMENTS.map(function (a) {
+      var unlocked = !!state.unlockedAchievements[a.id];
+      return (
+        '<div class="mt-achv-row' + (unlocked ? " unlocked" : "") + '">' +
+        '<span class="mt-achv-icon">' + a.icon + "</span>" +
+        '<div class="mt-achv-body">' +
+        '<div class="mt-achv-name">' + escapeHtml(a.name) + "</div>" +
+        '<div class="mt-achv-desc">' + escapeHtml(a.desc) + "</div>" +
+        "</div>" +
+        (unlocked ? '<span class="mt-achv-check">✓</span>' : "") +
+        "</div>"
+      );
+    }).join("");
+    return (
+      '<div class="mt-paper">' +
+      '<div class="mt-panel-title">ДОСТИЖЕНИЯ · ' + unlockedCount + " ИЗ " + ACHIEVEMENTS.length + "</div>" +
+      '<div class="mt-achv-list">' + rows + "</div>" +
+      "</div>"
+    );
+  }
+
   function renderProfile() {
     var rated = state.manhwas.filter(function (m) { return m.criteria.length > 0; });
     var overallAvg = rated.length
@@ -2833,6 +3009,7 @@
       "</div>" + renderErrorBanner() +
       '<div class="mt-list">' +
       renderRankPanel() +
+      renderAchievementsPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
       '<div class="mt-chip"><div class="mt-chip-value" style="color:#FFB238">' +

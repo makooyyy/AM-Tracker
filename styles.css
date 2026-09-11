@@ -424,6 +424,29 @@ body {
 .mt-activity-text { font-size: 13px; color: var(--text-primary); font-weight: 600; line-height: 1.4; }
 .mt-activity-date { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 
+/* Achievements */
+.mt-achv-list { display: flex; flex-direction: column; gap: 8px; }
+.mt-achv-row {
+  display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+}
+.mt-achv-row.unlocked {
+  background: linear-gradient(135deg, rgba(255,178,56,0.12), rgba(255,61,154,0.06));
+  border-color: rgba(255,178,56,0.3);
+}
+.mt-achv-icon {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  background: rgba(255,255,255,0.04);
+  filter: grayscale(1) brightness(0.55); opacity: 0.5;
+}
+.mt-achv-row.unlocked .mt-achv-icon { filter: none; opacity: 1; background: rgba(255,178,56,0.15); }
+.mt-achv-body { flex: 1; min-width: 0; }
+.mt-achv-name { font-size: 13px; font-weight: 800; color: var(--text-muted); }
+.mt-achv-row.unlocked .mt-achv-name { color: var(--text-primary); }
+.mt-achv-desc { font-size: 11px; color: var(--text-faint); margin-top: 1px; line-height: 1.35; }
+.mt-achv-check { color: var(--amber); font-weight: 800; font-size: 15px; flex-shrink: 0; }
+
 .mt-lock-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
 
 .mt-criteria-panel { display: flex; flex-direction: column; gap: 20px; }
