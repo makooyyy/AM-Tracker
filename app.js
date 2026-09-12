@@ -182,45 +182,192 @@
     });
     return longest;
   }
+  function countByStatus(statusId) {
+    var n = 0;
+    state.manhwas.forEach(function (m) { if (m.status === statusId) n++; });
+    return n;
+  }
+  function distinctGenresCount() {
+    var set = {};
+    state.manhwas.forEach(function (m) { (m.genres || []).forEach(function (g) { set[g] = true; }); });
+    return Object.keys(set).length;
+  }
+  function hasCustomCriterion() {
+    return state.manhwas.some(function (m) {
+      return m.criteria.some(function (c) { return DEFAULT_CRITERIA.indexOf(c.name) === -1; });
+    });
+  }
+  function hasAllThreeTypes() {
+    var set = {};
+    state.manhwas.forEach(function (m) { set[m.type || "manhwa"] = true; });
+    return TYPES.every(function (t) { return set[t.id]; });
+  }
+  function perfectScoreEver() {
+    return state.manhwas.some(function (m) { return average(m.criteria) === 100; });
+  }
+  function allAwardCategoriesEverWon() {
+    return AWARD_CATEGORY_KEYS.every(function (ck) { return categoryEverWon(ck); });
+  }
+  function monthsFullyDecidedCount() {
+    var n = 0;
+    Object.keys(state.awardWinners).forEach(function (mk) {
+      var avail = availableCategoriesForMonth(mk);
+      if (avail.length && avail.every(function (ck) { return !!state.awardWinners[mk][ck]; })) n++;
+    });
+    return n;
+  }
+  function anyYearHasChampion() {
+    var years = {};
+    Object.keys(state.awardWinners).forEach(function (mk) { years[mk.split("-")[0]] = true; });
+    return Object.keys(years).some(function (y) { return championsForYear(parseInt(y, 10)).length > 0; });
+  }
+  function activityInHourRange(startHour, endHour) {
+    return state.activityLog.some(function (e) {
+      var h = new Date(e.ts).getHours();
+      return h >= startHour && h < endHour;
+    });
+  }
+  function maxActionsInOneDay() {
+    var days = {};
+    state.activityLog.forEach(function (e) {
+      var d = new Date(e.ts);
+      var key = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+      days[key] = (days[key] || 0) + 1;
+    });
+    var max = 0;
+    Object.keys(days).forEach(function (k) { if (days[k] > max) max = days[k]; });
+    return max;
+  }
+
+  var ACHIEVEMENT_CATEGORIES = [
+    "Библиотека", "Жанры и типы", "Оценки", "Рецензии", "Премии", "Статусы", "Активность", "Ранг"
+  ];
 
   var ACHIEVEMENTS = [
-    { id: "first_add", name: "Первый шаг", desc: "Добавь свой первый тайтл", icon: "🎬", xp: 10,
+    // Библиотека
+    { id: "first_add", category: "Библиотека", name: "Первый шаг", desc: "Добавь свой первый тайтл", icon: "🎬", xp: 10,
       check: function () { return state.manhwas.length >= 1; } },
-    { id: "collect_50", name: "Коллекционер", desc: "50 тайтлов в библиотеке", icon: "📚", xp: 30,
+    { id: "collect_10", category: "Библиотека", name: "Начало пути", desc: "10 тайтлов в библиотеке", icon: "🌱", xp: 15,
+      check: function () { return state.manhwas.length >= 10; } },
+    { id: "collect_50", category: "Библиотека", name: "Коллекционер", desc: "50 тайтлов в библиотеке", icon: "📚", xp: 30,
       check: function () { return state.manhwas.length >= 50; } },
-    { id: "collect_100", name: "Библиофил", desc: "100 тайтлов в библиотеке", icon: "🏛️", xp: 60,
+    { id: "collect_100", category: "Библиотека", name: "Библиофил", desc: "100 тайтлов в библиотеке", icon: "🏛️", xp: 60,
       check: function () { return state.manhwas.length >= 100; } },
-    { id: "collect_250", name: "Легендарная полка", desc: "250 тайтлов в библиотеке", icon: "🗿", xp: 120,
+    { id: "collect_150", category: "Библиотека", name: "Книжный червь", desc: "150 тайтлов в библиотеке", icon: "🐛", xp: 90,
+      check: function () { return state.manhwas.length >= 150; } },
+    { id: "collect_250", category: "Библиотека", name: "Легендарная полка", desc: "250 тайтлов в библиотеке", icon: "🗿", xp: 120,
       check: function () { return state.manhwas.length >= 250; } },
-    { id: "first_rated", name: "Первая оценка", desc: "Оцени свой первый тайтл", icon: "⭐", xp: 10,
+    { id: "collect_400", category: "Библиотека", name: "Архивариус", desc: "400 тайтлов в библиотеке", icon: "🗄️", xp: 160,
+      check: function () { return state.manhwas.length >= 400; } },
+    { id: "collect_600", category: "Библиотека", name: "Хранитель библиотеки", desc: "600 тайтлов в библиотеке", icon: "🏰", xp: 220,
+      check: function () { return state.manhwas.length >= 600; } },
+    { id: "collect_1000", category: "Библиотека", name: "Бесконечная полка", desc: "1000 тайтлов в библиотеке", icon: "♾️", xp: 300,
+      check: function () { return state.manhwas.length >= 1000; } },
+
+    // Жанры и типы
+    { id: "genres_5", category: "Жанры и типы", name: "Разносторонний вкус", desc: "5 разных жанров в библиотеке", icon: "🎭", xp: 20,
+      check: function () { return distinctGenresCount() >= 5; } },
+    { id: "genres_10", category: "Жанры и типы", name: "Знаток жанров", desc: "10 разных жанров в библиотеке", icon: "🌈", xp: 40,
+      check: function () { return distinctGenresCount() >= 10; } },
+    { id: "genres_20", category: "Жанры и типы", name: "Энциклопедист", desc: "20 разных жанров в библиотеке", icon: "📖", xp: 90,
+      check: function () { return distinctGenresCount() >= 20; } },
+    { id: "all_types", category: "Жанры и типы", name: "Три стихии", desc: "В библиотеке есть манхва, манга и маньхуа", icon: "⚡", xp: 30,
+      check: function () { return hasAllThreeTypes(); } },
+    { id: "custom_criterion", category: "Жанры и типы", name: "Свой стиль", desc: "Добавь свой критерий оценки на любом тайтле", icon: "🎨", xp: 20,
+      check: function () { return hasCustomCriterion(); } },
+
+    // Оценки
+    { id: "first_rated", category: "Оценки", name: "Первая оценка", desc: "Оцени свой первый тайтл", icon: "⭐", xp: 10,
       check: function () { return ratedTitlesCount() >= 1; } },
-    { id: "rated_50", name: "Критик", desc: "Оцени 50 тайтлов", icon: "🧐", xp: 40,
+    { id: "rated_10", category: "Оценки", name: "Втянулся", desc: "Оцени 10 тайтлов", icon: "✨", xp: 15,
+      check: function () { return ratedTitlesCount() >= 10; } },
+    { id: "rated_50", category: "Оценки", name: "Критик", desc: "Оцени 50 тайтлов", icon: "🧐", xp: 40,
       check: function () { return ratedTitlesCount() >= 50; } },
-    { id: "rated_100", name: "Мастер оценок", desc: "Оцени 100 тайтлов", icon: "🎓", xp: 80,
+    { id: "rated_100", category: "Оценки", name: "Мастер оценок", desc: "Оцени 100 тайтлов", icon: "🎓", xp: 80,
       check: function () { return ratedTitlesCount() >= 100; } },
-    { id: "first_review", name: "Рецензент", desc: "Напиши первую рецензию при оценке", icon: "📝", xp: 20,
-      check: function () { return reviewCount() >= 1; } },
-    { id: "review_10", name: "Плодовитый автор", desc: "Напиши 10 рецензий", icon: "🖋️", xp: 70,
-      check: function () { return reviewCount() >= 10; } },
-    { id: "first_award", name: "Первая победа", desc: "Выиграй первую номинацию в премии", icon: "🏆", xp: 20,
-      check: function () { return totalAwardWinsCount() >= 1; } },
-    { id: "award_10", name: "Хозяин наград", desc: "Выиграй 10 номинаций суммарно", icon: "🏅", xp: 70,
-      check: function () { return totalAwardWinsCount() >= 10; } },
-    { id: "ceremony_full", name: "Церемония закрыта", desc: "Реши все номинации хотя бы за один месяц", icon: "🎊", xp: 40,
-      check: function () { return anyMonthFullyDecided(); } },
-    { id: "worst_given", name: "Антигерой", desc: "Присуди «Худший тайтл месяца»", icon: "🤢", xp: 25,
-      check: function () { return categoryEverWon("worst"); } },
-    { id: "cover_given", name: "Модный критик", desc: "Присуди «Обложка месяца»", icon: "💅", xp: 25,
-      check: function () { return categoryEverWon("cover"); } },
-    { id: "rock_bottom", name: "Дно", desc: "Поставь тайтлу оценку 1 по всем критериям", icon: "🤮", xp: 25,
+    { id: "rated_150", category: "Оценки", name: "Гуру оценок", desc: "Оцени 150 тайтлов", icon: "🧠", xp: 120,
+      check: function () { return ratedTitlesCount() >= 150; } },
+    { id: "rated_250", category: "Оценки", name: "Ходячая энциклопедия", desc: "Оцени 250 тайтлов", icon: "📊", xp: 200,
+      check: function () { return ratedTitlesCount() >= 250; } },
+    { id: "perfect_score", category: "Оценки", name: "Идеал", desc: "Поставь тайтлу 100/100 по всем критериям", icon: "💯", xp: 35,
+      check: function () { return perfectScoreEver(); } },
+    { id: "rock_bottom", category: "Оценки", name: "Дно", desc: "Поставь тайтлу оценку 1 по всем критериям", icon: "🤮", xp: 25,
       check: function () { return rockBottomEver(); } },
-    { id: "dropper_10", name: "Серийный дроппер", desc: "Дропни 10 тайтлов", icon: "📉", xp: 40,
+
+    // Рецензии
+    { id: "first_review", category: "Рецензии", name: "Рецензент", desc: "Напиши первую рецензию при оценке", icon: "📝", xp: 20,
+      check: function () { return reviewCount() >= 1; } },
+    { id: "review_10", category: "Рецензии", name: "Плодовитый автор", desc: "Напиши 10 рецензий", icon: "🖋️", xp: 70,
+      check: function () { return reviewCount() >= 10; } },
+    { id: "review_25", category: "Рецензии", name: "Литературный критик", desc: "Напиши 25 рецензий", icon: "📰", xp: 130,
+      check: function () { return reviewCount() >= 25; } },
+
+    // Премии
+    { id: "first_award", category: "Премии", name: "Первая победа", desc: "Выиграй первую номинацию в премии", icon: "🏆", xp: 20,
+      check: function () { return totalAwardWinsCount() >= 1; } },
+    { id: "award_10", category: "Премии", name: "Хозяин наград", desc: "Выиграй 10 номинаций суммарно", icon: "🏅", xp: 70,
+      check: function () { return totalAwardWinsCount() >= 10; } },
+    { id: "award_25", category: "Премии", name: "Коллекция кубков", desc: "Выиграй 25 номинаций суммарно", icon: "🥇", xp: 140,
+      check: function () { return totalAwardWinsCount() >= 25; } },
+    { id: "ceremony_full", category: "Премии", name: "Церемония закрыта", desc: "Реши все номинации хотя бы за один месяц", icon: "🎊", xp: 40,
+      check: function () { return anyMonthFullyDecided(); } },
+    { id: "ceremony_full_3", category: "Премии", name: "Постоянный организатор", desc: "Полностью реши номинации за 3 разных месяца", icon: "📅", xp: 90,
+      check: function () { return monthsFullyDecidedCount() >= 3; } },
+    { id: "year_champion", category: "Премии", name: "Тайтл года", desc: "Стань свидетелем «Тайтла года» хотя бы раз", icon: "👑", xp: 60,
+      check: function () { return anyYearHasChampion(); } },
+    { id: "won_art", category: "Премии", name: "Признанный художник", desc: "Выиграй номинацию «Лучшая рисовка»", icon: "🖌️", xp: 25,
+      check: function () { return categoryEverWon("Рисовка"); } },
+    { id: "won_plot", category: "Премии", name: "Мастер сюжета", desc: "Выиграй номинацию «Лучший сюжет»", icon: "📖", xp: 25,
+      check: function () { return categoryEverWon("Сюжет"); } },
+    { id: "won_chars", category: "Премии", name: "Кастинг-директор", desc: "Выиграй номинацию «Лучшие персонажи»", icon: "🎭", xp: 25,
+      check: function () { return categoryEverWon("Персонажи"); } },
+    { id: "won_pace", category: "Премии", name: "Чувство ритма", desc: "Выиграй номинацию «Лучший темп»", icon: "⏱️", xp: 25,
+      check: function () { return categoryEverWon("Темп/Ритм"); } },
+    { id: "won_mood", category: "Премии", name: "Атмосферный критик", desc: "Выиграй номинацию «Лучшая атмосфера»", icon: "🌫️", xp: 25,
+      check: function () { return categoryEverWon("Атмосфера"); } },
+    { id: "cover_given", category: "Премии", name: "Модный критик", desc: "Присуди «Обложка месяца»", icon: "💅", xp: 25,
+      check: function () { return categoryEverWon("cover"); } },
+    { id: "worst_given", category: "Премии", name: "Антигерой", desc: "Присуди «Худший тайтл месяца»", icon: "🤢", xp: 25,
+      check: function () { return categoryEverWon("worst"); } },
+    { id: "all_categories", category: "Премии", name: "Полный комплект", desc: "Выиграй все номинации хотя бы по разу", icon: "🌟", xp: 200,
+      check: function () { return allAwardCategoriesEverWon(); } },
+
+    // Статусы
+    { id: "dropper_10", category: "Статусы", name: "Серийный дроппер", desc: "Дропни 10 тайтлов", icon: "📉", xp: 40,
       check: function () { return droppedTitlesCount() >= 10; } },
-    { id: "streak_7", name: "Серия из 7", desc: "7 дней активности подряд", icon: "🔥", xp: 40,
+    { id: "dropper_25", category: "Статусы", name: "Безжалостный", desc: "Дропни 25 тайтлов", icon: "⚔️", xp: 90,
+      check: function () { return droppedTitlesCount() >= 25; } },
+    { id: "completed_50", category: "Статусы", name: "Финишер", desc: "Заверши 50 тайтлов", icon: "🏁", xp: 60,
+      check: function () { return countByStatus("done") >= 50; } },
+    { id: "completed_150", category: "Статусы", name: "Марафонец чтения", desc: "Заверши 150 тайтлов", icon: "🎽", xp: 150,
+      check: function () { return countByStatus("done") >= 150; } },
+    { id: "planned_20", category: "Статусы", name: "Список мечты", desc: "20 тайтлов в статусе «В планах»", icon: "📋", xp: 20,
+      check: function () { return countByStatus("plan") >= 20; } },
+    { id: "reading_5", category: "Статусы", name: "Многозадачность", desc: "5 тайтлов одновременно в статусе «Читаю»", icon: "🤹", xp: 20,
+      check: function () { return countByStatus("reading") >= 5; } },
+
+    // Активность
+    { id: "streak_3", category: "Активность", name: "Серия из 3", desc: "3 дня активности подряд", icon: "🔥", xp: 15,
+      check: function () { return longestStreakDays() >= 3; } },
+    { id: "streak_7", category: "Активность", name: "Серия из 7", desc: "7 дней активности подряд", icon: "🔥", xp: 40,
       check: function () { return longestStreakDays() >= 7; } },
-    { id: "streak_30", name: "Железная воля", desc: "30 дней активности подряд", icon: "🔥", xp: 100,
+    { id: "streak_14", category: "Активность", name: "Серия из 14", desc: "14 дней активности подряд", icon: "🔥", xp: 70,
+      check: function () { return longestStreakDays() >= 14; } },
+    { id: "streak_30", category: "Активность", name: "Железная воля", desc: "30 дней активности подряд", icon: "🔥", xp: 100,
       check: function () { return longestStreakDays() >= 30; } },
-    { id: "rank_legend", name: "Легенда", desc: "Достигни ранга «Легенда»", icon: "👑", xp: 0,
+    { id: "streak_60", category: "Активность", name: "Одержимость", desc: "60 дней активности подряд", icon: "💫", xp: 180,
+      check: function () { return longestStreakDays() >= 60; } },
+    { id: "streak_100", category: "Активность", name: "Легенда постоянства", desc: "100 дней активности подряд", icon: "🌠", xp: 300,
+      check: function () { return longestStreakDays() >= 100; } },
+    { id: "night_owl", category: "Активность", name: "Ночная сова", desc: "Сделай что-нибудь между полуночью и 4 утра", icon: "🦉", xp: 15,
+      check: function () { return activityInHourRange(0, 4); } },
+    { id: "early_bird", category: "Активность", name: "Ранняя пташка", desc: "Сделай что-нибудь между 4 и 7 утра", icon: "🐦", xp: 15,
+      check: function () { return activityInHourRange(4, 7); } },
+    { id: "busy_day", category: "Активность", name: "День марафона", desc: "10+ действий за один день", icon: "⚡", xp: 30,
+      check: function () { return maxActionsInOneDay() >= 10; } },
+
+    // Ранг
+    { id: "rank_legend", category: "Ранг", name: "Легенда", desc: "Достигни ранга «Легенда»", icon: "👑", xp: 0,
       check: function () { return state.totalXp >= 13000; } }
   ];
 
@@ -342,6 +489,17 @@
 
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
+    {
+      version: "60",
+      type: "feature",
+      title: "Достижения — отдельная вкладка, в разы больше ачивок",
+      items: [
+        "Новая вкладка «Ачивки» между «Премией» и «Профилем»",
+        "Список вырос с 19 до 55 достижений — по категориям: Библиотека, Жанры и типы, Оценки, Рецензии, Премии, Статусы, Активность, Ранг",
+        "Новое: отдельные ачивки за победу в каждой номинации премии, «Тайтл года», разнообразие жанров, все 3 типа сразу, идеальная оценка 100/100, дропы, серии активности до 100 дней подряд, «сова»/«жаворонок» и марафон из 10+ действий за день",
+        "Проверка достижений теперь идёт при любом сохранении, а не только при оценке/статусе/наградах — жанры, теги и свои критерии тоже учитываются"
+      ]
+    },
     {
       version: "59",
       type: "update",
@@ -1541,6 +1699,7 @@
       state.error = "Не удалось сохранить данные на этом устройстве.";
       render();
     });
+    checkAchievements();
   }
 
   function saveAwards() {
@@ -2978,26 +3137,40 @@
     );
   }
 
-  function renderAchievementsPanel() {
+  function renderAchievementsTab() {
     var unlockedCount = ACHIEVEMENTS.filter(function (a) { return !!state.unlockedAchievements[a.id]; }).length;
-    var rows = ACHIEVEMENTS.map(function (a) {
-      var unlocked = !!state.unlockedAchievements[a.id];
+
+    var sections = ACHIEVEMENT_CATEGORIES.map(function (cat) {
+      var items = ACHIEVEMENTS.filter(function (a) { return a.category === cat; });
+      if (!items.length) return "";
+      var catUnlocked = items.filter(function (a) { return !!state.unlockedAchievements[a.id]; }).length;
+      var rows = items.map(function (a) {
+        var unlocked = !!state.unlockedAchievements[a.id];
+        return (
+          '<div class="mt-achv-row' + (unlocked ? " unlocked" : "") + '">' +
+          '<span class="mt-achv-icon">' + a.icon + "</span>" +
+          '<div class="mt-achv-body">' +
+          '<div class="mt-achv-name">' + escapeHtml(a.name) + "</div>" +
+          '<div class="mt-achv-desc">' + escapeHtml(a.desc) + "</div>" +
+          "</div>" +
+          (unlocked ? '<span class="mt-achv-check">✓</span>' : "") +
+          "</div>"
+        );
+      }).join("");
       return (
-        '<div class="mt-achv-row' + (unlocked ? " unlocked" : "") + '">' +
-        '<span class="mt-achv-icon">' + a.icon + "</span>" +
-        '<div class="mt-achv-body">' +
-        '<div class="mt-achv-name">' + escapeHtml(a.name) + "</div>" +
-        '<div class="mt-achv-desc">' + escapeHtml(a.desc) + "</div>" +
-        "</div>" +
-        (unlocked ? '<span class="mt-achv-check">✓</span>' : "") +
+        '<div class="mt-paper">' +
+        '<div class="mt-panel-title">' + escapeHtml(cat.toUpperCase()) + " · " + catUnlocked + "/" + items.length + "</div>" +
+        '<div class="mt-achv-list">' + rows + "</div>" +
         "</div>"
       );
     }).join("");
+
     return (
-      '<div class="mt-paper">' +
-      '<div class="mt-panel-title">ДОСТИЖЕНИЯ · ' + unlockedCount + " ИЗ " + ACHIEVEMENTS.length + "</div>" +
-      '<div class="mt-achv-list">' + rows + "</div>" +
-      "</div>"
+      '<div class="mt-header">' +
+      '<div class="mt-title-row"><div class="mt-title">🎖️ ДОСТИЖЕНИЯ</div></div>' +
+      '<div class="mt-subrow"><div class="mt-subtitle">Получено ' + unlockedCount + " из " + ACHIEVEMENTS.length + "</div></div>" +
+      "</div>" +
+      '<div class="mt-list">' + sections + "</div>"
     );
   }
 
@@ -3017,7 +3190,6 @@
       "</div>" + renderErrorBanner() +
       '<div class="mt-list">' +
       renderRankPanel() +
-      renderAchievementsPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
       '<div class="mt-chip"><div class="mt-chip-value" style="color:#FFB238">' +
@@ -3168,6 +3340,7 @@
     var tabs = [
       ["library", "Библиотека", ICON_BOOK],
       ["awards", "Премия", '<span class="mt-tab-emoji">🏆</span>'],
+      ["achievements", "Ачивки", '<span class="mt-tab-emoji">🎖️</span>'],
       ["profile", "Профиль", ICON_USER]
     ];
     var inner = tabs.map(function (t) {
@@ -3203,6 +3376,8 @@
       body = renderLibrary();
     } else if (state.tab === "awards") {
       body = renderAwardsTab();
+    } else if (state.tab === "achievements") {
+      body = renderAchievementsTab();
     } else {
       body = renderProfile();
     }
