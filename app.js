@@ -490,6 +490,15 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "62",
+      type: "feature",
+      title: "Все ранги в одном месте",
+      items: [
+        "На вкладке «Профиль», под панелью ранга — кнопка «Все ранги», разворачивает полную лестницу всех 9 рангов",
+        "Пройденные ранги подсвечены и с галочкой, текущий выделен отдельно («ВЫ ЗДЕСЬ»), будущие — приглушены, с диапазоном XP для каждого"
+      ]
+    },
+    {
       version: "61",
       type: "feature",
       title: "Работает как Telegram Mini App",
@@ -1127,6 +1136,7 @@
     awardsCandidatesConfirmed: false,
     candidatePanelOpen: false,
     statusPickerOpen: false,
+    showAllRanks: false,
     unlockedIds: {},
     error: null
   };
@@ -3143,8 +3153,32 @@
       '<div class="mt-rank-progress-track"><div class="mt-rank-progress-fill" style="width:' + progressPct +
       "%;background:linear-gradient(90deg," + grad + ')"></div></div>' +
       '<div class="mt-rank-progress-label">' + escapeHtml(progressLabel) + "</div>" +
-      "</div>"
+      '<button class="mt-rank-ladder-toggle" id="rank-ladder-toggle">Все ранги ' + (state.showAllRanks ? "▴" : "▾") + "</button>" +
+      "</div>" +
+      (state.showAllRanks ? renderRankLadder(idx) : "")
     );
+  }
+
+  // Full ladder of every rank tier — reached ones lit up and checked off,
+  // the current one glowing and labelled, everything above still dim.
+  function renderRankLadder(currentIdx) {
+    var rows = RANKS.map(function (r, i) {
+      var grad = r.gradient.join(",");
+      var reached = i <= currentIdx;
+      var isCurrent = i === currentIdx;
+      var rangeLabel = RANKS[i + 1] ? (r.minXp + "–" + (RANKS[i + 1].minXp - 1) + " XP") : (r.minXp + "+ XP");
+      return (
+        '<div class="mt-rank-ladder-row' + (reached ? " reached" : "") + (isCurrent ? " current" : "") + '">' +
+        '<span class="mt-rank-ladder-icon" style="background:linear-gradient(135deg,' + grad + ')">' + r.icon + "</span>" +
+        '<div class="mt-rank-ladder-body">' +
+        '<div class="mt-rank-ladder-name">' + escapeHtml(r.name) + (isCurrent ? ' <span class="mt-rank-ladder-here">— ВЫ ЗДЕСЬ</span>' : "") + "</div>" +
+        '<div class="mt-rank-ladder-range">' + rangeLabel + "</div>" +
+        "</div>" +
+        (reached ? '<span class="mt-rank-ladder-check">✓</span>' : "") +
+        "</div>"
+      );
+    }).join("");
+    return '<div class="mt-paper mt-rank-ladder">' + rows + "</div>";
   }
 
   function renderAchievementsTab() {
@@ -3737,6 +3771,12 @@
     var candidatePanelToggle = document.getElementById("candidate-panel-toggle");
     if (candidatePanelToggle) candidatePanelToggle.addEventListener("click", function () {
       state.candidatePanelOpen = !state.candidatePanelOpen;
+      render();
+    });
+
+    var rankLadderToggle = document.getElementById("rank-ladder-toggle");
+    if (rankLadderToggle) rankLadderToggle.addEventListener("click", function () {
+      state.showAllRanks = !state.showAllRanks;
       render();
     });
 
