@@ -490,6 +490,16 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "61",
+      type: "feature",
+      title: "Работает как Telegram Mini App",
+      items: [
+        "Приложение теперь можно открыть внутри Telegram по кнопке у бота — без переустановки и без сервера, тот же сайт",
+        "Внутри Telegram шапка/фон подстраиваются под тёмную тему приложения, а системная кнопка «назад» Telegram сворачивает открытую карточку/чейнджлог так же, как кнопка ← в самом приложении",
+        "Вне Telegram (обычный браузер, установленный PWA) — ничего не изменилось, всё работает как раньше"
+      ]
+    },
+    {
       version: "60",
       type: "feature",
       title: "Достижения — отдельная вкладка, в разы больше ачивок",
@@ -3387,6 +3397,7 @@
     app.innerHTML = '<div class="mt-shell">' + body + "</div>" + (showTabs ? renderTabbar() : "") +
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "");
     attachHandlers(selected);
+    syncTelegramBackButton();
 
     var viewKey = state.showChangelog ? "changelog" :
       (selected ? "detail:" + selected.id : "tab:" + state.tab);
@@ -3670,15 +3681,7 @@
 
     // back button
     var backBtn = document.getElementById("back-btn");
-    if (backBtn) backBtn.addEventListener("click", function () {
-      if (state.selectedId) delete state.unlockedIds[state.selectedId];
-      state.selectedId = null;
-      state.addingCriterion = false;
-      state.pendingGenreDraft = "";
-      state.candidatePanelOpen = false;
-      state.statusPickerOpen = false;
-      render();
-    });
+    if (backBtn) backBtn.addEventListener("click", goBack);
 
     var openChangelogBtn = document.getElementById("open-changelog");
     if (openChangelogBtn) openChangelogBtn.addEventListener("click", function () {
@@ -3691,23 +3694,14 @@
     });
 
     var changelogBackBtn = document.getElementById("changelog-back-btn");
-    if (changelogBackBtn) changelogBackBtn.addEventListener("click", function () {
-      state.showChangelog = false;
-      render();
-    });
+    if (changelogBackBtn) changelogBackBtn.addEventListener("click", goBack);
 
     var revealCloseBtn = document.getElementById("reveal-close-btn");
-    if (revealCloseBtn) revealCloseBtn.addEventListener("click", function () {
-      state.revealManhwaId = null;
-      render();
-    });
+    if (revealCloseBtn) revealCloseBtn.addEventListener("click", goBack);
 
     var revealBackdrop = document.getElementById("reveal-backdrop");
     if (revealBackdrop) revealBackdrop.addEventListener("click", function (e) {
-      if (e.target === revealBackdrop) {
-        state.revealManhwaId = null;
-        render();
-      }
+      if (e.target === revealBackdrop) goBack();
     });
 
     app.querySelectorAll("[data-pick-winner]").forEach(function (row) {
@@ -4176,6 +4170,50 @@
         }, 4000);
       }
     });
+  }
+
+  // Single "go back" action shared by the in-app ← buttons and (when running
+  // as a Telegram Mini App) the platform's own BackButton — closes whichever
+  // "sub-page" is currently open, innermost first.
+  function goBack() {
+    if (state.revealManhwaId) {
+      state.revealManhwaId = null;
+      render();
+      return;
+    }
+    if (state.showChangelog) {
+      state.showChangelog = false;
+      render();
+      return;
+    }
+    if (state.selectedId) {
+      delete state.unlockedIds[state.selectedId];
+      state.selectedId = null;
+      state.addingCriterion = false;
+      state.pendingGenreDraft = "";
+      state.candidatePanelOpen = false;
+      state.statusPickerOpen = false;
+      render();
+    }
+  }
+
+  /* ---------- Telegram Mini App integration (optional) ---------- */
+  // Entirely a no-op in a normal browser/installed-PWA session — everything
+  // here is guarded behind `tg` existing, i.e. only runs inside Telegram.
+  var tg = (window.Telegram && window.Telegram.WebApp) || null;
+  if (tg) {
+    try {
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor("#0D0A14");
+      tg.setBackgroundColor("#0D0A14");
+      if (tg.BackButton) tg.BackButton.onClick(function () { goBack(); });
+    } catch (e) {}
+  }
+  function syncTelegramBackButton() {
+    if (!tg || !tg.BackButton) return;
+    var hasBack = !!(state.selectedId || state.showChangelog || state.revealManhwaId);
+    try { hasBack ? tg.BackButton.show() : tg.BackButton.hide(); } catch (e) {}
   }
 
   /* ---------- boot ---------- */
