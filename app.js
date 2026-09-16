@@ -490,6 +490,17 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "64",
+      type: "update",
+      title: "Выровненные отступы по всему приложению",
+      items: [
+        "Шапка (заголовок вкладки) теперь точно совпадает по краям с карточками под ней — раньше была на 2px правее",
+        "Все кликабельные строки-списки (номинанты премии, статусы, достижения, результаты поиска AniList) приведены к единому отступу и скруглению — теперь выглядят как одно семейство, а не по-разному в каждой вкладке",
+        "Кнопки и поля ввода чуть выше — удобнее нажимать, и высоты выровнены между собой",
+        "Вся точечная разница в отступах (10px/9px/7px и т.д.) убрана в пользу единой сетки — меньше визуального шума, больше ощущения продуманности"
+      ]
+    },
+    {
       version: "63",
       type: "update",
       title: "Новая палитра — спокойная, серо-белая",
@@ -2201,14 +2212,14 @@
       if (canEditWinners(monthKey)) {
         html +=
           '<button class="mt-ghost-btn' + (editConfirming ? " mt-edit-winners-confirming" : "") +
-          '" id="edit-winners-btn" data-month="' + monthKey + '" style="width:100%;margin-top:10px">' +
+          '" id="edit-winners-btn" data-month="' + monthKey + '" style="width:100%;margin-top:12px">' +
           (editConfirming
             ? "Точно? Это единственная правка в этом месяце — нажми ещё раз"
             : "✎ Изменить кандидатов и победителей (доступно 1 раз в месяц)") +
           "</button>";
       } else {
         html +=
-          '<div class="mt-ceremony-hint" style="text-align:center;margin-top:10px">' +
+          '<div class="mt-ceremony-hint" style="text-align:center;margin-top:12px">' +
           "Правка победителей в этом месяце уже использована</div>";
       }
 
@@ -2270,7 +2281,7 @@
         pickRows +
         '<button class="mt-primary-btn" id="confirm-candidates-btn"' +
         (candidateIds.length === 0 ? " disabled" : "") +
-        ' style="width:100%;margin-top:10px">Готово — выбрать победителя (' + candidateIds.length + ')</button>' +
+        ' style="width:100%;margin-top:12px">Готово — выбрать победителя (' + candidateIds.length + ')</button>' +
         "</div>";
     } else {
       // Step 2: crown one of the chosen candidates.
@@ -2295,7 +2306,7 @@
         '<div class="mt-ceremony-hint">Выбери победителя среди кандидатов — выбор нельзя будет изменить</div>' +
         rows +
         '<button class="mt-ghost-btn" id="edit-candidates-btn"' +
-        ' style="width:100%;margin-top:10px">✎ Изменить список кандидатов</button>' +
+        ' style="width:100%;margin-top:12px">✎ Изменить список кандидатов</button>' +
         "</div>";
     }
 
@@ -2588,7 +2599,7 @@
       '<input class="mt-input" id="new-genre-input" placeholder="Свой жанр" value="' +
       escapeHtml(state.pendingGenreDraft) + '" />' +
       '<button class="mt-primary-btn" id="add-genre-btn" data-manhwa-id="' + m.id +
-      '" style="flex:0 0 auto;padding:10px 16px">+</button>' +
+      '" style="flex:0 0 auto;padding:12px 16px">+</button>' +
       "</div></div>"
     );
   }
@@ -2823,7 +2834,7 @@
     var label = "🏆 Кандидат в премию" + (pickedCount > 0 ? " (" + pickedCount + "/" + info.categories.length + ")" : "");
     return (
       '<button class="mt-ghost-btn' + (pickedCount > 0 ? " mt-candidate-toggle-active" : "") +
-      '" id="candidate-panel-toggle" data-manhwa-id="' + m.id + '" style="width:100%;margin-bottom:10px">' +
+      '" id="candidate-panel-toggle" data-manhwa-id="' + m.id + '" style="width:100%;margin-bottom:12px">' +
       label + " " + (open ? "▾" : "▸") +
       "</button>"
     );
@@ -3344,7 +3355,7 @@
             topPos.map(tagRow).join("") + "</div>"
           : "") +
         (topNeg.length
-          ? '<div class="mt-tag-group-label mt-tag-group-neg" style="margin-top:10px">Слабые стороны</div><div class="mt-tag-stat-row">' +
+          ? '<div class="mt-tag-group-label mt-tag-group-neg" style="margin-top:12px">Слабые стороны</div><div class="mt-tag-stat-row">' +
             topNeg.map(tagRow).join("") + "</div>"
           : "") +
         "</div>";
