@@ -98,15 +98,15 @@
 
   // Rank tiers, lowest first. Each needs a strictly higher minXp than the last.
   var RANKS = [
-    { name: "Новичок", minXp: 0, gradient: ["#6B7280", "#9CA3AF"], icon: "🌱" },
-    { name: "Любитель", minXp: 200, gradient: ["#22C55E", "#4ADE80"], icon: "📖" },
-    { name: "Читатель", minXp: 500, gradient: ["#06B6D4", "#22D3EE"], icon: "📚" },
-    { name: "Знаток", minXp: 1000, gradient: ["#3B82F6", "#6C93FF"], icon: "🔎" },
-    { name: "Ценитель", minXp: 2000, gradient: ["#8B5CF6", "#A78BFA"], icon: "🎭" },
-    { name: "Эксперт", minXp: 3500, gradient: ["#EC4899", "#FF5C77"], icon: "⭐" },
-    { name: "Мастер", minXp: 5500, gradient: ["#FFB238", "#FFD27A"], icon: "🎖️" },
-    { name: "Виртуоз", minXp: 8500, gradient: ["#FF3D9A", "#FFB238"], icon: "💎" },
-    { name: "Легенда", minXp: 13000, gradient: ["#FF3D9A", "#FFB238", "#6C93FF"], icon: "👑" }
+    { name: "Новичок", minXp: 0, gradient: ["#6E6C6E", "#A8A6A8"], icon: "🌱" },
+    { name: "Любитель", minXp: 200, gradient: ["#7A9B8A", "#9FBFAE"], icon: "📖" },
+    { name: "Читатель", minXp: 500, gradient: ["#5C8AA0", "#7FB4CC"], icon: "📚" },
+    { name: "Знаток", minXp: 1000, gradient: ["#6478A8", "#8CA0D0"], icon: "🔎" },
+    { name: "Ценитель", minXp: 2000, gradient: ["#8C7FA0", "#B0A0C4"], icon: "🎭" },
+    { name: "Эксперт", minXp: 3500, gradient: ["#A87C8C", "#D9838F"], icon: "⭐" },
+    { name: "Мастер", minXp: 5500, gradient: ["#C9BFA8", "#D9C9A0"], icon: "🎖️" },
+    { name: "Виртуоз", minXp: 8500, gradient: ["#E7E3DC", "#C9BFA8"], icon: "💎" },
+    { name: "Легенда", minXp: 13000, gradient: ["#E7E3DC", "#C9BFA8", "#8CA0D0"], icon: "👑" }
   ];
 
   function rankIndexForXp(xp) {
@@ -396,16 +396,16 @@
   }
 
   var STATUSES = [
-    { id: "reading", label: "Читаю", color: "#22D3EE" },
-    { id: "done", label: "Завершено", color: "#34D399" },
-    { id: "dropped", label: "Дропнул", color: "#FF5C77" },
-    { id: "plan", label: "В планах", color: "#FFB238" }
+    { id: "reading", label: "Читаю", color: "#7FB4CC" },
+    { id: "done", label: "Завершено", color: "#7FBF9B" },
+    { id: "dropped", label: "Дропнул", color: "#D9838F" },
+    { id: "plan", label: "В планах", color: "#C9BFA8" }
   ];
 
   var TYPES = [
-    { id: "manhwa", label: "Манхва", color: "#FF5C77" },
-    { id: "manga", label: "Манга", color: "#6C93FF" },
-    { id: "manhua", label: "Маньхуа", color: "#F3A93C" }
+    { id: "manhwa", label: "Манхва", color: "#D9838F" },
+    { id: "manga", label: "Манга", color: "#8CA0D0" },
+    { id: "manhua", label: "Маньхуа", color: "#C9A055" }
   ];
 
   var GENRE_SUGGESTIONS = [
@@ -489,6 +489,18 @@
 
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
+    {
+      version: "63",
+      type: "update",
+      title: "Новая палитра — спокойная, серо-белая",
+      items: [
+        "Полностью пересмотрены цвета по всему приложению — вместо ярких розового и янтарного теперь приглушённая тёпло-серая палитра с белым/бежевым акцентом",
+        "Кнопки, активные вкладки, слайдеры, фокус на полях, свечения — везде новый спокойный акцент вместо неона",
+        "Статусы, типы, цвета оценок (плохо/средне/хорошо) остались функционально различимыми, но менее «кричащими»",
+        "Ранги (профиль) теперь визуально «прогревают» палитру от серого к тёплому серебристо-золотому по мере роста — от «Новичка» до «Легенды»",
+        "Фон, карточки, тени — без прежнего фиолетового оттенка, чистый нейтральный тёмно-серый"
+      ]
+    },
     {
       version: "62",
       type: "feature",
@@ -1203,19 +1215,19 @@
   }
 
   function scoreColor(v) {
-    if (v === null || v === undefined) return "#8880A0";
-    if (v < 50) return "#FF5C77";
-    if (v < 75) return "#F3A93C";
-    return "#34D399";
+    if (v === null || v === undefined) return "#7C7A7C";
+    if (v < 50) return "#D9838F";
+    if (v < 75) return "#C9A055";
+    return "#7FBF9B";
   }
 
   // Same idea as scoreColor but for a single criterion's raw 1–10 value
   // (used for sliders/bars and criterion-specific award nominees).
   function criterionColor(v) {
-    if (v === null || v === undefined) return "#8880A0";
-    if (v < 5) return "#FF5C77";
-    if (v < 7.5) return "#F3A93C";
-    return "#34D399";
+    if (v === null || v === undefined) return "#7C7A7C";
+    if (v < 5) return "#D9838F";
+    if (v < 7.5) return "#C9A055";
+    return "#7FBF9B";
   }
 
   // "legacy" — manhwa added before the emotion-pick system existed, skip straight to normal rating
@@ -1774,14 +1786,14 @@
   function radarSvg(criteria, opts) {
     opts = opts || {};
     var size = opts.size || 220;
-    var fill = opts.fillColor || "#FFB238";
-    var dot = opts.dotColor || "#FFB238";
+    var fill = opts.fillColor || "#C9BFA8";
+    var dot = opts.dotColor || "#C9BFA8";
     var n = criteria.length;
 
     if (n < 3) {
       return (
         '<div style="height:' + size * 0.6 + "px;display:flex;align-items:center;justify-content:center;" +
-        'color:#9A93AE;font-size:13px;text-align:center;padding:0 20px;">' +
+        'color:#9B999B;font-size:13px;text-align:center;padding:0 20px;">' +
         "Нужно хотя бы 3 критерия для диаграммы</div>"
       );
     }
@@ -1830,7 +1842,7 @@
 
     valuePoints.forEach(function (p) {
       svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4" fill="' + dot +
-        '" stroke="#120F1A" stroke-width="1.2" />';
+        '" stroke="#17171A" stroke-width="1.2" />';
     });
 
     criteria.forEach(function (c, i) {
@@ -1839,7 +1851,7 @@
       var ly = center + (maxR + 20) * Math.sin(angle);
       var label = c.name.length > 10 ? c.name.slice(0, 9) + "…" : c.name;
       svg += '<text x="' + lx + '" y="' + ly + '" text-anchor="middle" dominant-baseline="middle" ' +
-        'font-family="Manrope, sans-serif" font-weight="700" font-size="11" fill="#C9C2DA">' +
+        'font-family="Manrope, sans-serif" font-weight="700" font-size="11" fill="#B8B6B8">' +
         escapeHtml(label) + "</text>";
     });
 
@@ -1982,9 +1994,9 @@
   }
 
   function changelogTypeMeta(type) {
-    if (type === "feature") return { label: "НОВОЕ", color: "#34D399" };
-    if (type === "fix") return { label: "ИСПРАВЛЕНИЕ", color: "#FF5C77" };
-    return { label: "ОБНОВЛЕНИЕ", color: "#6C93FF" };
+    if (type === "feature") return { label: "НОВОЕ", color: "#7FBF9B" };
+    if (type === "fix") return { label: "ИСПРАВЛЕНИЕ", color: "#D9838F" };
+    return { label: "ОБНОВЛЕНИЕ", color: "#8CA0D0" };
   }
 
   function renderYearSummary() {
@@ -2020,7 +2032,7 @@
     html +=
       '<div class="mt-chip-row" style="margin-top:14px">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + titles.length + '</div><div class="mt-chip-label">тайтлов за год</div></div>' +
-      '<div class="mt-chip"><div class="mt-chip-value" style="color:#FFB238">' +
+      '<div class="mt-chip"><div class="mt-chip-value" style="color:#C9BFA8">' +
       (avg === null ? "—" : Math.round(avg)) + '</div><div class="mt-chip-label">средняя оценка</div></div>' +
       "</div>";
 
@@ -2135,11 +2147,11 @@
       '<div class="mt-filter-row">' +
       '<button class="mt-filter-chip' + (state.awardsView === "month" ? " active" : "") +
       '" data-awards-view="month" style="' + (state.awardsView === "month" ?
-        "background:var(--amber);color:#0D0A14;border-color:var(--amber)" : "border-color:rgba(255,178,56,0.4);color:var(--amber)") +
+        "background:var(--amber);color:#0E0E10;border-color:var(--amber)" : "border-color:rgba(201,191,168,0.4);color:var(--amber)") +
       '">Месяц</button>' +
       '<button class="mt-filter-chip' + (state.awardsView === "year" ? " active" : "") +
       '" data-awards-view="year" style="' + (state.awardsView === "year" ?
-        "background:var(--amber);color:#0D0A14;border-color:var(--amber)" : "border-color:rgba(255,178,56,0.4);color:var(--amber)") +
+        "background:var(--amber);color:#0E0E10;border-color:var(--amber)" : "border-color:rgba(201,191,168,0.4);color:var(--amber)") +
       '">Год</button>' +
       "</div>";
 
@@ -2334,7 +2346,7 @@
       return (
         '<button class="mt-filter-chip' + (active ? " active" : "") + '" data-filter="' + f.id +
         '" style="' + (active ?
-          "background:" + f.color + ";color:#0D0A14;border-color:" + f.color :
+          "background:" + f.color + ";color:#0E0E10;border-color:" + f.color :
           "border-color:" + f.color + "45;color:" + f.color) + '">' + f.label + "</button>"
       );
     }).join("");
@@ -2409,7 +2421,7 @@
         var active = state.pendingType === t.id;
         return (
           '<button class="mt-type-choice' + (active ? " active" : "") + '" data-pick-type="' + t.id +
-          '" style="' + (active ? "background:" + t.color + ";color:#120F1A;border-color:" + t.color :
+          '" style="' + (active ? "background:" + t.color + ";color:#17171A;border-color:" + t.color :
             "border-color:" + t.color + "55;color:" + t.color) + '">' + t.label + "</button>"
         );
       }).join("");
@@ -2673,9 +2685,9 @@
     function chip(label, positive) {
       var selected = tags.indexOf(label) !== -1;
       var disabled = !selected && atLimit;
-      var color = positive ? "#34D399" : "#FF5C77";
+      var color = positive ? "#7FBF9B" : "#D9838F";
       var style = selected
-        ? "background:" + color + ";color:#120F1A;border-color:" + color
+        ? "background:" + color + ";color:#17171A;border-color:" + color
         : disabled
         ? "border-color:rgba(255,255,255,0.08);color:var(--text-faint);opacity:0.5"
         : "border-color:" + color + "55;color:" + color;
@@ -2707,7 +2719,7 @@
     if (!tags.length) return "";
     var chips = tags.map(function (t) {
       var positive = POSITIVE_TAGS.indexOf(t) !== -1;
-      var color = positive ? "#34D399" : "#FF5C77";
+      var color = positive ? "#7FBF9B" : "#D9838F";
       return '<span class="mt-tag-chip" style="border-color:' + color + ";color:" + color +
         ";background:" + color + '18;">' + escapeHtml(t) + "</span>";
     }).join("");
@@ -2960,7 +2972,7 @@
     return (
       '<div class="mt-mini-row" data-open-id="' + m.id + '">' +
       '<div class="mt-mini-title">' + escapeHtml(m.title) + "</div>" +
-      '<span class="mt-mini-score" style="color:#FFB238">' +
+      '<span class="mt-mini-score" style="color:#C9BFA8">' +
       (avg === null ? "—" : Math.round(avg)) + "</span></div>"
     );
   }
@@ -3227,7 +3239,7 @@
     var html =
       '<div class="mt-profile-head">' +
       '<div class="mt-profile-avatar">' + ICON_USER + "</div>" +
-      '<div><div class="mt-profile-title">ПРОФИЛЬ<span style="color:#FF3D9A">.</span></div>' +
+      '<div><div class="mt-profile-title">ПРОФИЛЬ<span style="color:#E7E3DC">.</span></div>' +
       '<div class="mt-profile-sub">Статистика по всей библиотеке</div>' +
       renderRankBadge() +
       "</div>" +
@@ -3236,7 +3248,7 @@
       renderRankPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
-      '<div class="mt-chip"><div class="mt-chip-value" style="color:#FFB238">' +
+      '<div class="mt-chip"><div class="mt-chip-value" style="color:#C9BFA8">' +
       (overallAvg === null ? "—" : Math.round(overallAvg)) + '</div><div class="mt-chip-label">средняя оценка</div></div>' +
       "</div>";
 
@@ -3267,7 +3279,7 @@
         '<div class="mt-paper mt-radar-panel" style="align-items:flex-start">' +
         '<div class="mt-panel-title">СРЕДНЕЕ ПО КРИТЕРИЯМ</div>' +
         '<div style="width:100%;display:flex;justify-content:center">' +
-        radarSvg(agg, { fillColor: "#FFB238", dotColor: "#FFB238" }) + "</div></div>";
+        radarSvg(agg, { fillColor: "#C9BFA8", dotColor: "#C9BFA8" }) + "</div></div>";
     }
 
     if (agg.length > 0) {
@@ -3275,8 +3287,8 @@
         return (
           '<div class="mt-bar-row"><span class="mt-bar-name">' + escapeHtml(c.name) + "</span>" +
           '<div class="mt-bar-track"><div class="mt-bar-fill" style="width:' + (c.score / 10) * 100 +
-          '%;background:#FFB238;"></div></div>' +
-          '<span class="mt-bar-value" style="color:#FFB238">' + c.score.toFixed(1) + "</span></div>"
+          '%;background:#C9BFA8;"></div></div>' +
+          '<span class="mt-bar-value" style="color:#C9BFA8">' + c.score.toFixed(1) + "</span></div>"
         );
       }).join("");
       html += '<div class="mt-paper"><div class="mt-panel-title">ЧТО ТЫ ЦЕНИШЬ ВЫШЕ ВСЕГО</div>' + bars + "</div>";
@@ -3344,12 +3356,12 @@
 
     if (top.length > 0) {
       html +=
-        '<div class="mt-paper"><div class="mt-panel-title" style="color:#34D399">ТОП ПО ОЦЕНКЕ</div>' +
+        '<div class="mt-paper"><div class="mt-panel-title" style="color:#7FBF9B">ТОП ПО ОЦЕНКЕ</div>' +
         top.map(miniRowHtml).join("") + "</div>";
     }
     if (bottom.length > 0) {
       html +=
-        '<div class="mt-paper"><div class="mt-panel-title" style="color:#FF5C77">АУТСАЙДЕРЫ</div>' +
+        '<div class="mt-paper"><div class="mt-panel-title" style="color:#D9838F">АУТСАЙДЕРЫ</div>' +
         bottom.map(miniRowHtml).join("") + "</div>";
     }
 
@@ -4245,8 +4257,8 @@
     try {
       tg.ready();
       tg.expand();
-      tg.setHeaderColor("#0D0A14");
-      tg.setBackgroundColor("#0D0A14");
+      tg.setHeaderColor("#0E0E10");
+      tg.setBackgroundColor("#0E0E10");
       if (tg.BackButton) tg.BackButton.onClick(function () { goBack(); });
     } catch (e) {}
   }
