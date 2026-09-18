@@ -1,85 +1,129 @@
-const CACHE_NAME = 'am-tracker-v1';
-const STATIC_ASSETS = [
+const VERSION = 'am-tracker-v68';
+
+const REQUIRED_ASSETS = [
   './',
   './index.html',
-  './app.js',
   './styles.css',
+  './app.js',
   './manifest.json'
 ];
 
-// Install event: cache static assets
+const OPTIONAL_ASSETS = [
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png'
+];
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
-  self.skipWaiting(); // Activate immediately
+  event.waitUntil((async () => {
+    const cache = await caches.open(VERSION);
+
+    await Promise.all(
+      REQUIRED_ASSETS.map((asset) => cache.add(asset))
+    );
+
+    await Promise.allSettled(
+      OPTIONAL_ASSETS.map((asset) => cache.add(asset))
+    );
+
+    await self.skipWaiting();
+  })());
 });
 
-// Activate event: clean up old caches
 self.addEventListener('activate', (event) => {
-  const currentCaches = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (!currentCaches.includes(cacheName)) {
-            return caches.delete(cacheName);
-          }
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter((key) => key !== VERSION)
+        .map((key) => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  // Не-GET запросы: для AniList отдаём понятную офлайн-ошибку
+  if (request.method !== 'GET') {
+    if (url.hostname === 'graphql.anilist.co') {
+      event.respondWith(
+        fetch(request).catch(() => {
+          return new Response(
+            JSON.stringify({
+              data: { Page: { media: [] } },
+              errors: [{ message: 'Нет сети. Поиск AniList недоступен офлайн.' }]
+            }),
+            {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
         })
       );
-    })
-  );
-  self.clients.claim(); // Take control of all clients
-});
+    }
+    return;
+  }
 
-// Fetch event: Cache First for static, Network First for API
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  // Свои ресурсы
+  if (url.origin === self.location.origin) {
+    // Навигация: сеть -> фолбэк на index.html
+    if (request.mode === 'navigate') {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            const copy = response.clone();
+            caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+            return response;
+          })
+          .catch(() => caches.match('./index.html'))
+      );
+      return;
+    }
 
-  // Strategy for AniList API (Network First with fallback to cache if offline/error)
-  if (url.hostname === 'graphql.anilist.co') {
+    // Обычные GET-запросы: cache first
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Clone response and add to cache dynamically if needed, 
-          // but usually we don't want to cache dynamic GraphQL queries long-term.
-          // For now, just pass through. If strict offline search is needed, implement custom logic.
-          return response;
-        })
-        .catch(() => {
-          // Optional: Return a cached error message or empty result if network fails completely
-          return new Response(JSON.stringify({ errors: [{ message: 'Offline mode: Search unavailable' }] }), {
-            headers: { 'Content-Type': 'application/json' }
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+
+        return fetch(request)
+          .then((response) => {
+            if (response && response.ok && response.type === 'basic') {
+              const copy = response.clone();
+              caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
+            }
+            return response;
+          })
+          .catch(() => {
+            if (request.destination === 'document') {
+              return caches.match('./index.html');
+            }
+            return cached;
           });
-        })
+      })
     );
     return;
   }
 
-  // Strategy for Static Assets (Cache First)
+  // Внешние GET-запросы: network first, немного кэшируем успешные ответы
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      
-      return fetch(event.request).then((networkResponse) => {
-        // Update cache in background
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+    fetch(request)
+      .then((response) => {
+        if (
+          response &&
+          response.ok &&
+          (
+            url.hostname.endsWith('anilist.co') ||
+            url.hostname.endsWith('cloudinary.com')
+          )
+        ) {
+          const copy = response.clone();
+          caches.open(VERSION).then((cache) => cache.put(request, copy)).catch(() => {});
         }
-        return networkResponse;
-      }).catch(() => {
-        // Fallback for navigation requests (if index.html missing from cache somehow)
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
