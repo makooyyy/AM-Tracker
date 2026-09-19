@@ -7,6 +7,8 @@
  *   - Each title is its own Firestore document, last-write-wins by `updatedAt`.
  *     Deletions travel as tombstones so they reach the other devices.
  *   - Awards: one document, last-write-wins (union-merged on a device's first sync).
+ *   - Profile (nickname, bio, avatar): one document, last-write-wins; on a device's
+ *     first sync the account's existing profile wins over a blank local one.
  *   - XP / achievements: merged (max XP, union of achievements).
  *   - Activity log: append-only, union-merged, stored in one document per month.
  *   - "Clear everything" bumps an `epoch` so other devices drop their old copy too.
@@ -84,6 +86,9 @@
     }));
   }
 
+  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null }); }
+  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a); }
+
   function isEmptyAwards(a) {
     return !a || (!Object.keys(a.w || {}).length && !Object.keys(a.c || {}).length && !Object.keys(a.e || {}).length);
   }
@@ -160,6 +165,7 @@
       dirty: {},       // id -> 1 (needs pushing)
       awards: null,    // { h, u, dirty }
       progress: null,  // { h, dirty }
+      profile: null,   // { h, u, dirty }
       epoch: null,     // "cleared everything" generation; null until first sync
       logs: {},        // "YYYY-MM" -> hash of last known content
       logDirty: {},
@@ -172,8 +178,8 @@
   /* ------------------------------------------------------------------ */
 
   /*
-   * cfg.host    — the app: titles(), awards(), progress(), log(), commit(changes),
-   *               optional sanitizeTitle(obj)
+   * cfg.host    — the app: titles(), awards(), progress(), log(), profile(), commit(changes),
+   *               optional sanitizeTitle(obj), sanitizeProfile(obj)
    * cfg.remote  — pull(sinceMs) -> { docs, maxSrv }, push(docs, onConfirmed)
    * cfg.meta    — persisted per-device sync bookkeeping (see freshMeta)
    * cfg.saveMeta(meta) -> Promise
@@ -189,6 +195,7 @@
       var n = Object.keys(meta.dirty).length + Object.keys(meta.logDirty).length;
       if (meta.awards && meta.awards.dirty) n++;
       if (meta.progress && meta.progress.dirty) n++;
+      if (meta.profile && meta.profile.dirty) n++;
       return n;
     }
     function setState(patch) {
@@ -227,6 +234,10 @@
       if (meta.progress) {
         var ph = hashStr(canonProgress(host.progress()));
         if (ph !== meta.progress.h) meta.progress = { h: ph, dirty: true };
+      }
+      if (meta.profile && host.profile) {
+        var prh = hashStr(canonProfile(host.profile()));
+        if (prh !== meta.profile.h) meta.profile = { h: prh, u: now, dirty: true };
       }
 
       var months = groupLog(host.log());
@@ -338,6 +349,35 @@
       }
     }
 
+    function parseProfile(d) {
+      if (!d) return null;
+      try {
+        var o = JSON.parse(d.json);
+        if (!isObj(o)) return null;
+        var p = { n: typeof o.n === "string" ? o.n : "", b: typeof o.b === "string" ? o.b : "", a: isObj(o.a) ? o.a : null };
+        return host.sanitizeProfile ? host.sanitizeProfile(p) : p;
+      } catch (e) { return null; }
+    }
+
+    function handleProfile(d, ch) {
+      if (!host.profile) return;
+      var local = host.profile();
+      var remoteP = parseProfile(d);
+      if (!meta.profile) { // first time this device syncs the profile
+        if (remoteP) { // the account already has a profile — it wins over whatever is here
+          ch.profile = remoteP;
+          meta.profile = { h: hashStr(canonProfile(remoteP)), u: d.updatedAt, dirty: false };
+        } else {
+          meta.profile = { h: hashStr(canonProfile(local)), u: clock(), dirty: !isEmptyProfile(local) };
+        }
+        return;
+      }
+      if (remoteP && d.updatedAt > meta.profile.u) {
+        ch.profile = remoteP;
+        meta.profile = { h: hashStr(canonProfile(remoteP)), u: d.updatedAt, dirty: false };
+      }
+    }
+
     function handleLogChunk(d, ch) {
       if ((d.epoch || 0) < (meta.epoch || 0)) return; // written before the last "clear everything"
       var remoteEntries;
@@ -360,19 +400,21 @@
     }
 
     function applyDocs(docs) {
-      var ch = { titles: { put: [], del: [] }, awards: null, progress: null, logAdd: [], logReset: false };
-      var prog = null, aw = null, titles = [], logs = [];
+      var ch = { titles: { put: [], del: [] }, awards: null, progress: null, profile: null, logAdd: [], logReset: false };
+      var prog = null, aw = null, prof = null, titles = [], logs = [];
       docs.forEach(function (d) {
         if (d.kind === "progress") prog = d;
         else if (d.kind === "awards") aw = d;
+        else if (d.kind === "profile") prof = d;
         else if (d.kind === "t") titles.push(d);
         else if (d.kind === "log") logs.push(d);
       });
       handleProgress(prog, ch); // first: it may bump the epoch that the log chunks are checked against
       handleAwards(aw, ch);
+      handleProfile(prof, ch);
       titles.forEach(function (d) { handleTitle(d, ch); });
       logs.forEach(function (d) { handleLogChunk(d, ch); });
-      if (ch.titles.put.length || ch.titles.del.length || ch.awards || ch.progress || ch.logAdd.length || ch.logReset) {
+      if (ch.titles.put.length || ch.titles.del.length || ch.awards || ch.progress || ch.profile || ch.logAdd.length || ch.logReset) {
         host.commit(ch);
       }
     }
@@ -404,6 +446,12 @@
         var sentA = meta.awards.h;
         add(mk("awards", "awards", "", canonAwards(host.awards()), false, meta.awards.u), function () {
           if (meta.awards && meta.awards.h === sentA) meta.awards.dirty = false;
+        });
+      }
+      if (meta.profile && meta.profile.dirty && host.profile) {
+        var sentPr = meta.profile.h;
+        add(mk("profile", "profile", "", canonProfile(host.profile()), false, meta.profile.u), function () {
+          if (meta.profile && meta.profile.h === sentPr) meta.profile.dirty = false;
         });
       }
       if (meta.progress && meta.progress.dirty) {

@@ -9,7 +9,7 @@ service cloud.firestore {
 
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['kind', 'id', 'json', 'deleted', 'updatedAt', 'epoch', 'srv'])
-        && request.resource.data.kind in ['t', 'awards', 'progress', 'log']
+        && request.resource.data.kind in ['t', 'awards', 'progress', 'log', 'profile']
         && request.resource.data.id is string
         && request.resource.data.json is string
         && request.resource.data.json.size() < 500000
