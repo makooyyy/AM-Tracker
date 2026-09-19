@@ -609,7 +609,13 @@
     "auth/network-request-failed": "Нет связи с сервером. Проверь интернет.",
     "auth/user-disabled": "Этот аккаунт отключён.",
     "auth/requires-recent-login": "Нужно подтвердить пароль ещё раз.",
-    "auth/operation-not-allowed": "Вход по почте не включён в настройках Firebase."
+    "auth/operation-not-allowed": "Этот способ входа не включён в настройках Firebase.",
+    "auth/popup-blocked": "Браузер заблокировал окно входа. Разреши всплывающие окна для этого сайта и попробуй ещё раз.",
+    "auth/popup-closed-by-user": "Окно входа Google было закрыто.",
+    "auth/cancelled-popup-request": "Вход отменён.",
+    "auth/account-exists-with-different-credential": "Эта почта уже используется с другим способом входа. Войди так, как регистрировался.",
+    "auth/unauthorized-domain": "Адрес этого сайта не добавлен в Authorized domains в настройках Firebase.",
+    "auth/operation-not-supported-in-this-environment": "В этом окне вход через Google не поддерживается. Открой приложение в браузере (например, Chrome)."
   };
 
   function friendlyAuthError(e) {
@@ -630,9 +636,13 @@
 
     var status = {
       configured: !!(cfg.apiKey && cfg.projectId),
-      signedIn: false, email: "", verified: true,
+      signedIn: false, email: "", verified: true, hasPassword: true,
       phase: "idle", error: "", lastSync: 0, pending: 0
     };
+
+    function hasPasswordLogin(user) {
+      return (user.providerData || []).some(function (p) { return p && p.providerId === "password"; });
+    }
 
     function snapshot() { return JSON.parse(JSON.stringify(status)); }
     function emit(prev) {
@@ -655,10 +665,11 @@
       ]).then(function (mods) {
         var appMod = mods[0], authMod = mods[1], fsMod = mods[2];
         var app = appMod.initializeApp(cfg);
-        // No popup/redirect resolver: email + password only, keeps the bundle small
-        // and works inside WebViews too.
+        // The popup resolver is what makes signInWithPopup (Google) work; email +
+        // password does not need it.
         var auth = authMod.initializeAuth(app, {
-          persistence: [authMod.indexedDBLocalPersistence, authMod.browserLocalPersistence]
+          persistence: [authMod.indexedDBLocalPersistence, authMod.browserLocalPersistence],
+          popupRedirectResolver: authMod.browserPopupRedirectResolver
         });
         var db;
         try { db = fsMod.initializeFirestore(app, { experimentalAutoDetectLongPolling: true }); }
@@ -674,7 +685,7 @@
 
     function attach(user) {
       if (attachedUid === user.uid && engine) {
-        update({ email: user.email || "", verified: !!user.emailVerified });
+        update({ email: user.email || "", verified: !!user.emailVerified, hasPassword: hasPasswordLogin(user) });
         return Promise.resolve();
       }
       return Promise.resolve(host.loadMeta()).catch(function () { return null; }).then(function (stored) {
@@ -701,7 +712,7 @@
           onState: function (s) { update({ phase: s.phase, error: s.error, lastSync: s.lastSync, pending: s.pending }); }
         });
         attachedUid = user.uid;
-        update({ signedIn: true, email: user.email || "", verified: !!user.emailVerified, phase: "idle", error: "" });
+        update({ signedIn: true, email: user.email || "", verified: !!user.emailVerified, hasPassword: hasPasswordLogin(user), phase: "idle", error: "" });
         return Promise.resolve(host.saveMeta(meta)).catch(function () {}).then(function () {
           engine.sync(); // background; progress and errors are reported through status
         });
@@ -717,7 +728,7 @@
         save = Promise.resolve(host.saveMeta(meta)).catch(function () {});
       }
       return save.then(function () {
-        update({ signedIn: false, email: "", verified: true, phase: "idle", error: "", pending: 0 });
+        update({ signedIn: false, email: "", verified: true, hasPassword: true, phase: "idle", error: "", pending: 0 });
       });
     }
 
@@ -783,6 +794,31 @@
         });
       },
 
+      // Warms up the Firebase SDK so that a later sign-in click can open the Google
+      // window immediately (browsers only allow popups right after a tap).
+      preload: function () {
+        if (status.configured) loadSdk().catch(function () {});
+      },
+
+      signInWithGoogle: function () {
+        var run = function (s) {
+          var provider = new s.authMod.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: "select_account" });
+          return s.authMod.signInWithPopup(s.auth, provider).then(function (cred) {
+            var name = cred.user.displayName || "";
+            return attach(cred.user).then(function () { return { displayName: name }; });
+          });
+        };
+        var go;
+        if (sdk) {
+          // Already loaded: call straight away, still inside the user's tap.
+          try { go = run(sdk); } catch (e) { go = Promise.reject(e); }
+        } else {
+          go = loadSdk().then(run);
+        }
+        return go.catch(function (e) { throw friendlyAuthError(e); });
+      },
+
       resetPassword: function (email) {
         return wrapAuth(function (s) { return s.authMod.sendPasswordResetEmail(s.auth, email); });
       },
@@ -796,8 +832,15 @@
         return wrapAuth(function (s) {
           var user = s.auth.currentUser;
           if (!user) return Promise.reject({ code: "auth/requires-recent-login" });
-          var cred = s.authMod.EmailAuthProvider.credential(user.email, password);
-          return s.authMod.reauthenticateWithCredential(user, cred)
+          var reauth;
+          if (hasPasswordLogin(user)) {
+            if (!password) return Promise.reject({ code: "auth/missing-password" });
+            reauth = s.authMod.reauthenticateWithCredential(user, s.authMod.EmailAuthProvider.credential(user.email, password));
+          } else {
+            // Google-only account: there is no password, confirm with Google instead.
+            reauth = s.authMod.reauthenticateWithPopup(user, new s.authMod.GoogleAuthProvider());
+          }
+          return reauth
             .then(function () { return remote ? remote.deleteAll() : createFirebaseRemote(s, user.uid).deleteAll(); })
             .then(function () { return s.authMod.deleteUser(user); })
             .then(function () {

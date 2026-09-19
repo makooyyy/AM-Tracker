@@ -492,6 +492,16 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "71",
+      type: "feature",
+      title: "Вход через Google",
+      items: [
+        "В форме входа появилась кнопка «Продолжить с Google» — быстрый вход и регистрация без пароля",
+        "Ник подтягивается из имени в аккаунте Google, если ты его ещё не задал",
+        "Аккаунт, созданный через Google, можно удалить, подтвердив это входом через Google"
+      ]
+    },
+    {
       version: "70",
       type: "update",
       title: "Профиль стал чище",
@@ -3591,6 +3601,21 @@
     img.src = url;
   }
 
+  // Google's own "G" mark (multi-colour, as their branding rules require).
+  var ICON_GOOGLE =
+    '<svg class="mt-google-logo" viewBox="0 0 48 48" aria-hidden="true">' +
+    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+    '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
+    "</svg>";
+
+  // Google refuses to show its sign-in page inside an embedded WebView
+  // ("disallowed_useragent"), so the button is only offered in a real browser.
+  function isEmbeddedWebView() {
+    return !!window.AndroidBridge || /; wv\)/.test(navigator.userAgent || "");
+  }
+
   function accountSignedIn() {
     return !!(window.AMSync && window.AMSync.isConfigured() && window.AMSync.isSignedIn());
   }
@@ -3680,7 +3705,7 @@
       '<button class="mt-hero-edit" id="prof-edit" aria-label="Редактировать профиль">✎</button>' +
       '<div class="mt-hero-main">' +
       '<button class="mt-hero-avatar-ring" id="prof-avatar-open" aria-label="Сменить аватар" style="background:linear-gradient(135deg,' +
-      rank.gradient.join(",") + ')">' + avatarHtml(shown) + '<span class="mt-avatar-cam">✎</span></button>' +
+      rank.gradient.join(",") + ')">' + avatarHtml(shown) + "</button>" +
       '<div class="mt-hero-id">' +
       '<div class="mt-hero-nick">' + escapeHtml(displayNick()) + "</div>" + bio + renderRankBadge() +
       (since ? '<div class="mt-hero-since">' + escapeHtml(since) + "</div>" : "") +
@@ -3751,10 +3776,12 @@
         '<button class="mt-ghost-btn" id="acct-signout" style="flex:1">Выйти</button>' +
         "</div>";
       if (a.confirmDelete) {
+        var needPass = st.hasPassword !== false;
         html +=
           '<div class="mt-acct-detail" style="margin-top:14px">Аккаунт и все данные в облаке будут удалены навсегда. ' +
-          "Данные на этом устройстве останутся. Для подтверждения введи пароль.</div>" +
-          '<input class="mt-input" type="password" id="acct-delete-pass" placeholder="Пароль" autocomplete="current-password" />' +
+          "Данные на этом устройстве останутся. " +
+          (needPass ? "Для подтверждения введи пароль." : "Для подтверждения нужно ещё раз войти через Google.") + "</div>" +
+          (needPass ? '<input class="mt-input" type="password" id="acct-delete-pass" placeholder="Пароль" autocomplete="current-password" />' : "") +
           '<div class="mt-form-row">' +
           '<button class="mt-ghost-btn" id="acct-delete-cancel" style="flex:1">Отмена</button>' +
           '<button class="mt-ghost-btn" id="acct-delete-confirm" style="flex:1;color:#D9838F">Удалить навсегда</button>' +
@@ -3771,6 +3798,11 @@
         "</div>";
     } else {
       var signup = a.mode === "signup";
+      if (!isEmbeddedWebView()) {
+        html +=
+          '<button class="mt-google-btn" id="acct-google">' + ICON_GOOGLE + "<span>Продолжить с Google</span></button>" +
+          '<div class="mt-or"><span>или по почте</span></div>';
+      }
       html +=
         '<div class="mt-acct-tabs">' +
         '<button class="mt-ghost-btn mt-acct-tab' + (signup ? "" : " active") + '" id="acct-mode-signin">Вход</button>' +
@@ -3811,29 +3843,46 @@
     // Runs an auth action while keeping the typed values on screen: only the
     // button and the message line are touched, the form is not re-rendered.
     function run(btn, busyText, task, onOk) {
-      var label = btn.textContent;
+      var label = btn.innerHTML; // innerHTML, so buttons with an icon get it back
       btn.disabled = true;
       btn.textContent = busyText;
       setAcctMsg("", false);
       task().then(function (result) {
         btn.disabled = false;
-        btn.textContent = label;
+        btn.innerHTML = label;
         onOk(result);
       }, function (e) {
         btn.disabled = false;
-        btn.textContent = label;
+        btn.innerHTML = label;
         setAcctMsg(e && e.message ? e.message : "Что-то пошло не так.", true);
       });
     }
 
     var open = $("acct-open");
-    if (open) open.addEventListener("click", function () { a.open = true; setAcctMsg("", false); render(); });
+    if (open) open.addEventListener("click", function () {
+      a.open = true;
+      setAcctMsg("", false);
+      if (S.preload) S.preload(); // load the sign-in code now, so the Google window can open instantly on the next tap
+      render();
+    });
     var close = $("acct-close");
     if (close) close.addEventListener("click", function () { readEmail(); a.open = false; setAcctMsg("", false); render(); });
 
     var signinTab = $("acct-mode-signin"), signupTab = $("acct-mode-signup");
     if (signinTab) signinTab.addEventListener("click", function () { readEmail(); a.mode = "signin"; setAcctMsg("", false); render(); });
     if (signupTab) signupTab.addEventListener("click", function () { readEmail(); a.mode = "signup"; setAcctMsg("", false); render(); });
+
+    var googleBtn = $("acct-google");
+    if (googleBtn) googleBtn.addEventListener("click", function () {
+      run(googleBtn, "Открываю Google…", function () { return S.signInWithGoogle(); }, function (res) {
+        // No nickname yet? Take the name from the Google account.
+        if (!state.profile.n && res && res.displayName) {
+          var nick = sanitizeProfile({ n: res.displayName }).n;
+          if (nick) { state.profile.n = nick; saveProfile(); }
+        }
+        a.email = ""; a.info = ""; a.error = ""; a.open = false; render();
+      });
+    });
 
     var submit = $("acct-submit");
     function doSubmit() {
@@ -3884,8 +3933,9 @@
     if (delCancel) delCancel.addEventListener("click", function () { a.confirmDelete = false; setAcctMsg("", false); render(); });
     var delConfirm = $("acct-delete-confirm");
     if (delConfirm) delConfirm.addEventListener("click", function () {
-      var pass = $("acct-delete-pass") ? $("acct-delete-pass").value : "";
-      if (!pass) { setAcctMsg("Введи пароль для подтверждения.", true); return; }
+      var passEl = $("acct-delete-pass"); // absent for Google-only accounts
+      var pass = passEl ? passEl.value : "";
+      if (passEl && !pass) { setAcctMsg("Введи пароль для подтверждения.", true); return; }
       run(delConfirm, "Удаляю…", function () { return S.deleteAccount(pass); },
         function () { a.confirmDelete = false; a.info = "Аккаунт удалён. Данные остались на этом устройстве."; a.error = ""; render(); });
     });
