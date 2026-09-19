@@ -9,7 +9,6 @@
   var ACTIVITY_LOG_MAX = 3000;
   var applyingRemote = false; // true while cloud changes are being written into state (must not trigger a sync)
   var SYNC_META_KEY = "manhwa-tracker:sync:v1";
-  var clearConfirmTimer = null; // 4s window for the "tap again to wipe everything" confirmation
   var XP_STORAGE_KEY = "manhwa-tracker:xp:v1";
   var ACHIEVEMENTS_STORAGE_KEY = "manhwa-tracker:achievements:v1";
   var CHANGELOG_SEEN_KEY = "manhwa-tracker:changelog-seen:v1";
@@ -492,6 +491,14 @@
 
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
+    {
+      version: "70",
+      type: "update",
+      title: "Профиль стал чище",
+      items: [
+        "Из профиля убраны блоки «Активность за месяц» и «Часто отмечаешь», а также кнопка «Очистить все данные»"
+      ]
+    },
     {
       version: "69",
       type: "feature",
@@ -1214,7 +1221,6 @@
     aniListResults: null,
     aniListPickedIndex: null,
     addingCriterion: false,
-    confirmClear: false,
     acct: { mode: "signin", email: "", error: "", info: "", confirmDelete: false, open: false },
     profile: { n: "", b: "", a: null },
     profileEdit: false,
@@ -3232,78 +3238,6 @@
     return t;
   }
 
-  // Mon–Sun weeks for the last ~53 weeks (GitHub-style year window), each day
-  // holding its activity-log event count. Days after today are left as null
-  // placeholders so the grid still lines up into full week columns.
-  function buildActivityHeatmap() {
-    var counts = {};
-    state.activityLog.forEach(function (e) {
-      var d = new Date(e.ts);
-      var key = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
-      counts[key] = (counts[key] || 0) + 1;
-    });
-
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    var start = new Date(today);
-    start.setDate(start.getDate() - 29); // rolling last 30 days
-    var dow = (start.getDay() + 6) % 7; // 0 = Monday
-    start.setDate(start.getDate() - dow);
-
-    var weeks = [];
-    var cursor = new Date(start);
-    while (cursor <= today) {
-      var week = [];
-      for (var i = 0; i < 7; i++) {
-        if (cursor > today) {
-          week.push(null);
-        } else {
-          var key = cursor.getFullYear() + "-" + pad2(cursor.getMonth() + 1) + "-" + pad2(cursor.getDate());
-          week.push({ date: new Date(cursor), count: counts[key] || 0 });
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
-      weeks.push(week);
-    }
-    return weeks;
-  }
-
-  function renderActivityHeatmap() {
-    var weeks = buildActivityHeatmap();
-    var maxCount = 1;
-    weeks.forEach(function (w) { w.forEach(function (d) { if (d && d.count > maxCount) maxCount = d.count; }); });
-
-    function levelFor(count) {
-      if (count === 0) return 0;
-      var ratio = count / maxCount;
-      if (ratio > 0.75) return 4;
-      if (ratio > 0.5) return 3;
-      if (ratio > 0.25) return 2;
-      return 1;
-    }
-
-    var cols = weeks.map(function (week) {
-      var cells = week.map(function (d) {
-        if (!d) return '<span class="mt-heat-cell mt-heat-empty"></span>';
-        var dateLabel = d.date.getDate() + " " + MONTH_NAMES_GENITIVE[d.date.getMonth()];
-        var title = dateLabel + ": " + d.count + " " + pluralRu(d.count, ["событие", "события", "событий"]);
-        return '<span class="mt-heat-cell" data-level="' + levelFor(d.count) + '" title="' + escapeHtml(title) + '"></span>';
-      }).join("");
-      return '<div class="mt-heat-col">' + cells + "</div>";
-    }).join("");
-
-    return (
-      '<div class="mt-paper">' +
-      '<div class="mt-panel-title">АКТИВНОСТЬ ЗА МЕСЯЦ</div>' +
-      '<div class="mt-heatmap-scroll"><div class="mt-heatmap-grid">' + cols + "</div></div>" +
-      '<div class="mt-heat-legend">Меньше' +
-      '<span class="mt-heat-cell" data-level="0"></span><span class="mt-heat-cell" data-level="1"></span>' +
-      '<span class="mt-heat-cell" data-level="2"></span><span class="mt-heat-cell" data-level="3"></span>' +
-      '<span class="mt-heat-cell" data-level="4"></span>Больше</div>' +
-      "</div>"
-    );
-  }
-
   function renderActivityRows(events) {
     return events.map(function (e) {
       return (
@@ -3443,10 +3377,6 @@
       (overallAvg === null ? "—" : Math.round(overallAvg)) + '</div><div class="mt-chip-label">средняя оценка</div></div>' +
       "</div>";
 
-    if (state.activityLog.length) {
-      html += renderActivityHeatmap();
-    }
-
     // status bar
     var total = state.manhwas.length || 1;
     var track = "";
@@ -3511,36 +3441,6 @@
       html += '<div class="mt-paper"><div class="mt-panel-title">ЛЮБИМЫЕ ЖАНРЫ</div>' + genreBars + "</div>";
     }
 
-    var tagCounts = {};
-    state.manhwas.forEach(function (m) {
-      (m.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
-    });
-    var topPos = POSITIVE_TAGS
-      .filter(function (t) { return tagCounts[t]; })
-      .sort(function (a, b) { return tagCounts[b] - tagCounts[a]; })
-      .slice(0, 5);
-    var topNeg = NEGATIVE_TAGS
-      .filter(function (t) { return tagCounts[t]; })
-      .sort(function (a, b) { return tagCounts[b] - tagCounts[a]; })
-      .slice(0, 5);
-
-    if (topPos.length > 0 || topNeg.length > 0) {
-      var tagRow = function (t) {
-        return '<span class="mt-tag-stat">' + escapeHtml(t) + ' <b>' + tagCounts[t] + "</b></span>";
-      };
-      html +=
-        '<div class="mt-paper"><div class="mt-panel-title">ЧАСТО ОТМЕЧАЕШЬ</div>' +
-        (topPos.length
-          ? '<div class="mt-tag-group-label mt-tag-group-pos">Сильные стороны</div><div class="mt-tag-stat-row">' +
-            topPos.map(tagRow).join("") + "</div>"
-          : "") +
-        (topNeg.length
-          ? '<div class="mt-tag-group-label mt-tag-group-neg" style="margin-top:12px">Слабые стороны</div><div class="mt-tag-stat-row">' +
-            topNeg.map(tagRow).join("") + "</div>"
-          : "") +
-        "</div>";
-    }
-
     var sortedByScore = rated.slice().sort(function (a, b) { return average(b.criteria) - average(a.criteria); });
     var top = sortedByScore.slice(0, 3);
     var bottom = sortedByScore.slice(-3).reverse().filter(function (m) { return top.indexOf(m) === -1; });
@@ -3571,14 +3471,6 @@
       "</div>" +
       '<input type="file" id="import-file-input" accept="application/json" style="display:none" />' +
       "</div>";
-
-    html +=
-      '<div class="mt-clear-wrap"><button class="mt-clear-btn' + (state.confirmClear ? " confirm" : "") +
-      '" id="clear-all-btn">' +
-      (accountSignedIn()
-        ? (state.confirmClear ? "Точно удалить всё, и в облаке тоже? Нажми ещё раз" : "Очистить все данные (и в облаке)")
-        : (state.confirmClear ? "Точно удалить всё? Нажми ещё раз" : "Очистить все данные")) +
-      "</button></div>";
 
     html += "</div>";
     return html;
@@ -4945,42 +4837,6 @@
         importInput.value = "";
       });
     }
-
-    // clear all
-    var clearBtn = document.getElementById("clear-all-btn");
-    if (clearBtn) clearBtn.addEventListener("click", function () {
-      if (state.confirmClear) {
-        clearTimeout(clearConfirmTimer);
-        state.manhwas = [];
-        state.awardWinners = {};
-        state.awardCandidates = {};
-        state.awardEditUsed = {};
-        state.activityLog = [];
-        state.totalXp = 0;
-        state.unlockedAchievements = {};
-        state.selectedId = null;
-        state.confirmClear = false;
-        save();
-        saveAwards();
-        saveActivityLog();
-        saveXp();
-        saveAchievements();
-        if (window.AMSync) window.AMSync.onLocalCleared();
-        render();
-      } else {
-        state.confirmClear = true;
-        render();
-        clearTimeout(clearConfirmTimer);
-        clearConfirmTimer = setTimeout(function () {
-          // Re-render too, otherwise the button keeps saying "tap again to
-          // confirm" although the confirmation has already expired.
-          if (state.confirmClear) {
-            state.confirmClear = false;
-            render();
-          }
-        }, 4000);
-      }
-    });
   }
 
   // Single "go back" action shared by the in-app ← buttons and (when running
