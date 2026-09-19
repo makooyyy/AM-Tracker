@@ -7,6 +7,8 @@
   var AWARD_EDIT_USED_STORAGE_KEY = "manhwa-tracker:award-edit-used:v1";
   var ACTIVITY_LOG_STORAGE_KEY = "manhwa-tracker:activity-log:v1";
   var ACTIVITY_LOG_MAX = 3000;
+  var applyingRemote = false; // true while cloud changes are being written into state (must not trigger a sync)
+  var SYNC_META_KEY = "manhwa-tracker:sync:v1";
   var clearConfirmTimer = null; // 4s window for the "tap again to wipe everything" confirmation
   var XP_STORAGE_KEY = "manhwa-tracker:xp:v1";
   var ACHIEVEMENTS_STORAGE_KEY = "manhwa-tracker:achievements:v1";
@@ -549,6 +551,7 @@
     aniListPickedIndex: null,
     addingCriterion: false,
     confirmClear: false,
+    acct: { mode: "signin", email: "", error: "", info: "", confirmDelete: false },
     confirmDeleteId: null,
     confirmWinnerPick: null,
     awardsCandidatesConfirmed: false,
@@ -1250,24 +1253,33 @@
       render();
     });
     checkAchievements();
+    syncPing();
+  }
+
+  function syncPing() {
+    if (!applyingRemote && window.AMSync) window.AMSync.notifyLocalChange();
   }
 
   function saveAwards() {
     persistKey(AWARDS_STORAGE_KEY, state.awardWinners).catch(function () {});
     persistKey(AWARD_CANDIDATES_STORAGE_KEY, state.awardCandidates).catch(function () {});
     persistKey(AWARD_EDIT_USED_STORAGE_KEY, state.awardEditUsed).catch(function () {});
+    syncPing();
   }
 
   function saveActivityLog() {
     persistKey(ACTIVITY_LOG_STORAGE_KEY, state.activityLog).catch(function () {});
+    syncPing();
   }
 
   function saveXp() {
     persistKey(XP_STORAGE_KEY, state.totalXp).catch(function () {});
+    syncPing();
   }
 
   function saveAchievements() {
     persistKey(ACHIEVEMENTS_STORAGE_KEY, state.unlockedAchievements).catch(function () {});
+    syncPing();
   }
 
   // Records one diary entry. Only called for meaningful, user-initiated
@@ -2888,6 +2900,8 @@
         '<div class="mt-paper mt-empty"><div class="mt-empty-text">Статистика появится, как только добавишь и оценишь первую манхву.</div></div>';
     }
 
+    html += renderAccountCard();
+
     html +=
       '<div class="mt-paper"><div class="mt-panel-title">РЕЗЕРВНАЯ КОПИЯ</div>' +
       '<div class="mt-backup-text">Сохрани файл с оценками себе на телефон — так данные ' +
@@ -2902,11 +2916,182 @@
     html +=
       '<div class="mt-clear-wrap"><button class="mt-clear-btn' + (state.confirmClear ? " confirm" : "") +
       '" id="clear-all-btn">' +
-      (state.confirmClear ? "Точно удалить всё? Нажми ещё раз" : "Очистить все данные") +
+      (accountSignedIn()
+        ? (state.confirmClear ? "Точно удалить всё, и в облаке тоже? Нажми ещё раз" : "Очистить все данные (и в облаке)")
+        : (state.confirmClear ? "Точно удалить всё? Нажми ещё раз" : "Очистить все данные")) +
       "</button></div>";
 
     html += "</div>";
     return html;
+  }
+
+  /* ---------- account & sync UI ---------- */
+
+  function accountSignedIn() {
+    return !!(window.AMSync && window.AMSync.isConfigured() && window.AMSync.isSignedIn());
+  }
+
+  // Unlike escapeHtml this also escapes quotes, so it is safe inside value="...".
+  function attrEsc(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function formatSyncTime(ts) {
+    if (!ts) return "";
+    var d = new Date(ts);
+    var time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    return d.toDateString() === new Date().toDateString()
+      ? "сегодня в " + time
+      : d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + " в " + time;
+  }
+
+  function acctStatusText(st) {
+    var pending = st.pending > 0 ? " Ждут отправки: " + st.pending + "." : "";
+    if (st.phase === "syncing") return "Синхронизация…";
+    if (st.phase === "offline") return "Нет связи — изменения сохранены на устройстве и отправятся, когда появится интернет." + pending;
+    if (st.phase === "error") return "Ошибка синхронизации: " + escapeHtml(st.error || "неизвестная ошибка") + pending;
+    return st.lastSync ? "Синхронизировано " + formatSyncTime(st.lastSync) + "." + pending : "Ещё не синхронизировано." + pending;
+  }
+
+  function renderAccountCard() {
+    var S = window.AMSync;
+    if (!S || !S.isConfigured()) return "";
+    var st = S.getStatus();
+    var a = state.acct;
+    var html = '<div class="mt-paper"><div class="mt-panel-title">АККАУНТ И СИНХРОНИЗАЦИЯ</div>';
+
+    if (st.signedIn) {
+      html +=
+        '<div class="mt-backup-text" style="margin-bottom:6px">Ты вошёл как <b>' + escapeHtml(st.email) + "</b></div>" +
+        '<div class="mt-acct-status" id="acct-status">' + acctStatusText(st) + "</div>";
+      if (!st.verified) {
+        html += '<div class="mt-backup-text" style="margin-top:8px">Почта не подтверждена — открой письмо от Firebase и перейди по ссылке. ' +
+          "Иначе не получится восстановить пароль, если в адресе опечатка.</div>";
+      }
+      html +=
+        '<div class="mt-form-row">' +
+        '<button class="mt-ghost-btn" id="acct-sync" style="flex:1">↻ Синхронизировать</button>' +
+        '<button class="mt-ghost-btn" id="acct-signout" style="flex:1">Выйти</button>' +
+        "</div>";
+      if (a.confirmDelete) {
+        html +=
+          '<div class="mt-backup-text" style="margin-top:14px">Аккаунт и все данные в облаке будут удалены навсегда. ' +
+          "Данные на этом устройстве останутся. Для подтверждения введи пароль.</div>" +
+          '<input class="mt-input" type="password" id="acct-delete-pass" placeholder="Пароль" autocomplete="current-password" />' +
+          '<div class="mt-form-row">' +
+          '<button class="mt-ghost-btn" id="acct-delete-cancel" style="flex:1">Отмена</button>' +
+          '<button class="mt-ghost-btn" id="acct-delete-confirm" style="flex:1;color:#D9838F">Удалить навсегда</button>' +
+          "</div>";
+      } else {
+        html += '<button class="mt-acct-link" id="acct-delete">Удалить аккаунт</button>';
+      }
+    } else {
+      var signup = a.mode === "signup";
+      html +=
+        '<div class="mt-backup-text">Войди, чтобы оценки, награды и прогресс синхронизировались между твоими устройствами. ' +
+        "Без аккаунта всё продолжит работать как раньше — только на этом устройстве.</div>" +
+        '<div class="mt-acct-tabs">' +
+        '<button class="mt-ghost-btn mt-acct-tab' + (signup ? "" : " active") + '" id="acct-mode-signin">Вход</button>' +
+        '<button class="mt-ghost-btn mt-acct-tab' + (signup ? " active" : "") + '" id="acct-mode-signup">Регистрация</button>' +
+        "</div>" +
+        '<input class="mt-input" type="email" id="acct-email" placeholder="Почта" value="' + attrEsc(a.email) +
+        '" autocomplete="email" autocapitalize="none" spellcheck="false" />' +
+        '<input class="mt-input" type="password" id="acct-pass" style="margin-top:8px" placeholder="' +
+        (signup ? "Пароль (минимум 8 символов)" : "Пароль") + '" autocomplete="' + (signup ? "new-password" : "current-password") + '" />' +
+        '<div class="mt-form-row"><button class="mt-primary-btn" id="acct-submit">' + (signup ? "Создать аккаунт" : "Войти") + "</button></div>" +
+        (signup ? "" : '<button class="mt-acct-link" id="acct-forgot">Забыл пароль</button>');
+    }
+
+    var msg = a.error || a.info;
+    html += '<div class="mt-acct-msg ' + (a.error ? "err" : "ok") + '" id="acct-msg">' + (msg ? escapeHtml(msg) : "") + "</div>";
+    return html + "</div>";
+  }
+
+  function setAcctMsg(text, isError) {
+    state.acct.error = isError ? text : "";
+    state.acct.info = isError ? "" : text;
+    var el = document.getElementById("acct-msg");
+    if (el) {
+      el.textContent = text || "";
+      el.className = "mt-acct-msg " + (isError ? "err" : "ok");
+    }
+  }
+
+  function attachAcctHandlers() {
+    var S = window.AMSync;
+    if (!S || !S.isConfigured()) return;
+    var a = state.acct;
+    var $ = function (id) { return document.getElementById(id); };
+    var readEmail = function () { var e = $("acct-email"); if (e) a.email = e.value.trim(); return a.email; };
+
+    // Runs an auth action while keeping the typed values on screen: only the
+    // button and the message line are touched, the form is not re-rendered.
+    function run(btn, busyText, task, onOk) {
+      var label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = busyText;
+      setAcctMsg("", false);
+      task().then(function (result) {
+        btn.disabled = false;
+        btn.textContent = label;
+        onOk(result);
+      }, function (e) {
+        btn.disabled = false;
+        btn.textContent = label;
+        setAcctMsg(e && e.message ? e.message : "Что-то пошло не так.", true);
+      });
+    }
+
+    var signinTab = $("acct-mode-signin"), signupTab = $("acct-mode-signup");
+    if (signinTab) signinTab.addEventListener("click", function () { readEmail(); a.mode = "signin"; setAcctMsg("", false); render(); });
+    if (signupTab) signupTab.addEventListener("click", function () { readEmail(); a.mode = "signup"; setAcctMsg("", false); render(); });
+
+    var submit = $("acct-submit");
+    function doSubmit() {
+      var email = readEmail();
+      var pass = $("acct-pass") ? $("acct-pass").value : "";
+      if (!email) { setAcctMsg("Введи почту.", true); return; }
+      if (!pass) { setAcctMsg("Введи пароль.", true); return; }
+      if (a.mode === "signup" && pass.length < 8) { setAcctMsg("Пароль — минимум 8 символов.", true); return; }
+      var signup = a.mode === "signup";
+      run(submit, signup ? "Создаю…" : "Вхожу…",
+        function () { return signup ? S.signUp(email, pass) : S.signIn(email, pass); },
+        function () { a.email = ""; a.info = ""; a.error = ""; render(); });
+    }
+    if (submit) submit.addEventListener("click", doSubmit);
+    var passInput = $("acct-pass");
+    if (passInput) passInput.addEventListener("keydown", function (e) { if (e.key === "Enter") doSubmit(); });
+
+    var forgot = $("acct-forgot");
+    if (forgot) forgot.addEventListener("click", function () {
+      var email = readEmail();
+      if (!email) { setAcctMsg("Введи почту, на которую придёт письмо для сброса пароля.", true); return; }
+      run(forgot, "Отправляю…", function () { return S.resetPassword(email); },
+        function () { setAcctMsg("Письмо для сброса пароля отправлено на " + email + ".", false); });
+    });
+
+    var syncBtn = $("acct-sync");
+    if (syncBtn) syncBtn.addEventListener("click", function () {
+      run(syncBtn, "Синхронизирую…", function () { return S.syncNow(); }, function () {});
+    });
+
+    var signout = $("acct-signout");
+    if (signout) signout.addEventListener("click", function () {
+      run(signout, "Выхожу…", function () { return S.signOut(); },
+        function () { a.info = "Ты вышел. Данные остались на этом устройстве."; a.error = ""; render(); });
+    });
+
+    var del = $("acct-delete");
+    if (del) del.addEventListener("click", function () { a.confirmDelete = true; setAcctMsg("", false); render(); });
+    var delCancel = $("acct-delete-cancel");
+    if (delCancel) delCancel.addEventListener("click", function () { a.confirmDelete = false; setAcctMsg("", false); render(); });
+    var delConfirm = $("acct-delete-confirm");
+    if (delConfirm) delConfirm.addEventListener("click", function () {
+      var pass = $("acct-delete-pass") ? $("acct-delete-pass").value : "";
+      if (!pass) { setAcctMsg("Введи пароль для подтверждения.", true); return; }
+      run(delConfirm, "Удаляю…", function () { return S.deleteAccount(pass); },
+        function () { a.confirmDelete = false; a.info = "Аккаунт удалён. Данные остались на этом устройстве."; a.error = ""; render(); });
+    });
   }
 
   /* ---------- tabbar ---------- */
@@ -2961,6 +3146,7 @@
     app.innerHTML = '<div class="mt-shell">' + body + "</div>" + (showTabs ? renderTabbar() : "") +
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "");
     attachHandlers(selected);
+    attachAcctHandlers();
     syncTelegramBackButton();
 
     var viewKey = state.showChangelog ? "changelog" :
@@ -3776,6 +3962,7 @@
         saveActivityLog();
         saveXp();
         saveAchievements();
+        if (window.AMSync) window.AMSync.onLocalCleared();
         render();
       } else {
         state.confirmClear = true;
@@ -3837,8 +4024,103 @@
     try { hasBack ? tg.BackButton.show() : tg.BackButton.hide(); } catch (e) {}
   }
 
+  /* ---------- bridge for js/sync.js ---------- */
+
+  function readKey(key) {
+    if (idbAvailable) return idbGet(key).catch(function () { return undefined; });
+    return new Promise(function (resolve) {
+      try { var raw = window.localStorage.getItem(key); resolve(raw ? JSON.parse(raw) : undefined); }
+      catch (e) { resolve(undefined); }
+    });
+  }
+
+  function wipeLocalData() {
+    state.manhwas = [];
+    state.awardWinners = {};
+    state.awardCandidates = {};
+    state.awardEditUsed = {};
+    state.activityLog = [];
+    state.totalXp = 0;
+    state.unlockedAchievements = {};
+    state.selectedId = null;
+    applyingRemote = true;
+    try {
+      save();
+      saveAwards();
+      saveActivityLog();
+      saveXp();
+      saveAchievements();
+    } finally { applyingRemote = false; }
+    render();
+  }
+
+  window.AMApp = {
+    titles: function () { return state.manhwas; },
+    awards: function () { return { w: state.awardWinners, c: state.awardCandidates, e: state.awardEditUsed }; },
+    progress: function () { return { x: state.totalXp, a: state.unlockedAchievements }; },
+    log: function () { return state.activityLog; },
+    sanitizeTitle: function (obj) { return sanitizeImportedManhwa(obj, {}); },
+    loadMeta: function () { return readKey(SYNC_META_KEY); },
+    saveMeta: function (meta) { return persistKey(SYNC_META_KEY, meta); },
+    wipeLocal: wipeLocalData,
+
+    // Writes changes that arrived from the cloud into the app. Goes straight to
+    // storage (not through save()) so it neither re-runs achievements nor
+    // triggers another sync.
+    commit: function (ch) {
+      applyingRemote = true;
+      try {
+        var del = {}, put = {};
+        ch.titles.del.forEach(function (id) { del[id] = true; });
+        ch.titles.put.forEach(function (o) { put[String(o.id)] = o; });
+        if (ch.titles.del.length || ch.titles.put.length) {
+          var placed = {};
+          var next = [];
+          state.manhwas.forEach(function (m) {
+            var id = String(m.id);
+            if (del[id]) return;
+            if (put[id]) { next.push(put[id]); placed[id] = true; } else next.push(m);
+          });
+          ch.titles.put.forEach(function (o) { if (!placed[String(o.id)]) next.push(o); });
+          state.manhwas = next;
+          persistKey(STORAGE_KEY, state.manhwas).catch(function () {});
+        }
+        if (ch.awards) {
+          state.awardWinners = ch.awards.w || {};
+          state.awardCandidates = ch.awards.c || {};
+          state.awardEditUsed = ch.awards.e || {};
+          saveAwards();
+        }
+        if (ch.progress) {
+          state.totalXp = ch.progress.x || 0;
+          state.unlockedAchievements = ch.progress.a || {};
+          saveXp();
+          saveAchievements();
+        }
+        if (ch.logReset || ch.logAdd.length) {
+          var log = ch.logReset ? [] : state.activityLog.slice();
+          log = log.concat(ch.logAdd).sort(function (x, y) { return x.ts - y.ts; });
+          if (log.length > ACTIVITY_LOG_MAX) log = log.slice(log.length - ACTIVITY_LOG_MAX);
+          state.activityLog = log;
+          saveActivityLog();
+        }
+        render();
+      } finally { applyingRemote = false; }
+    }
+  };
+
   /* ---------- boot ---------- */
-  load().then(render).catch(function () { render(); });
+  load().then(render).catch(function () { render(); }).then(function () {
+    if (!window.AMSync) return;
+    // Repaint only the status line when the sync state changes (so a form the
+    // user is typing into is never wiped); a full render when signing in/out.
+    window.AMSync.onStatus(function (st, prev) {
+      if (st.signedIn !== prev.signedIn || st.verified !== prev.verified) { render(); return; }
+      var el = document.getElementById("acct-status");
+      if (el) el.innerHTML = acctStatusText(st);
+    });
+    window.AMSync.start(window.AMApp);
+  });
 
   // IndexedDB is "best effort" by default: under storage pressure the browser
   // may evict it. Ask for persistent storage; silently ignored if unsupported.
