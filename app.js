@@ -492,6 +492,15 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "72",
+      type: "fix",
+      title: "Русское название теперь главное",
+      items: [
+        "Если у тайтла заполнено русское название, оно показывается вместо оригинального везде: в библиотеке, на странице тайтла, в премии, в поздравлении после оценки и в журнале активности",
+        "Старые записи в журнале активности тоже подхватывают русское название, если добавить его позже"
+      ]
+    },
+    {
       version: "71",
       type: "feature",
       title: "Вход через Google",
@@ -1265,7 +1274,7 @@
   function buildScoreText(m) {
     var avg = average(m.criteria);
     var lines = [];
-    lines.push(m.title);
+    lines.push(displayTitle(m));
     lines.push("Итоговая оценка: " + (avg === null ? "—" : Math.round(avg)) + "/100");
     lines.push("");
     m.criteria.forEach(function (c) {
@@ -2295,11 +2304,11 @@
     return (
       '<div class="mt-winner-card" data-open-id="' + m.id + '">' +
       '<div class="mt-winner-cover' + (m.coverUrl ? "" : " mt-winner-cover-empty") + '" style="' + coverStyle + '">' +
-      (m.coverUrl ? "" : '<span class="mt-winner-cover-fallback">' + escapeHtml((m.title[0] || "?").toUpperCase()) + "</span>") +
+      (m.coverUrl ? "" : '<span class="mt-winner-cover-fallback">' + escapeHtml((displayTitle(m)[0] || "?").toUpperCase()) + "</span>") +
       '<span class="mt-winner-trophy-badge">🏆</span>' +
       "</div>" +
       '<div class="mt-winner-category">' + escapeHtml(subtitle) + "</div>" +
-      '<div class="mt-winner-title">' + escapeHtml(m.title) + "</div>" +
+      '<div class="mt-winner-title">' + escapeHtml(displayTitle(m)) + "</div>" +
       "</div>"
     );
   }
@@ -2311,11 +2320,11 @@
     return (
       '<div class="mt-winner-card" data-open-id="' + w.id + '">' +
       '<div class="mt-winner-cover' + (w.coverUrl ? "" : " mt-winner-cover-empty") + '" style="' + coverStyle + '">' +
-      (w.coverUrl ? "" : '<span class="mt-winner-cover-fallback">' + escapeHtml((w.title[0] || "?").toUpperCase()) + "</span>") +
+      (w.coverUrl ? "" : '<span class="mt-winner-cover-fallback">' + escapeHtml((displayTitle(w)[0] || "?").toUpperCase()) + "</span>") +
       '<span class="mt-winner-trophy-badge">' + awardIcon(ck) + "</span>" +
       "</div>" +
       '<div class="mt-winner-category">' + escapeHtml(AWARD_LABELS[ck] || ck) + "</div>" +
-      '<div class="mt-winner-title">' + escapeHtml(w.title) + "</div>" +
+      '<div class="mt-winner-title">' + escapeHtml(displayTitle(w)) + "</div>" +
       "</div>"
     );
   }
@@ -2342,7 +2351,7 @@
           g.entries.map(function (e) {
             return (
               '<div class="mt-nominee-row" data-open-id="' + e.manhwa.id + '">' +
-              '<div class="mt-nominee-info"><div class="mt-nominee-title">' + escapeHtml(e.manhwa.title) + "</div></div>" +
+              '<div class="mt-nominee-info"><div class="mt-nominee-title">' + escapeHtml(displayTitle(e.manhwa)) + "</div></div>" +
               '<span class="mt-nominee-score" style="color:' + (isOverallScaleCategory(g.ck) ? scoreColor(e.score) : criterionColor(e.score)) + '">' +
               (isOverallScaleCategory(g.ck) ? Math.round(e.score) : e.score.toFixed(1)) + "</span>" +
               "</div>"
@@ -2457,7 +2466,7 @@
         '<div class="mt-panel-title">' + escapeHtml(AWARD_LABELS[ck] || ck) + "</div>" +
         '<div class="mt-award-row" data-open-id="' + winner.id + '">' +
         '<span class="mt-award-trophy">' + awardIcon(ck) + "</span>" +
-        '<div class="mt-award-info"><div class="mt-award-title">' + escapeHtml(winner.title) + "</div>" +
+        '<div class="mt-award-info"><div class="mt-award-title">' + escapeHtml(displayTitle(winner)) + "</div>" +
         '<div class="mt-award-sub">Победитель выбран — изменить нельзя</div></div>' +
         "</div></div>";
     } else if (!state.awardsCandidatesConfirmed) {
@@ -2469,7 +2478,7 @@
           '<div class="mt-nominee-row' + (checked ? " picked" : "") + '" data-toggle-candidate="' + p.manhwa.id +
           '" data-month="' + monthKey + '" data-category="' + escapeHtml(ck) + '">' +
           '<span class="mt-nominee-checkbox">' + (checked ? "☑" : "☐") + "</span>" +
-          '<div class="mt-nominee-info"><div class="mt-nominee-title">' + escapeHtml(p.manhwa.title) + "</div></div>" +
+          '<div class="mt-nominee-info"><div class="mt-nominee-title">' + escapeHtml(displayTitle(p.manhwa)) + "</div></div>" +
           '<span class="mt-nominee-score" style="color:' + (isOverallScaleCategory(ck) ? scoreColor(p.score) : criterionColor(p.score)) + '">' +
           (isOverallScaleCategory(ck) ? Math.round(p.score) : p.score.toFixed(1)) + "</span>" +
           "</div>"
@@ -2494,7 +2503,7 @@
           '<div class="mt-nominee-row' + (confirming ? " confirming" : "") + '" data-pick-winner="' + c.manhwa.id +
           '" data-month="' + monthKey + '" data-category="' + escapeHtml(ck) + '">' +
           '<span class="mt-nominee-trophy">' + (confirming ? awardIcon(ck) : "") + "</span>" +
-          '<div class="mt-nominee-info"><div class="mt-nominee-title">' + escapeHtml(c.manhwa.title) + "</div>" +
+          '<div class="mt-nominee-info"><div class="mt-nominee-title">' + escapeHtml(displayTitle(c.manhwa)) + "</div>" +
           (confirming ? '<div class="mt-nominee-confirm">Точно этот? Нажми ещё раз</div>' : "") + "</div>" +
           '<span class="mt-nominee-score" style="color:' + (isOverallScaleCategory(ck) ? scoreColor(c.score) : criterionColor(c.score)) + '">' +
           (isOverallScaleCategory(ck) ? Math.round(c.score) : c.score.toFixed(1)) + "</span>" +
@@ -2985,7 +2994,7 @@
     var color = scoreColor(avg);
     var coverInner = m.coverUrl
       ? '<img class="mt-reveal-cover-img" src="' + escapeHtml(m.coverUrl).replace(/'/g, "%27") + '" alt="" />'
-      : '<div class="mt-reveal-cover-fallback">' + escapeHtml((m.title[0] || "?").toUpperCase()) + "</div>";
+      : '<div class="mt-reveal-cover-fallback">' + escapeHtml((displayTitle(m)[0] || "?").toUpperCase()) + "</div>";
 
     var notesHtml = "";
     if (m.notes && m.notes.trim()) {
@@ -3000,7 +3009,7 @@
       '<div class="mt-reveal-backdrop" id="reveal-backdrop">' +
       '<div class="mt-reveal-card">' +
       '<div class="mt-reveal-cover">' + coverInner + "</div>" +
-      '<div class="mt-reveal-title">' + escapeHtml(m.title) + "</div>" +
+      '<div class="mt-reveal-title">' + escapeHtml(displayTitle(m)) + "</div>" +
       '<div class="mt-reveal-stamp" style="border-color:' + color + ";color:" + color + '">' +
       (avg === null ? "–" : Math.round(avg)) + "</div>" +
       notesHtml +
@@ -3075,7 +3084,7 @@
     var html =
       '<div class="mt-detail-head">' +
       '<button class="mt-icon-btn on-dark" id="back-btn" aria-label="Назад">←</button>' +
-      '<div class="mt-detail-title">' + escapeHtml(m.title) + "</div>" +
+      '<div class="mt-detail-title">' + escapeHtml(displayTitle(m)) + "</div>" +
       "</div>" +
       '<div class="mt-detail-status">' +
       '<button class="mt-status-badge" id="status-picker-toggle" style="border-color:' + currentStatus.color +
@@ -3184,7 +3193,7 @@
     var avg = average(m.criteria);
     return (
       '<div class="mt-mini-row" data-open-id="' + m.id + '">' +
-      '<div class="mt-mini-title">' + escapeHtml(m.title) + "</div>" +
+      '<div class="mt-mini-title">' + escapeHtml(displayTitle(m)) + "</div>" +
       '<span class="mt-mini-score" style="color:#C9BFA8">' +
       (avg === null ? "—" : Math.round(avg)) + "</span></div>"
     );
@@ -3228,7 +3237,10 @@
   }
 
   function activityLineText(e) {
-    var t = escapeHtml(e.title || "");
+    // Prefer the title's current display name (picks up a Russian name added
+    // later) and only fall back to the frozen snapshot for deleted titles.
+    var live = e.manhwaId && findManhwa(e.manhwaId);
+    var t = escapeHtml(live ? displayTitle(live) : (e.title || ""));
     if (e.type === "add") return "Добавлен тайтл «" + t + "»";
     if (e.type === "rated" || e.type === "rated_review") {
       var score = e.extra && e.extra.score !== null && e.extra.score !== undefined ? Math.round(e.extra.score) : null;
@@ -4206,7 +4218,7 @@
         m.status = newStatus;
         if (m.status === "done") m.completedAt = Date.now();
         save();
-        logActivity("status", m.id, m.title, { status: newStatus });
+        logActivity("status", m.id, displayTitle(m), { status: newStatus });
         render();
       });
     });
@@ -4236,7 +4248,7 @@
           if (state.selectedId === id) state.selectedId = null;
           state.confirmDeleteId = null;
           save();
-          if (deletedTitle) logActivity("delete", id, deletedTitle.title, null);
+          if (deletedTitle) logActivity("delete", id, displayTitle(deletedTitle), null);
           render();
         } else {
           state.confirmDeleteId = id;
@@ -4335,7 +4347,7 @@
       var val = titleInput ? titleInput.value.trim() : "";
       if (!val) return;
       var dupe = findManhwaByTitle(val);
-      if (dupe && !window.confirm("«" + dupe.title + "» уже есть в списке. Всё равно добавить ещё раз?")) {
+      if (dupe && !window.confirm("«" + displayTitle(dupe) + "» уже есть в списке. Всё равно добавить ещё раз?")) {
         return;
       }
       var coverVal = coverInputEl ? coverInputEl.value.trim() : "";
@@ -4347,7 +4359,7 @@
         m.altTitles.ko = state.pendingAltTitlesDraft.ko || "";
       }
       state.manhwas.push(m);
-      logActivity("add", m.id, m.title, { type: m.type });
+      logActivity("add", m.id, displayTitle(m), { type: m.type });
       state.addingManhwa = false;
       state.pendingTitleDraft = "";
       state.pendingCoverDraft = "";
@@ -4400,7 +4412,7 @@
         if (state.confirmWinnerPick === pickKey) {
           if (setWinner(monthKey, categoryKey, manhwaId)) {
             var wm = findManhwa(manhwaId);
-            logActivity("award", manhwaId, wm ? wm.title : "", { monthKey: monthKey, categoryKey: categoryKey });
+            logActivity("award", manhwaId, wm ? displayTitle(wm) : "", { monthKey: monthKey, categoryKey: categoryKey });
           }
           state.confirmWinnerPick = null;
           render();
@@ -4554,7 +4566,7 @@
       delete state.unlockedIds[id];
       save();
       if (wasNew && m) {
-        logActivity(withReview ? "rated_review" : "rated", m.id, m.title, { score: average(m.criteria) });
+        logActivity(withReview ? "rated_review" : "rated", m.id, displayTitle(m), { score: average(m.criteria) });
         state.revealManhwaId = id;
       }
       render();
