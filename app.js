@@ -143,7 +143,7 @@
     return n;
   }
   function reviewCount() {
-    return state.activityLog.filter(function (e) { return e.type === "rated_review"; }).length;
+    return state.activityLog.filter(function (e) { return e.type === "rated_review" || e.type === "rerated_review"; }).length;
   }
   function totalAwardWinsCount() {
     var n = 0;
@@ -162,7 +162,8 @@
   }
   function rockBottomEver() {
     return state.activityLog.some(function (e) {
-      return (e.type === "rated" || e.type === "rated_review") && e.extra && e.extra.score === 1;
+      return (e.type === "rated" || e.type === "rated_review" || e.type === "rerated" || e.type === "rerated_review") &&
+        e.extra && e.extra.score === 1;
     });
   }
   // Longest-ever run of consecutive calendar days with at least one logged
@@ -491,6 +492,16 @@
 
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
+    {
+      version: "73",
+      type: "feature",
+      title: "Оценить заново",
+      items: [
+        "На странице уже оценённого тайтла появилась кнопка «Оценить заново» — для случаев, когда прочитал новые главы и мнение изменилось",
+        "Старая оценка не теряется: она сохраняется в «Истории оценок» на странице тайтла, рядом с текущей",
+        "Новая оценка участвует в премии того месяца, в котором её поставили — даже если сам тайтл добавлен раньше"
+      ]
+    },
     {
       version: "72",
       type: "fix",
@@ -1251,6 +1262,10 @@
     statusPickerOpen: false,
     showAllRanks: false,
     unlockedIds: {},
+    // Holds the pre-re-rate snapshot {ts, avg, criteria} while a re-rate edit
+    // session is open, keyed by manhwa id. Committed into m.ratingHistory only
+    // when the user finishes (finalizeRating); discarded on "Назад".
+    rerateSnapshot: {},
     error: null
   };
 
@@ -1370,10 +1385,18 @@
     return ck === "overall" || ck === "worst";
   }
 
+  // A title is eligible for the award of the month its CURRENT score was
+  // given in — normally when it was first rated, but a re-rate moves it to
+  // the new month. Falls back to the add-date for legacy data that predates
+  // this timestamp.
+  function ratingTs(m) {
+    return (typeof m.lastRatedAt === "number") ? m.lastRatedAt : getCreatedAt(m);
+  }
+
   function eligibleForMonth(monthKey) {
     return state.manhwas.filter(function (m) {
       if (!m.rated) return false;
-      var ts = getCreatedAt(m);
+      var ts = ratingTs(m);
       return ts !== null && monthKeyOf(ts) === monthKey;
     });
   }
@@ -1613,7 +1636,9 @@
       altTitles: { en: "", ja: "", ko: "", ru: "" },
       criteria: DEFAULT_CRITERIA.map(function (name) {
         return { id: uid(), name: name, score: 5 };
-      })
+      }),
+      lastRatedAt: null,
+      ratingHistory: []
     };
   }
 
@@ -1715,6 +1740,22 @@
       m.criteria = DEFAULT_CRITERIA.map(function (name) {
         return { id: uid(), name: name, score: 5 };
       });
+    }
+
+    m.lastRatedAt = finiteOr(m.lastRatedAt, null);
+    if (Array.isArray(m.ratingHistory)) {
+      m.ratingHistory = m.ratingHistory.filter(function (h) {
+        return isPlainObject(h) && typeof h.ts === "number" && isFinite(h.ts);
+      }).map(function (h) {
+        var crit = Array.isArray(h.criteria) ? h.criteria.filter(function (c) {
+          return isPlainObject(c) && typeof c.name === "string" && c.name.trim() !== "";
+        }).map(function (c) {
+          return { id: String(c.id || uid()), name: c.name, score: Math.min(10, Math.max(1, finiteOr(c.score, 5))) };
+        }) : [];
+        return { ts: h.ts, avg: finiteOr(h.avg, average(crit) || 0), criteria: crit };
+      });
+    } else {
+      m.ratingHistory = [];
     }
     return m;
   }
@@ -1852,6 +1893,17 @@
       // normal finished titles everywhere else, so treat them as rated here too.
       if (typeof m.rated !== "boolean") {
         m.rated = true;
+        migrated = true;
+      }
+      // Re-rating didn't exist before this feature shipped — back-fill the
+      // "when was the current score given" timestamp from the add-date, so
+      // award eligibility for already-rated titles doesn't silently shift.
+      if (typeof m.lastRatedAt !== "number") {
+        m.lastRatedAt = m.rated ? getCreatedAt(m) : null;
+        migrated = true;
+      }
+      if (!Array.isArray(m.ratingHistory)) {
+        m.ratingHistory = [];
         migrated = true;
       }
       // "Динамика" was renamed to "Темп/Ритм" — carry the rename over to
@@ -2815,7 +2867,7 @@
     );
   }
 
-  function renderRatingSection(m, avg, editable) {
+  function renderRatingSection(m, avg, editable, rerateSnap) {
     var phase = ratingPhase(m);
 
     if (phase === "phase1") {
@@ -2850,7 +2902,10 @@
       '<div class="mt-paper mt-criteria-panel">';
 
     if (editable) {
-      html += '<div class="mt-lock-hint">Можно менять — не забудь нажать «Готово» внизу</div>';
+      html += rerateSnap
+        ? '<div class="mt-lock-hint">Прошлая оценка — ' + Math.round(rerateSnap.avg) +
+          ' — сохранится в истории. Не забудь нажать «Готово» внизу</div>'
+        : '<div class="mt-lock-hint">Можно менять — не забудь нажать «Готово» внизу</div>';
       m.criteria.forEach(function (c) {
         var color = criterionColor(c.score);
         var removable = m.criteria.length > 1;
@@ -2898,6 +2953,34 @@
     }
 
     return html;
+  }
+
+  // Shows every past completed rating for this title alongside the current
+  // one — a quick "was X, now Y" timeline after a re-rate. Hidden entirely
+  // for titles that have never been re-rated.
+  function renderRatingHistoryPanel(m, avg) {
+    var hist = m.ratingHistory || [];
+    if (!hist.length) return "";
+    var rows = hist.map(function (h) {
+      return (
+        '<div class="mt-bar-row" style="justify-content:space-between">' +
+        '<span class="mt-bar-name" style="width:auto">' + escapeHtml(h.ts ? monthLabel(monthKeyOf(h.ts)) : "—") + "</span>" +
+        '<span class="mt-bar-value" style="width:auto;font-weight:700;color:' + scoreColor(h.avg) + '">' +
+        Math.round(h.avg) + "</span></div>"
+      );
+    }).join("");
+    var currentTs = ratingTs(m);
+    rows += (
+      '<div class="mt-bar-row" style="justify-content:space-between">' +
+      '<span class="mt-bar-name" style="width:auto">' +
+      escapeHtml(currentTs ? monthLabel(monthKeyOf(currentTs)) : "сейчас") + " (сейчас)</span>" +
+      '<span class="mt-bar-value" style="width:auto;font-weight:700;color:' + scoreColor(avg) + '">' +
+      (avg === null ? "—" : Math.round(avg)) + "</span></div>"
+    );
+    return (
+      '<div class="mt-paper mt-criteria-panel">' +
+      '<div class="mt-panel-title">ИСТОРИЯ ОЦЕНОК</div>' + rows + "</div>"
+    );
   }
 
   function renderTagsPanel(m) {
@@ -3022,7 +3105,7 @@
   // (winner not yet decided). Returns null if there's nothing to nominate.
   function openAwardCategoriesFor(m) {
     if (!m.rated) return null;
-    var ts = getCreatedAt(m);
+    var ts = ratingTs(m);
     if (ts === null) return null;
     var monthKey = monthKeyOf(ts);
     var categories = AWARD_CATEGORY_KEYS.filter(function (ck) {
@@ -3080,6 +3163,7 @@
     var unlocked = !!state.unlockedIds[m.id];
     var editable = isNew || unlocked;
 
+    var rerateSnap = state.rerateSnapshot[m.id] || null;
     var currentStatus = statusById(m.status);
     var html =
       '<div class="mt-detail-head">' +
@@ -3130,7 +3214,8 @@
         "</div>";
     }
 
-    html += renderRatingSection(m, avg, editable);
+    html += renderRatingSection(m, avg, editable, rerateSnap);
+    html += renderRatingHistoryPanel(m, avg);
 
     if (editable) {
       html += renderTagsPanel(m) + renderGenresPanel(m) + renderAltTitlesPanel(m) + renderNotesPanel(m) + renderCoverPanel(m);
@@ -3154,8 +3239,14 @@
           '" style="width:100%">Готово</button>';
       }
     } else {
-      html += '<button class="mt-ghost-btn" id="unlock-rating-btn" data-manhwa-id="' + m.id +
-        '" style="width:100%">✎ Изменить</button>';
+      html += '<div class="mt-form-row">' +
+        '<button class="mt-ghost-btn" id="unlock-rating-btn" data-manhwa-id="' + m.id +
+        '" style="flex:1">✎ Изменить</button>' +
+        '<button class="mt-primary-btn" id="rerate-btn" data-manhwa-id="' + m.id +
+        '" style="flex:1">🔄 Оценить заново</button>' +
+        "</div>" +
+        '<div class="mt-ceremony-hint" style="text-align:center;margin-top:8px">' +
+        "Прочитал новые главы? «Оценить заново» сохранит старую оценку в историю и добавит новую в премию этого месяца</div>";
     }
 
     html += renderActivityFeedForManhwa(m);
@@ -3227,6 +3318,8 @@
     if (e.type === "add") return "➕";
     if (e.type === "rated") return "⭐";
     if (e.type === "rated_review") return "📝";
+    if (e.type === "rerated") return "🔄";
+    if (e.type === "rerated_review") return "📝";
     if (e.type === "status") {
       var st = e.extra && statusById(e.extra.status);
       return st ? '<span class="mt-activity-dot" style="background:' + st.color + '"></span>' : "•";
@@ -3246,6 +3339,13 @@
       var score = e.extra && e.extra.score !== null && e.extra.score !== undefined ? Math.round(e.extra.score) : null;
       var withReview = e.type === "rated_review";
       return "Оценён «" + t + "»" + (withReview ? " с рецензией" : "") + (score !== null ? " — " + score + "/100" : "");
+    }
+    if (e.type === "rerated" || e.type === "rerated_review") {
+      var newScore = e.extra && e.extra.score !== null && e.extra.score !== undefined ? Math.round(e.extra.score) : null;
+      var prevScore = e.extra && e.extra.prevScore !== null && e.extra.prevScore !== undefined ? Math.round(e.extra.prevScore) : null;
+      var withReview2 = e.type === "rerated_review";
+      return "Переоценён «" + t + "»" + (withReview2 ? " с рецензией" : "") +
+        (prevScore !== null && newScore !== null ? " — " + prevScore + " → " + newScore : (newScore !== null ? " — " + newScore + "/100" : ""));
     }
     if (e.type === "status") {
       var st = e.extra && statusById(e.extra.status);
@@ -4561,12 +4661,24 @@
 
     function finalizeRating(id, withReview) {
       var m = findManhwa(id);
-      var wasNew = m && m.rated === false;
-      if (m) m.rated = true;
+      if (!m) { delete state.unlockedIds[id]; delete state.rerateSnapshot[id]; render(); return; }
+      var wasNew = m.rated === false;
+      var snap = state.rerateSnapshot[id] || null;
+      if (snap) {
+        if (!Array.isArray(m.ratingHistory)) m.ratingHistory = [];
+        m.ratingHistory.push(snap);
+        delete state.rerateSnapshot[id];
+      }
+      m.rated = true;
+      if (wasNew || snap) m.lastRatedAt = Date.now();
       delete state.unlockedIds[id];
       save();
-      if (wasNew && m) {
+      if (wasNew) {
         logActivity(withReview ? "rated_review" : "rated", m.id, displayTitle(m), { score: average(m.criteria) });
+        state.revealManhwaId = id;
+      } else if (snap) {
+        logActivity(withReview ? "rerated_review" : "rerated", m.id, displayTitle(m),
+          { score: average(m.criteria), prevScore: snap.avg });
         state.revealManhwaId = id;
       }
       render();
@@ -4595,6 +4707,21 @@
     if (unlockBtn) unlockBtn.addEventListener("click", function () {
       var id = unlockBtn.getAttribute("data-manhwa-id");
       state.unlockedIds[id] = true;
+      render();
+    });
+
+    var rerateBtn = document.getElementById("rerate-btn");
+    if (rerateBtn) rerateBtn.addEventListener("click", function () {
+      var id = rerateBtn.getAttribute("data-manhwa-id");
+      var m = findManhwa(id);
+      if (m) {
+        state.rerateSnapshot[id] = {
+          ts: ratingTs(m),
+          avg: average(m.criteria),
+          criteria: m.criteria.map(function (c) { return { id: c.id, name: c.name, score: c.score }; })
+        };
+        state.unlockedIds[id] = true;
+      }
       render();
     });
 
@@ -4917,6 +5044,7 @@
     }
     if (state.selectedId) {
       delete state.unlockedIds[state.selectedId];
+      delete state.rerateSnapshot[state.selectedId];
       state.selectedId = null;
       state.addingCriterion = false;
       state.pendingGenreDraft = "";
