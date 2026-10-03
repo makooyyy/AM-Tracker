@@ -1,4 +1,4 @@
-var CACHE_NAME = "manhwa-tracker-v79";
+var CACHE_NAME = "manhwa-tracker-v80";
 
 // The Firebase SDK files are versioned, immutable URLs, so they get their own
 // long-lived cache (surviving app updates) and are served cache-first. That lets
@@ -15,6 +15,7 @@ var CORE_ASSETS = [
   "./app.js",
   "./firebase-config.js",
   "./sync.js",
+  "./changelog.js",
   "./manifest.json"
 ];
 
@@ -76,7 +77,7 @@ self.addEventListener("fetch", function (event) {
   var request = event.request;
   if (request.method !== "GET") return;
 
-  // Only manage our own files. Fonts, the Telegram script, AniList covers and
+  // Only manage our own files. Fonts, AniList covers and
   // API calls go straight to the network as if there were no service worker,
   // so offline they fail normally instead of via a broken respondWith().
   var url = new URL(request.url);
