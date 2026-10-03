@@ -122,6 +122,19 @@ body {
   transition: transform .12s cubic-bezier(.34,1.56,.64,1);
 }
 .mt-filter-chip:active { transform: scale(0.94); }
+.mt-rating-tabs {
+  display: flex; gap: 6px; overflow-x: auto; position: relative;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.mt-rating-tabs::-webkit-scrollbar { display: none; }
+.mt-rating-chip {
+  flex: 0 0 auto; border-radius: 20px; padding: 6px 13px; font-size: 12.5px; font-weight: 700;
+  font-family: 'Manrope', sans-serif; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: var(--text-muted);
+  transition: transform .12s cubic-bezier(.34,1.56,.64,1);
+}
+.mt-rating-chip:active { transform: scale(0.94); }
+.mt-rating-chip.active { background: var(--pink); color: #0E0E10; border-color: transparent; }
 .mt-genre-toggle-chip {
   border-radius: 20px; padding: 6px 13px; font-size: 12.5px; font-weight: 700;
   font-family: 'Manrope', sans-serif; cursor: pointer;

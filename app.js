@@ -493,6 +493,16 @@
   // type: "feature" (новое) | "update" (обновление) | "fix" (исправление)
   var CHANGELOG = [
     {
+      version: "74",
+      type: "feature",
+      title: "Переключатель оценок",
+      items: [
+        "Если тайтл оценивали заново, над оценкой появляются кнопки с месяцами — например «Июль 2026» и «Октябрь 2026»",
+        "Нажатие переключает показанную оценку: радар, итоговый балл и баллы по критериям. Новая оценка стоит на том же месте, что и старая",
+        "«Копировать оценки» копирует ту оценку, которая сейчас открыта. Отдельный блок «История оценок» убран — его заменили кнопки"
+      ]
+    },
+    {
       version: "73",
       type: "feature",
       title: "Оценить заново",
@@ -1266,6 +1276,9 @@
     // session is open, keyed by manhwa id. Committed into m.ratingHistory only
     // when the user finishes (finalizeRating); discarded on "Назад".
     rerateSnapshot: {},
+    // Which past rating is shown on a title's page (index into m.ratingHistory).
+    // No entry = the current rating. Pure UI state, never saved or synced.
+    ratingView: {},
     error: null
   };
 
@@ -1286,13 +1299,15 @@
   // the final score by exactly 2 (1/5 of the average × 10).
   // Custom (non-default) criteria still don't factor into this — informational only.
 
-  function buildScoreText(m) {
-    var avg = average(m.criteria);
+  function buildScoreText(m, snap) {
+    var criteria = snap ? snap.criteria : m.criteria;
+    var avg = snap ? snap.avg : average(m.criteria);
     var lines = [];
-    lines.push(displayTitle(m));
-    lines.push("Итоговая оценка: " + (avg === null ? "—" : Math.round(avg)) + "/100");
+    var snapLabel = snap ? ratingChipLabel(snap.ts, false) : null;
+    lines.push(displayTitle(m) + (snapLabel ? " (" + snapLabel + ")" : ""));
+    lines.push("Итоговая оценка: " + (avg === null || avg === undefined ? "—" : Math.round(avg)) + "/100");
     lines.push("");
-    m.criteria.forEach(function (c) {
+    criteria.forEach(function (c) {
       lines.push(c.name + ": " + c.score.toFixed(1));
     });
     if (m.tags && m.tags.length) {
@@ -1375,6 +1390,29 @@
     var parts = monthKey.split("-");
     var idx = parseInt(parts[1], 10) - 1;
     return MONTH_NAMES_GENITIVE[idx] + " " + parts[0];
+  }
+
+  var MONTH_NAMES_NOMINATIVE = [
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+  ];
+
+  // Label for a rating-switcher button: "Июль 2026". When two ratings of the
+  // same title fall in the same month, the day is added so they stay distinguishable.
+  function ratingChipLabel(ts, withDay) {
+    if (typeof ts !== "number") return null;
+    var d = new Date(ts);
+    if (withDay) return d.getDate() + " " + MONTH_NAMES_GENITIVE[d.getMonth()] + " " + d.getFullYear();
+    return MONTH_NAMES_NOMINATIVE[d.getMonth()] + " " + d.getFullYear();
+  }
+
+  // Index into m.ratingHistory of the past rating currently shown, or null for
+  // the current one. Always null while the rating is being edited.
+  function viewedHistoryIndex(m) {
+    if (m.rated === false || state.unlockedIds[m.id]) return null;
+    var hist = m.ratingHistory || [];
+    var v = state.ratingView[m.id];
+    return (typeof v === "number" && v >= 0 && v < hist.length) ? v : null;
   }
 
   var AWARD_CATEGORY_KEYS = ["overall", "worst"].concat(DEFAULT_CRITERIA).concat(["cover"]);
@@ -2886,8 +2924,32 @@
     }
 
     // phase === "legacy" or "phase2" — full criteria available
+    var hist = m.ratingHistory || [];
+    var viewIdx = viewedHistoryIndex(m);
+    var snapView = viewIdx === null ? null : hist[viewIdx];
+    var shownCriteria = snapView ? snapView.criteria : m.criteria;
+    var shownAvg = snapView ? snapView.avg : avg;
+
+    // Buttons above the rating: one per past rating plus the current one.
+    var ratingTabs = "";
+    if (!editable && hist.length) {
+      var stamps = hist.map(function (h) { return h.ts; }).concat([ratingTs(m)]);
+      var baseLabels = stamps.map(function (ts) { return ratingChipLabel(ts, false); });
+      var chips = stamps.map(function (ts, i) {
+        var label = baseLabels[i];
+        var dup = label !== null && baseLabels.filter(function (l) { return l === label; }).length > 1;
+        if (dup) label = ratingChipLabel(ts, true);
+        if (label === null) label = i === stamps.length - 1 ? "Сейчас" : "Ранее";
+        var isCurrent = i === stamps.length - 1;
+        var active = isCurrent ? viewIdx === null : viewIdx === i;
+        return '<button class="mt-rating-chip' + (active ? " active" : "") + '" data-manhwa-id="' + m.id +
+          '" data-rating-view="' + (isCurrent ? "current" : i) + '">' + escapeHtml(label) + "</button>";
+      }).join("");
+      ratingTabs = '<div class="mt-rating-tabs">' + chips + "</div>";
+    }
+
     var emotionRecap = "";
-    if (typeof m.emotionRating === "number") {
+    if (!snapView && typeof m.emotionRating === "number") {
       var recapStars = "";
       for (var j = 1; j <= 5; j++) {
         recapStars += '<span class="mt-emotion-star-static mini' + (j <= m.emotionRating ? " filled" : "") + '">★</span>';
@@ -2897,7 +2959,8 @@
         '<span class="mt-emotion-recap-label">' + escapeHtml(EMOTION_LABELS[m.emotionRating - 1]) + "</span></div>";
     }
 
-    var html = '<div class="mt-paper mt-radar-panel">' + radarSvg(m.criteria, {}) + stampHtml(avg, 50) +
+    var html = ratingTabs + '<div class="mt-paper mt-radar-panel">' +
+      (shownCriteria.length ? radarSvg(shownCriteria, {}) : "") + stampHtml(shownAvg, 50) +
       emotionRecap + "</div>" +
       '<div class="mt-paper mt-criteria-panel">';
 
@@ -2923,7 +2986,7 @@
           "</div>";
       });
     } else {
-      m.criteria.forEach(function (c) {
+      shownCriteria.forEach(function (c) {
         var color = criterionColor(c.score);
         html +=
           '<div class="mt-bar-row"><span class="mt-bar-name">' + escapeHtml(c.name) + "</span>" +
@@ -2953,34 +3016,6 @@
     }
 
     return html;
-  }
-
-  // Shows every past completed rating for this title alongside the current
-  // one — a quick "was X, now Y" timeline after a re-rate. Hidden entirely
-  // for titles that have never been re-rated.
-  function renderRatingHistoryPanel(m, avg) {
-    var hist = m.ratingHistory || [];
-    if (!hist.length) return "";
-    var rows = hist.map(function (h) {
-      return (
-        '<div class="mt-bar-row" style="justify-content:space-between">' +
-        '<span class="mt-bar-name" style="width:auto">' + escapeHtml(h.ts ? monthLabel(monthKeyOf(h.ts)) : "—") + "</span>" +
-        '<span class="mt-bar-value" style="width:auto;font-weight:700;color:' + scoreColor(h.avg) + '">' +
-        Math.round(h.avg) + "</span></div>"
-      );
-    }).join("");
-    var currentTs = ratingTs(m);
-    rows += (
-      '<div class="mt-bar-row" style="justify-content:space-between">' +
-      '<span class="mt-bar-name" style="width:auto">' +
-      escapeHtml(currentTs ? monthLabel(monthKeyOf(currentTs)) : "сейчас") + " (сейчас)</span>" +
-      '<span class="mt-bar-value" style="width:auto;font-weight:700;color:' + scoreColor(avg) + '">' +
-      (avg === null ? "—" : Math.round(avg)) + "</span></div>"
-    );
-    return (
-      '<div class="mt-paper mt-criteria-panel">' +
-      '<div class="mt-panel-title">ИСТОРИЯ ОЦЕНОК</div>' + rows + "</div>"
-    );
   }
 
   function renderTagsPanel(m) {
@@ -3215,7 +3250,6 @@
     }
 
     html += renderRatingSection(m, avg, editable, rerateSnap);
-    html += renderRatingHistoryPanel(m, avg);
 
     if (editable) {
       html += renderTagsPanel(m) + renderGenresPanel(m) + renderAltTitlesPanel(m) + renderNotesPanel(m) + renderCoverPanel(m);
@@ -4623,7 +4657,8 @@
       var id = copyScoresBtn.getAttribute("data-manhwa-id");
       var m = findManhwa(id);
       if (!m) return;
-      var text = buildScoreText(m);
+      var vi = viewedHistoryIndex(m);
+      var text = buildScoreText(m, vi === null ? null : (m.ratingHistory || [])[vi]);
 
       function showCopied() {
         var original = copyScoresBtn.textContent;
@@ -4663,6 +4698,7 @@
       var m = findManhwa(id);
       if (!m) { delete state.unlockedIds[id]; delete state.rerateSnapshot[id]; render(); return; }
       var wasNew = m.rated === false;
+      delete state.ratingView[id];
       var snap = state.rerateSnapshot[id] || null;
       if (snap) {
         if (!Array.isArray(m.ratingHistory)) m.ratingHistory = [];
@@ -4706,14 +4742,33 @@
     var unlockBtn = document.getElementById("unlock-rating-btn");
     if (unlockBtn) unlockBtn.addEventListener("click", function () {
       var id = unlockBtn.getAttribute("data-manhwa-id");
+      delete state.ratingView[id];
       state.unlockedIds[id] = true;
       render();
     });
+
+    app.querySelectorAll("[data-rating-view]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-manhwa-id");
+        var v = btn.getAttribute("data-rating-view");
+        if (v === "current") delete state.ratingView[id];
+        else state.ratingView[id] = parseInt(v, 10);
+        render();
+      });
+    });
+
+    // Keep the selected rating button in view when there are more of them than fit.
+    var activeRatingChip = app.querySelector(".mt-rating-chip.active");
+    if (activeRatingChip && activeRatingChip.parentNode) {
+      var strip = activeRatingChip.parentNode;
+      strip.scrollLeft = activeRatingChip.offsetLeft - (strip.clientWidth - activeRatingChip.offsetWidth) / 2;
+    }
 
     var rerateBtn = document.getElementById("rerate-btn");
     if (rerateBtn) rerateBtn.addEventListener("click", function () {
       var id = rerateBtn.getAttribute("data-manhwa-id");
       var m = findManhwa(id);
+      delete state.ratingView[id];
       if (m) {
         state.rerateSnapshot[id] = {
           ts: ratingTs(m),
@@ -5045,6 +5100,7 @@
     if (state.selectedId) {
       delete state.unlockedIds[state.selectedId];
       delete state.rerateSnapshot[state.selectedId];
+      delete state.ratingView[state.selectedId];
       state.selectedId = null;
       state.addingCriterion = false;
       state.pendingGenreDraft = "";
