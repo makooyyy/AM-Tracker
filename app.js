@@ -1549,6 +1549,13 @@
     return (ru && ru.trim()) ? ru : m.title;
   }
 
+  // Position in the "новые" sort: when the title was added, or — once it has
+  // been re-rated with «Оценить заново» — when that re-rate happened.
+  function recencyTs(m) {
+    var wasRerated = (m.ratingHistory || []).length > 0 && typeof m.lastRatedAt === "number";
+    return (wasRerated ? m.lastRatedAt : getCreatedAt(m)) || 0;
+  }
+
   function sortedManhwas() {
     var arr = state.manhwas.slice();
     if (state.filterStatus !== "all") {
@@ -1575,8 +1582,7 @@
       });
     } else {
       arr.sort(function (a, b) {
-        var at = getCreatedAt(a) || 0, bt = getCreatedAt(b) || 0;
-        return bt - at;
+        return recencyTs(b) - recencyTs(a);
       });
     }
     return arr;
