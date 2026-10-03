@@ -69,9 +69,6 @@ body {
   padding: 16px;
 }
 
-.mt-btn { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease; }
-.mt-btn:active { transform: scale(0.96); opacity: .85; }
-
 .mt-header { padding: 28px 16px 18px; }
 .mt-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .mt-title {
@@ -253,7 +250,6 @@ body {
   letter-spacing: 0.3px; cursor: pointer; white-space: nowrap; font-family: 'Manrope', sans-serif;
   border: 1.5px solid; background: transparent; display: inline-block;
 }
-.mt-status-tag { cursor: default; }
 
 .mt-status-picker {
   margin: 0 16px 16px; padding: 8px; display: flex; flex-direction: column; gap: 4px;
@@ -274,11 +270,6 @@ body {
 }
 .mt-icon-btn:hover { color: var(--text-muted); }
 .mt-icon-btn.on-dark { color: var(--text-muted); font-size: 20px; }
-.mt-delete-confirm {
-  color: var(--red) !important; font-size: 11px !important; font-weight: 800;
-  border: 1px solid var(--red) !important; border-radius: 12px; padding: 3px 8px !important;
-  background: rgba(217,131,143,0.1);
-}
 
 .mt-empty { text-align: center; padding: 36px 20px; }
 .mt-empty-title { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 19px; color: var(--text-primary); margin-bottom: 6px; }
@@ -372,13 +363,8 @@ body {
 }
 .mt-emotion-star:active { transform: scale(1.3); }
 .mt-emotion-star:hover { color: var(--amber); transform: scale(1.15); }
-.mt-emotion-stars-static { display: flex; gap: 4px; }
 .mt-emotion-star-static { font-size: 30px; color: rgba(255,255,255,0.14); }
 .mt-emotion-star-static.filled { color: var(--amber); }
-.mt-emotion-label {
-  color: var(--text-primary); font-size: 13px; font-weight: 700; max-width: 260px;
-  margin-top: 2px;
-}
 .mt-emotion-recap { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
 .mt-emotion-star-static.mini { font-size: 14px; }
 .mt-emotion-recap-label { font-size: 11.5px; color: var(--text-muted); }
@@ -398,31 +384,8 @@ body {
 }
 .mt-tag-chip:active { transform: scale(0.94); }
 .mt-tag-chip[disabled] { cursor: not-allowed; }
-.mt-tag-stat-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.mt-tag-stat {
-  font-size: 12px; color: var(--text-primary); background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 4px 9px;
-}
-.mt-tag-stat b { font-family: 'Space Mono', monospace; color: var(--text-muted); font-weight: 700; }
 
 /* Activity heatmap */
-.mt-heatmap-scroll { padding-bottom: 2px; }
-.mt-heatmap-grid { display: flex; gap: 4px; width: 100%; }
-.mt-heat-col { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-width: 0; }
-.mt-heat-cell {
-  border-radius: 5px; background: rgba(255,255,255,0.05);
-}
-.mt-heat-col .mt-heat-cell { width: 100%; aspect-ratio: 1 / 1; }
-.mt-heat-cell[data-level="1"] { background: rgba(201,191,168,0.28); }
-.mt-heat-cell[data-level="2"] { background: rgba(201,191,168,0.55); }
-.mt-heat-cell[data-level="3"] { background: rgba(255,120,110,0.75); }
-.mt-heat-cell[data-level="4"] { background: linear-gradient(135deg, var(--pink), var(--amber)); }
-.mt-heat-empty { background: transparent; }
-.mt-heat-legend {
-  display: flex; align-items: center; gap: 3px; margin-top: 12px;
-  font-size: 10.5px; color: var(--text-muted);
-}
-.mt-heat-legend .mt-heat-cell { width: 11px; height: 11px; flex-shrink: 0; margin: 0 1px; }
 
 /* Activity diary feed */
 .mt-activity-list { display: flex; flex-direction: column; gap: 12px; }
@@ -483,17 +446,6 @@ input[type="range"].mt-slider::-moz-range-thumb {
   border: 3px solid #0E0E10; cursor: pointer;
   box-shadow: 0 0 10px rgba(231,227,220,0.55);
 }
-
-.mt-profile-head { padding: 26px 16px 16px; display: flex; align-items: center; gap: 14px; }
-.mt-profile-avatar {
-  flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%;
-  border: 2px solid var(--pink); box-shadow: 0 0 16px rgba(231,227,220,0.35);
-  display: flex; align-items: center; justify-content: center; color: var(--text-primary);
-  background: rgba(231,227,220,0.08);
-}
-.mt-profile-avatar svg { width: 22px; height: 22px; }
-.mt-profile-title { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 26px; color: var(--text-primary); }
-.mt-profile-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 
 .mt-rank-badge {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
@@ -628,8 +580,6 @@ input[type="range"].mt-slider::-moz-range-thumb {
   font-size: 12px; color: var(--text-muted); margin-top: 1px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mt-award-score { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 13px; color: var(--amber); flex-shrink: 0; }
-.mt-ceremony-panel .mt-award-row { cursor: pointer; }
 .mt-ceremony-hint { color: var(--text-muted); font-size: 12px; line-height: 1.4; margin-bottom: 10px; }
 
 .mt-category-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
@@ -722,8 +672,6 @@ input[type="range"].mt-slider::-moz-range-thumb {
 .mt-mini-score { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 14px; }
 
 .mt-backup-text { color: var(--text-muted); font-size: 12.5px; margin-bottom: 12px; line-height: 1.4; }
-
-.mt-clear-wrap { display: flex; justify-content: center; margin-top: 6px; }
 .mt-clear-btn {
   background: transparent; border: 1px solid rgba(255,255,255,0.12); color: var(--text-muted);
   border-radius: 10px; padding: 10px 14px; font-size: 12px; font-weight: 700;
@@ -845,8 +793,6 @@ input[type="range"].mt-slider::-moz-range-thumb {
 }
 .mt-reveal-notes-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
 
-.mt-loading { color: var(--text-muted); padding: 40px 16px; text-align: center; }
-
 /* AniList lookup (add-manhwa flow) */
 .mt-anilist-error { color: var(--red); font-size: 12px; font-weight: 600; margin-top: 8px; }
 .mt-anilist-empty { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
@@ -876,18 +822,37 @@ input[type="range"].mt-slider::-moz-range-thumb {
 .mt-anilist-picked-check { color: var(--amber); font-weight: 800; flex-shrink: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .mt-btn, .mt-tab-v2, .mt-tab-icon-wrap, .mt-paper, .mt-grid-card, .mt-mini-row,
-  .mt-changelog-entry, .mt-stamp, .mt-cover-score, .mt-icon-round, .mt-primary-btn,
-  .mt-filter-chip, .mt-tag-chip, .mt-emotion-star, .mt-anilist-row, .mt-add-btn, .mt-add-btn::after,
-  .mt-cover-trophy, .mt-cover-worst, .mt-rank-panel-legendary::after, .mt-rank-progress-fill,
-  .mt-reveal-backdrop, .mt-reveal-card, .mt-reveal-cover, .mt-reveal-title, .mt-reveal-stamp, .mt-reveal-notes {
+  .mt-tab-v2,
+.mt-tab-icon-wrap,
+.mt-paper,
+.mt-grid-card,
+.mt-mini-row,
+.mt-changelog-entry,
+.mt-stamp,
+.mt-cover-score,
+.mt-icon-round,
+.mt-primary-btn,
+.mt-filter-chip,
+.mt-tag-chip,
+.mt-emotion-star,
+.mt-anilist-row,
+.mt-add-btn,
+.mt-add-btn::after,
+.mt-cover-trophy,
+.mt-cover-worst,
+.mt-rank-panel-legendary::after,
+.mt-rank-progress-fill,
+.mt-reveal-backdrop,
+.mt-reveal-card,
+.mt-reveal-cover,
+.mt-reveal-title,
+.mt-reveal-stamp,
+.mt-reveal-notes {
     animation: none !important; transition: none !important;
   }
 }
 
-
 /* ---------- account & sync card ---------- */
-.mt-acct-status { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; }
 .mt-acct-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .mt-acct-tab { flex: 1; padding: 10px 12px; }
 .mt-acct-tab.active { border-color: var(--pink); color: var(--pink); }
@@ -896,7 +861,6 @@ input[type="range"].mt-slider::-moz-range-thumb {
 .mt-acct-msg:empty { display: none; }
 .mt-acct-msg.err { color: var(--red); font-weight: 600; }
 .mt-acct-msg.ok { color: #7FBF9B; }
-
 
 /* ---------- profile hero ---------- */
 .mt-hero { position: relative; margin: 16px 16px 0; border-radius: 22px; overflow: hidden; background: var(--card-bg); border: 1px solid var(--card-border); box-shadow: 0 12px 30px rgba(0,0,0,0.45); animation: mtFadeIn .32s cubic-bezier(.22,.8,.36,1) both; }
@@ -911,7 +875,6 @@ input[type="range"].mt-slider::-moz-range-thumb {
 .mt-avatar svg { width: 42%; height: 42%; }
 .mt-avatar-emoji { font-size: 0.86em; line-height: 1; }
 .mt-avatar-letter { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 0.72em; line-height: 1; color: rgba(20,20,22,0.85); }
-.mt-avatar-cam { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; background: var(--card-bg); border: 1px solid rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text-primary); }
 .mt-hero-id { min-width: 0; }
 .mt-hero-nick { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 22px; line-height: 1.15; color: var(--text-primary); overflow-wrap: anywhere; }
 .mt-hero-bio { color: var(--text-muted); font-size: 13px; margin-top: 4px; line-height: 1.35; overflow-wrap: anywhere; }

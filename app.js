@@ -1,3 +1,18 @@
+/*
+ * AM Tracker — the whole app in one file (no build step). Sections, in order:
+ *   constants          storage keys, ranks, achievements, tag lists, changelog
+ *   helpers            scoring formula, awards logic, title CRUD, AniList search
+ *   backup import      validation of imported / cloud-synced data
+ *   persistence        load/save (IndexedDB, localStorage fallback), activity log
+ *   svg pieces         radar chart and small icons
+ *   view: library      title list, search, filters, awards tab
+ *   view: detail       a single title: rating, tags, notes, rating switcher
+ *   view: profile      rank, achievements, activity, settings
+ *   profile & account  nickname/avatar editor, sign-in and sync status
+ *   render + handlers  render() redraws #app; attachHandlers() wires the buttons
+ *   bridge for sync.js window.AMApp — the interface sync.js uses to read/write data
+ *   boot               load data, start sync, register the service worker
+ */
 (function () {
   "use strict";
 
@@ -131,7 +146,7 @@
     return state.manhwas.length * XP_VALUES.add + ratedCount * XP_VALUES.rated + awardCount * XP_VALUES.award;
   }
 
-  /* ---------- achievements ---------- */
+  /* ---------- constants: ranks, achievements, tables, changelog ---------- */
   function ratedTitlesCount() {
     var n = 0;
     state.manhwas.forEach(function (m) { if (m.rated) n++; });
@@ -1282,7 +1297,7 @@
     error: null
   };
 
-  /* ---------- helpers ---------- */
+  /* ---------- helpers: scoring, awards, titles, AniList ---------- */
   function uid() {
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
@@ -1493,10 +1508,6 @@
     });
   }
 
-  function monthHasCandidates(monthKey) {
-    return eligibleForMonth(monthKey).length > 0;
-  }
-
   function lastCompletedMonthKey() {
     var now = new Date();
     var d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -1599,13 +1610,6 @@
   function typeById(id) {
     for (var i = 0; i < TYPES.length; i++) if (TYPES[i].id === id) return TYPES[i];
     return TYPES[0];
-  }
-
-  function criteriaWord(n) {
-    var mod10 = n % 10, mod100 = n % 100;
-    if (mod10 === 1 && mod100 !== 11) return "критерий";
-    if ([2, 3, 4].indexOf(mod10) !== -1 && [12, 13, 14].indexOf(mod100) === -1) return "критерия";
-    return "критериев";
   }
 
   var ANILIST_QUERY =
@@ -2171,14 +2175,6 @@
     return svg;
   }
 
-  function statusTagHtml(statusId) {
-    var s = statusById(statusId);
-    return (
-      '<span class="mt-status-badge mt-status-tag" style="border-color:' + s.color + ";color:" + s.color +
-      ";background:" + s.color + '18;">' + s.label + "</span>"
-    );
-  }
-
   // Expands under the status badge on the detail page — pick any status
   // directly instead of cycling through them one tap at a time.
   function renderStatusPicker(m) {
@@ -2201,14 +2197,6 @@
     return (
       '<button class="mt-status-badge" style="border-color:' + t.color + ";color:" + t.color +
       ";background:" + t.color + '18;" ' + (extraAttrs || "") + ">" + t.label + "</button>"
-    );
-  }
-
-  function typeTagHtml(typeId) {
-    var t = typeById(typeId);
-    return (
-      '<span class="mt-status-badge mt-status-tag" style="border-color:' + t.color + ";color:" + t.color +
-      ";background:" + t.color + '18;">' + t.label + "</span>"
     );
   }
 
@@ -3326,13 +3314,6 @@
 
   function pad2(n) {
     return n < 10 ? "0" + n : "" + n;
-  }
-
-  function pluralRu(n, forms) {
-    var n10 = n % 10, n100 = n % 100;
-    if (n10 === 1 && n100 !== 11) return forms[0];
-    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return forms[1];
-    return forms[2];
   }
 
   function formatActivityDate(ts) {
@@ -5129,7 +5110,7 @@
     try { hasBack ? tg.BackButton.show() : tg.BackButton.hide(); } catch (e) {}
   }
 
-  /* ---------- bridge for js/sync.js ---------- */
+  /* ---------- bridge for sync.js ---------- */
 
   function readKey(key) {
     if (idbAvailable) return idbGet(key).catch(function () { return undefined; });

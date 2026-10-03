@@ -17,7 +17,7 @@
  * query, and only documents changed since the last sync are read.
  *
  * The sync engine (createEngine) knows nothing about Firebase — it talks to a
- * small `remote` adapter — which keeps it testable without a network.
+ * small `remote` adapter (createFirebaseRemote).
  */
 (function (root) {
   "use strict";
@@ -878,13 +878,5 @@
 
   /* ------------------------------------------------------------------ */
 
-  if (typeof window !== "undefined" && root === window) {
-    root.AMSync = setupBrowserApi();
-  }
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = {
-      createEngine: createEngine, freshMeta: freshMeta, hashStr: hashStr,
-      canonTitle: canonTitle, friendlySyncError: friendlySyncError
-    };
-  }
-})(typeof window !== "undefined" ? window : globalThis);
+  root.AMSync = setupBrowserApi();
+})(window);
