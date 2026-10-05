@@ -15,6 +15,11 @@
   --input-bg: #1A1A1C;
 }
 
+#storage-notice:empty { display: none; }
+#storage-notice .mt-error { margin: 16px 16px 0; }
+#retry-storage-btn { display: block; margin-top: 10px; }
+.mt-cover-score.mt-cover-unrated { width: auto; height: auto; max-width: calc(100% - 12px); padding: 4px 6px; font-size: 9px; line-height: 1.2; border-radius: 8px; text-align: center; }
+
 html, body {
   margin: 0;
   padding: 0;

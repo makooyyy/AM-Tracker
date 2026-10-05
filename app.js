@@ -26,6 +26,7 @@
   var SYNC_META_KEY = "manhwa-tracker:sync:v1";
   var XP_STORAGE_KEY = "manhwa-tracker:xp:v1";
   var ACHIEVEMENTS_STORAGE_KEY = "manhwa-tracker:achievements:v1";
+  var RATING_DRAFTS_KEY = "manhwa-tracker:rating-drafts:v1";
   var CHANGELOG_SEEN_KEY = "manhwa-tracker:changelog-seen:v1";
 
   // Storage backend: IndexedDB (no practical size cap, unlike localStorage's
@@ -76,6 +77,7 @@
         tx.objectStore(IDB_STORE).put(value, key);
         tx.oncomplete = function () { resolve(); };
         tx.onerror = function () { reject(tx.error); };
+        tx.onabort = function () { reject(tx.error || new Error("indexeddb write aborted")); };
       });
     });
   }
@@ -93,16 +95,64 @@
 
   // Picks the active backend (IndexedDB, or localStorage if IDB isn't usable
   // in this browser) — every save*() function below goes through this.
+  var storageWrites = {};
+  var storageVersions = {};
+  var failedWrites = {};
+  var retryingStorage = false;
+
+  // Snapshot and serialize writes per key. A slow older write must never
+  // overwrite a newer value, including after a failed write is retried.
   function persistKey(key, value) {
-    return idbAvailable ? idbSet(key, value) : localSetPromise(key, value);
+    var snapshot = JSON.parse(JSON.stringify(value));
+    var version = (storageVersions[key] || 0) + 1;
+    storageVersions[key] = version;
+    var write = (storageWrites[key] || Promise.resolve()).catch(function () {}).then(function () {
+      return idbAvailable ? idbSet(key, snapshot) : localSetPromise(key, snapshot);
+    }).then(function () {
+      if (storageVersions[key] === version) delete failedWrites[key];
+      patchStorageNotice();
+    }, function (err) {
+      if (storageVersions[key] === version) failedWrites[key] = snapshot;
+      patchStorageNotice();
+      throw err;
+    });
+    storageWrites[key] = write;
+    return write;
+  }
+
+  function storageNoticeHtml() {
+    if (!Object.keys(failedWrites).length) return "";
+    return '<div class="mt-error" role="alert">Не удалось сохранить часть данных на устройстве. ' +
+      'Не закрывай приложение до успешной повторной попытки.' +
+      '<button class="mt-ghost-btn" id="retry-storage-btn"' + (retryingStorage ? ' disabled' : '') + '>' +
+      (retryingStorage ? 'Сохраняю…' : 'Повторить сохранение') + '</button></div>';
+  }
+
+  function patchStorageNotice() {
+    var el = document.getElementById("storage-notice");
+    if (!el) return;
+    el.innerHTML = storageNoticeHtml();
+    var btn = document.getElementById("retry-storage-btn");
+    if (btn) btn.onclick = retryFailedWrites;
+  }
+
+  function retryFailedWrites() {
+    if (retryingStorage) return Promise.resolve();
+    retryingStorage = true;
+    var keys = Object.keys(failedWrites);
+    patchStorageNotice();
+    return Promise.all(keys.map(function (key) {
+      // Wait for a newer in-flight write before choosing what to retry.
+      return (storageWrites[key] || Promise.resolve()).catch(function () {}).then(function () {
+        if (Object.prototype.hasOwnProperty.call(failedWrites, key)) {
+          return persistKey(key, failedWrites[key]).catch(function () {});
+        }
+      });
+    })).then(function () { retryingStorage = false; patchStorageNotice(); });
   }
 
   function persistChangelogSeen(version) {
-    if (idbAvailable) {
-      idbSet(CHANGELOG_SEEN_KEY, version).catch(function () {});
-    } else {
-      try { window.localStorage.setItem(CHANGELOG_SEEN_KEY, version); } catch (e) {}
-    }
+    persistKey(CHANGELOG_SEEN_KEY, version).catch(function () {});
   }
 
   var DEFAULT_CRITERIA = ["Рисовка", "Сюжет", "Персонажи", "Темп/Ритм", "Атмосфера"];
@@ -221,7 +271,7 @@
     return TYPES.every(function (t) { return set[t.id]; });
   }
   function perfectScoreEver() {
-    return state.manhwas.some(function (m) { return average(m.criteria) === 100; });
+    return state.manhwas.some(function (m) { return ratedScore(m) === 100; });
   }
   function allAwardCategoriesEverWon() {
     return AWARD_CATEGORY_KEYS.every(function (ck) { return categoryEverWon(ck); });
@@ -576,10 +626,8 @@
     statusPickerOpen: false,
     showAllRanks: false,
     unlockedIds: {},
-    // Holds the pre-re-rate snapshot {ts, avg, criteria} while a re-rate edit
-    // session is open, keyed by manhwa id. Committed into m.ratingHistory only
-    // when the user finishes (finalizeRating); discarded on "Назад".
-    rerateSnapshot: {},
+    // Local-only drafts keep the published rating intact until explicitly saved.
+    ratingDrafts: {},
     // Which past rating is shown on a title's page (index into m.ratingHistory).
     // No entry = the current rating. Pure UI state, never saved or synced.
     ratingView: {},
@@ -713,7 +761,7 @@
   // Index into m.ratingHistory of the past rating currently shown, or null for
   // the current one. Always null while the rating is being edited.
   function viewedHistoryIndex(m) {
-    if (m.rated === false || state.unlockedIds[m.id]) return null;
+    if (m.rated === false || state.unlockedIds[m.id] || state.ratingDrafts[m.id]) return null;
     var hist = m.ratingHistory || [];
     var v = state.ratingView[m.id];
     return (typeof v === "number" && v >= 0 && v < hist.length) ? v : null;
@@ -978,6 +1026,73 @@
     return null;
   }
 
+  var RATING_FIELDS = ["criteria", "notes", "tags", "genres", "altTitles", "coverUrl", "emotionRating", "emotionRatedAt"];
+
+  function ratingFingerprint(m) {
+    return JSON.stringify(RATING_FIELDS.map(function (key) { return m[key]; }).concat([m.lastRatedAt, m.ratingHistory || []]));
+  }
+
+  function editableManhwa(id) {
+    var m = findManhwa(id), draft = state.ratingDrafts[id];
+    if (!m || !draft) return m;
+    Object.keys(m).forEach(function (key) {
+      if (RATING_FIELDS.indexOf(key) === -1) draft.value[key] = m[key];
+    });
+    return draft.value;
+  }
+
+  function beginRerating(id) {
+    var m = findManhwa(id);
+    if (!m || !m.rated) return;
+    state.ratingDrafts[id] = {
+      base: ratingFingerprint(m),
+      value: JSON.parse(JSON.stringify(m)),
+      snapshot: { ts: ratingTs(m), avg: average(m.criteria), criteria: JSON.parse(JSON.stringify(m.criteria)) }
+    };
+    saveRatingDrafts();
+  }
+
+  function saveRatingDrafts() {
+    return persistKey(RATING_DRAFTS_KEY, state.ratingDrafts).catch(function () {});
+  }
+
+  function loadRatingDrafts() {
+    return readKey(RATING_DRAFTS_KEY).then(function (drafts) {
+      if (!isPlainObject(drafts)) return;
+      Object.keys(drafts).forEach(function (id) {
+        var d = drafts[id], m = findManhwa(id);
+        if (!m || !isPlainObject(d) || d.base !== ratingFingerprint(m) || !isPlainObject(d.snapshot)) return;
+        var value = sanitizeImportedManhwa(d.value, {});
+        if (value) state.ratingDrafts[id] = { base: d.base, value: value, snapshot: d.snapshot };
+      });
+    });
+  }
+
+  function cancelRerating(id) {
+    delete state.ratingDrafts[id];
+    delete state.unlockedIds[id];
+    saveRatingDrafts();
+  }
+
+  function commitRerating(id) {
+    var m = findManhwa(id), d = state.ratingDrafts[id];
+    if (!m || !d) return null;
+    if (d.base !== ratingFingerprint(m)) {
+      state.error = "Данные тайтла изменились на другом устройстве. Отмени черновик и начни переоценку заново.";
+      return false;
+    }
+    RATING_FIELDS.forEach(function (key) { m[key] = JSON.parse(JSON.stringify(d.value[key] === undefined ? null : d.value[key])); });
+    if (!Array.isArray(m.ratingHistory)) m.ratingHistory = [];
+    m.ratingHistory.push(d.snapshot);
+    m.lastRatedAt = Date.now();
+    delete state.ratingDrafts[id];
+    return d.snapshot;
+  }
+
+  function ratedScore(m) {
+    return m.rated === true ? average(m.criteria) : null;
+  }
+
   // Called right before a manhwa is actually removed, so a deleted title
   // can't leave a "phantom" winner slot behind (see setWinner) and doesn't
   // linger forever in candidate shortlists.
@@ -1041,6 +1156,8 @@
 
     if (!STATUSES.some(function (x) { return x.id === m.status; })) m.status = "reading";
     if (!TYPES.some(function (x) { return x.id === m.type; })) m.type = "manhwa";
+    // Legacy backups predate the rated flag; match the startup migration.
+    m.rated = typeof m.rated === "boolean" ? m.rated : true;
 
     m.completedAt = finiteOr(m.completedAt, null);
     m.notes = typeof m.notes === "string" ? m.notes : "";
@@ -1147,6 +1264,10 @@
     }
     try {
       target.changelogSeenVersion = window.localStorage.getItem(CHANGELOG_SEEN_KEY);
+      // Old releases stored this one key as plain text; new writes use JSON.
+      if (target.changelogSeenVersion && target.changelogSeenVersion[0] === '"') {
+        target.changelogSeenVersion = JSON.parse(target.changelogSeenVersion);
+      }
     } catch (e) {
       target.changelogSeenVersion = null;
     }
@@ -1323,10 +1444,8 @@
 
   function save() {
     state.error = null;
-    persistKey(STORAGE_KEY, state.manhwas).catch(function () {
-      state.error = "Не удалось сохранить данные на этом устройстве.";
-      render();
-    });
+    persistKey(STORAGE_KEY, state.manhwas).catch(function () {});
+    saveRatingDrafts();
     checkAchievements();
     syncPing();
   }
@@ -1570,7 +1689,7 @@
     }
     if (state.sortMode === "rating") {
       arr.sort(function (a, b) {
-        var av = average(a.criteria), bv = average(b.criteria);
+        var av = ratedScore(a), bv = ratedScore(b);
         return (bv === null ? -1 : bv) - (av === null ? -1 : av);
       });
     } else if (state.sortMode === "title") {
@@ -1611,7 +1730,7 @@
     }).join("");
 
     var titles = titlesForYear(year);
-    var rated = titles.filter(function (m) { return m.rated; });
+    var rated = titles.filter(function (m) { return ratedScore(m) !== null; });
     var avg = rated.length ? rated.reduce(function (a, m) { return a + average(m.criteria); }, 0) / rated.length : null;
 
     var genreCounts = {};
@@ -2060,11 +2179,11 @@
     if (list.length > 0) {
       html += '<div class="mt-grid">';
       list.forEach(function (m, gridIdx) {
-        var avg = average(m.criteria);
+        var avg = ratedScore(m);
         var st = statusById(m.status);
         var ty = typeById(m.type || "manhwa");
         var isWinnerTitle = positiveAwardsForManhwa(m).length > 0;
-        var isRockBottom = m.criteria.length > 0 && m.criteria.every(function (c) { return c.score === 1; });
+        var isRockBottom = m.rated === true && m.criteria.length > 0 && m.criteria.every(function (c) { return c.score === 1; });
         var coverStyle = m.coverUrl
           ? "background-image:url('" + escapeHtml(m.coverUrl).replace(/'/g, "%27") + "')"
           : "";
@@ -2080,8 +2199,8 @@
           (isRockBottom ? '<span class="mt-cover-worst" title="Оценено на дно по всем критериям">🤮</span>' : "") +
           "</div>" +
           (isWinnerTitle ? '<span class="mt-cover-trophy">🏆</span>' : "") +
-          '<span class="mt-cover-score" style="border-color:' + scoreColor(avg) + ";color:" + scoreColor(avg) +
-          '">' + (avg === null ? "–" : Math.round(avg)) + "</span>" +
+          '<span class="mt-cover-score' + (avg === null ? ' mt-cover-unrated' : '') + '" style="border-color:' + scoreColor(avg) + ";color:" + scoreColor(avg) +
+          '">' + (avg === null ? "Не оценено" : Math.round(avg)) + "</span>" +
           "</div>" +
           '<div class="mt-cover-title" data-open-id="' + m.id + '">' + escapeHtml(title) + "</div>" +
           '<div class="mt-cover-type-line">' + ty.label + "</div>" +
@@ -2250,7 +2369,7 @@
     if (editable) {
       html += rerateSnap
         ? '<div class="mt-lock-hint">Прошлая оценка — ' + Math.round(rerateSnap.avg) +
-          ' — сохранится в истории. Не забудь нажать «Готово» внизу</div>'
+          ' — сохранится в истории после нажатия «Сохранить переоценку». Черновик сохраняется на этом устройстве.</div>'
         : '<div class="mt-lock-hint">Можно менять — не забудь нажать «Готово» внизу</div>';
       m.criteria.forEach(function (c) {
         var color = criterionColor(c.score);
@@ -2478,10 +2597,10 @@
   function renderDetail(m) {
     var avg = average(m.criteria);
     var isNew = m.rated === false;
-    var unlocked = !!state.unlockedIds[m.id];
+    var unlocked = !!state.unlockedIds[m.id] || !!state.ratingDrafts[m.id];
     var editable = isNew || unlocked;
 
-    var rerateSnap = state.rerateSnapshot[m.id] || null;
+    var rerateSnap = state.ratingDrafts[m.id] ? state.ratingDrafts[m.id].snapshot : null;
     var currentStatus = statusById(m.status);
     var html =
       '<div class="mt-detail-head">' +
@@ -2511,7 +2630,7 @@
         "</div>";
     }
 
-    var candidateInfo = openAwardCategoriesFor(m);
+    var candidateInfo = openAwardCategoriesFor(findManhwa(m.id));
     if (candidateInfo) {
       html += renderCandidateToggle(m, candidateInfo);
       if (state.candidatePanelOpen) html += renderCandidatePanel(m, candidateInfo);
@@ -2553,7 +2672,8 @@
           "За рецензию (пара слов в заметках выше) — больше опыта</div>";
       } else {
         html += '<button class="mt-primary-btn" id="finish-rating-btn" data-manhwa-id="' + m.id +
-          '" style="width:100%">Готово</button>';
+          '" style="width:100%">' + (rerateSnap ? 'Сохранить переоценку' : 'Готово') + '</button>';
+        if (rerateSnap) html += '<button class="mt-ghost-btn" id="cancel-rerate-btn" data-manhwa-id="' + m.id + '">Отменить переоценку</button>';
       }
     } else {
       html += '<div class="mt-form-row">' +
@@ -2581,6 +2701,7 @@
   function aggregateCriteria() {
     var map = {};
     state.manhwas.forEach(function (m) {
+      if (ratedScore(m) === null) return;
       m.criteria.forEach(function (c) {
         if (!map[c.name]) map[c.name] = { sum: 0, count: 0 };
         map[c.name].sum += c.score;
@@ -2794,7 +2915,7 @@
   }
 
   function renderProfile() {
-    var rated = state.manhwas.filter(function (m) { return m.criteria.length > 0; });
+    var rated = state.manhwas.filter(function (m) { return ratedScore(m) !== null; });
     var overallAvg = rated.length
       ? rated.reduce(function (a, m) { return a + average(m.criteria); }, 0) / rated.length
       : null;
@@ -2852,7 +2973,7 @@
       (m.genres || []).forEach(function (g) {
         if (!genreStats[g]) genreStats[g] = { count: 0, sum: 0, rated: 0 };
         genreStats[g].count += 1;
-        var av = average(m.criteria);
+        var av = ratedScore(m);
         if (av !== null) { genreStats[g].sum += av; genreStats[g].rated += 1; }
       });
     });
@@ -3475,7 +3596,7 @@
   /* ---------- main render ---------- */
   function render() {
     var app = document.getElementById("app");
-    var selected = state.selectedId ? findManhwa(state.selectedId) : null;
+    var selected = state.selectedId ? editableManhwa(state.selectedId) : null;
     if (state.selectedId && !selected) state.selectedId = null;
 
     var activeEl = document.activeElement;
@@ -3501,8 +3622,9 @@
 
     var showTabs = !selected && !state.showChangelog;
     var revealManhwa = state.revealManhwaId ? findManhwa(state.revealManhwaId) : null;
-    app.innerHTML = '<div class="mt-shell">' + body + "</div>" + (showTabs ? renderTabbar() : "") +
+    app.innerHTML = '<div class="mt-shell"><div id="storage-notice"></div>' + body + "</div>" + (showTabs ? renderTabbar() : "") +
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "");
+    patchStorageNotice();
     attachHandlers(selected);
     attachAcctHandlers();
     attachProfileHandlers();
@@ -3652,6 +3774,7 @@
         var id = btn.getAttribute("data-delete-id");
         if (state.confirmDeleteId === id) {
           var deletedTitle = findManhwa(id);
+          cancelRerating(id);
           purgeAwardReferences(id);
           state.manhwas = state.manhwas.filter(function (m) { return m.id !== id; });
           if (state.selectedId === id) state.selectedId = null;
@@ -3918,6 +4041,7 @@
         if (selected) {
           var c = selected.criteria.find(function (cc) { return cc.id === critId; });
           if (c) c.score = val;
+          if (state.ratingDrafts[selected.id]) saveRatingDrafts();
         }
       });
       slider.addEventListener("change", function () {
@@ -3930,7 +4054,7 @@
     var copyScoresBtn = document.getElementById("copy-scores-btn");
     if (copyScoresBtn) copyScoresBtn.addEventListener("click", function () {
       var id = copyScoresBtn.getAttribute("data-manhwa-id");
-      var m = findManhwa(id);
+      var m = editableManhwa(id);
       if (!m) return;
       var vi = viewedHistoryIndex(m);
       var text = buildScoreText(m, vi === null ? null : (m.ratingHistory || [])[vi]);
@@ -3971,15 +4095,11 @@
 
     function finalizeRating(id, withReview) {
       var m = findManhwa(id);
-      if (!m) { delete state.unlockedIds[id]; delete state.rerateSnapshot[id]; render(); return; }
+      if (!m) { cancelRerating(id); render(); return; }
       var wasNew = m.rated === false;
       delete state.ratingView[id];
-      var snap = state.rerateSnapshot[id] || null;
-      if (snap) {
-        if (!Array.isArray(m.ratingHistory)) m.ratingHistory = [];
-        m.ratingHistory.push(snap);
-        delete state.rerateSnapshot[id];
-      }
+      var snap = commitRerating(id);
+      if (snap === false) { render(); return; }
       m.rated = true;
       if (wasNew || snap) m.lastRatedAt = Date.now();
       delete state.unlockedIds[id];
@@ -4039,17 +4159,20 @@
       strip.scrollLeft = activeRatingChip.offsetLeft - (strip.clientWidth - activeRatingChip.offsetWidth) / 2;
     }
 
+    var cancelRerate = document.getElementById("cancel-rerate-btn");
+    if (cancelRerate) cancelRerate.addEventListener("click", function () {
+      cancelRerating(cancelRerate.getAttribute("data-manhwa-id"));
+      state.error = null;
+      render();
+    });
+
     var rerateBtn = document.getElementById("rerate-btn");
     if (rerateBtn) rerateBtn.addEventListener("click", function () {
       var id = rerateBtn.getAttribute("data-manhwa-id");
       var m = findManhwa(id);
       delete state.ratingView[id];
       if (m) {
-        state.rerateSnapshot[id] = {
-          ts: ratingTs(m),
-          avg: average(m.criteria),
-          criteria: m.criteria.map(function (c) { return { id: c.id, name: c.name, score: c.score }; })
-        };
+        beginRerating(id);
         state.unlockedIds[id] = true;
       }
       render();
@@ -4058,7 +4181,7 @@
     app.querySelectorAll("[data-emotion-pick]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-manhwa-id");
-        var m = findManhwa(id);
+        var m = editableManhwa(id);
         if (!m) return;
         m.emotionRating = parseInt(btn.getAttribute("data-emotion-pick"), 10);
         m.emotionRatedAt = Date.now();
@@ -4071,7 +4194,7 @@
       if (btn.hasAttribute("disabled")) return;
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-manhwa-id");
-        var m = findManhwa(id);
+        var m = editableManhwa(id);
         if (!m) return;
         var tag = btn.getAttribute("data-toggle-tag");
         if (!m.tags) m.tags = [];
@@ -4092,6 +4215,7 @@
         if (!selected) return;
         if (!selected.altTitles) selected.altTitles = { en: "", ja: "", ko: "", ru: "" };
         selected.altTitles[lang] = input.value;
+        if (state.ratingDrafts[selected.id]) saveRatingDrafts();
       });
       input.addEventListener("blur", function () {
         save();
@@ -4103,6 +4227,7 @@
       coverInput.addEventListener("input", function () {
         if (!selected) return;
         selected.coverUrl = coverInput.value;
+        if (state.ratingDrafts[selected.id]) saveRatingDrafts();
       });
       coverInput.addEventListener("blur", function () {
         save();
@@ -4115,6 +4240,7 @@
       notesTextarea.addEventListener("input", function () {
         if (!selected) return;
         selected.notes = notesTextarea.value;
+        if (state.ratingDrafts[selected.id]) saveRatingDrafts();
       });
       notesTextarea.addEventListener("blur", function () {
         save();
@@ -4124,7 +4250,7 @@
     app.querySelectorAll("[data-add-genre]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-manhwa-id");
-        var m = findManhwa(id);
+        var m = editableManhwa(id);
         if (!m) return;
         var genre = btn.getAttribute("data-add-genre");
         if (!m.genres) m.genres = [];
@@ -4139,7 +4265,7 @@
     app.querySelectorAll("[data-remove-genre]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-manhwa-id");
-        var m = findManhwa(id);
+        var m = editableManhwa(id);
         if (!m) return;
         var genre = btn.getAttribute("data-remove-genre");
         m.genres = (m.genres || []).filter(function (g) { return g !== genre; });
@@ -4154,7 +4280,7 @@
     var genreInput = document.getElementById("new-genre-input");
     if (addGenreBtn) addGenreBtn.addEventListener("click", function () {
       var id = addGenreBtn.getAttribute("data-manhwa-id");
-      var m = findManhwa(id);
+      var m = editableManhwa(id);
       var val = genreInput ? genreInput.value.trim() : "";
       if (!m || !val) return;
       if (!m.genres) m.genres = [];
@@ -4321,6 +4447,7 @@
 
             var replace = state.manhwas.length === 0 || window.confirm(confirmMsg);
             if (replace) {
+              state.ratingDrafts = {};
               state.manhwas = manhwas;
               if (hasAwards) {
                 state.awardWinners = awardWinners;
@@ -4373,7 +4500,7 @@
     }
     if (state.selectedId) {
       delete state.unlockedIds[state.selectedId];
-      delete state.rerateSnapshot[state.selectedId];
+      saveRatingDrafts();
       delete state.ratingView[state.selectedId];
       state.selectedId = null;
       state.addingCriterion = false;
@@ -4396,6 +4523,7 @@
 
   function wipeLocalData() {
     state.manhwas = [];
+    state.ratingDrafts = {};
     state.awardWinners = {};
     state.awardCandidates = {};
     state.awardEditUsed = {};
@@ -4478,7 +4606,7 @@
   };
 
   /* ---------- boot ---------- */
-  load().then(loadProfile).then(render).catch(function () { render(); }).then(function () {
+  load().then(loadProfile).then(loadRatingDrafts).then(render).catch(function () { render(); }).then(function () {
     if (!window.AMSync) return;
     // Repaint only the status line when the sync state changes (so a form the
     // user is typing into is never wiped); a full render when signing in/out.
