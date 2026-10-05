@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="icons/icon-192.png" alt="Логотип AM Tracker" width="112" height="112">
-
 # AM • Tracker
 
 **Твоя библиотека. Твои оценки. Твоя премия.**
