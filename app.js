@@ -27,6 +27,8 @@
   var XP_STORAGE_KEY = "manhwa-tracker:xp:v1";
   var ACHIEVEMENTS_STORAGE_KEY = "manhwa-tracker:achievements:v1";
   var RATING_DRAFTS_KEY = "manhwa-tracker:rating-drafts:v1";
+  var RECENT_OPENED_KEY = "manhwa-tracker:recent-opened:v1";
+  var Features = window.AMFeatures;
   var CHANGELOG_SEEN_KEY = "manhwa-tracker:changelog-seen:v1";
 
   // Storage backend: IndexedDB (no practical size cap, unlike localStorage's
@@ -628,6 +630,11 @@
     unlockedIds: {},
     // Local-only drafts keep the published rating intact until explicitly saved.
     ratingDrafts: {},
+    recentOpened: {},
+    awardsMonth: null,
+    awardPreview: null,
+    compareFrom: {},
+    shareCard: null,
     // Which past rating is shown on a title's page (index into m.ratingHistory).
     // No entry = the current rating. Pure UI state, never saved or synced.
     ratingView: {},
@@ -784,11 +791,9 @@
   }
 
   function eligibleForMonth(monthKey) {
-    return state.manhwas.filter(function (m) {
-      if (!m.rated) return false;
-      var ts = ratingTs(m);
-      return ts !== null && monthKeyOf(ts) === monthKey;
-    });
+    return state.manhwas.map(function (m) {
+      return Features.ratingInMonth(m, monthKey, average);
+    }).filter(Boolean);
   }
 
   // Full eligible pool for one category, sorted best-first (used both as the
@@ -841,7 +846,7 @@
   // Categories worth showing for a month — at least one eligible title exists for them.
   function availableCategoriesForMonth(monthKey) {
     return AWARD_CATEGORY_KEYS.filter(function (ck) {
-      return eligiblePoolForCategory(monthKey, ck).length > 0;
+      return !!getWinner(monthKey, ck) || eligiblePoolForCategory(monthKey, ck).length > 0;
     });
   }
 
@@ -854,23 +859,23 @@
   function getWinner(monthKey, categoryKey) {
     var picks = state.awardWinners[monthKey];
     if (!picks || !picks[categoryKey]) return null;
-    return findManhwa(picks[categoryKey]);
+    var value = picks[categoryKey];
+    return isPlainObject(value) ? value : findManhwa(String(value));
   }
 
-  // Winners are permanent once set — this refuses to overwrite an existing
-  // pick, UNLESS that pick points at a manhwa that no longer exists (deleted
-  // after winning) — an orphaned id doesn't count as "decided".
+  // Preserve the winning rating even if its library entry changes or is deleted.
   function setWinner(monthKey, categoryKey, manhwaId) {
+    if (monthKey !== lastCompletedMonthKey() || AWARD_CATEGORY_KEYS.indexOf(categoryKey) < 0) return false;
+    var candidate = candidateEntries(monthKey, categoryKey).find(function (c) { return c.manhwa.id === manhwaId; });
+    if (!candidate || getWinner(monthKey, categoryKey)) return false;
     if (!state.awardWinners[monthKey]) state.awardWinners[monthKey] = {};
-    var existing = state.awardWinners[monthKey][categoryKey];
-    if (existing && findManhwa(existing)) return false;
-    state.awardWinners[monthKey][categoryKey] = manhwaId;
+    state.awardWinners[monthKey][categoryKey] = Features.awardSnapshot(candidate.manhwa, monthKey, categoryKey, average, false);
     saveAwards();
     return true;
   }
 
   function canEditWinners(monthKey) {
-    return !state.awardEditUsed[monthKey];
+    return monthKey === lastCompletedMonthKey() && !state.awardEditUsed[monthKey];
   }
 
   // One-time-per-month "undo": clears the picked winners (keeps the candidate
@@ -887,7 +892,7 @@
     Object.keys(state.awardWinners).forEach(function (monthKey) {
       var picks = state.awardWinners[monthKey];
       Object.keys(picks).forEach(function (categoryKey) {
-        if (picks[categoryKey] === m.id) result.push({ monthKey: monthKey, categoryKey: categoryKey });
+        if (winnerId(picks[categoryKey]) === m.id) result.push({ monthKey: monthKey, categoryKey: categoryKey });
       });
     });
     return result;
@@ -905,6 +910,7 @@
 
   function yearsWithData() {
     var years = {};
+    Object.keys(state.awardWinners).forEach(function (key) { years[key.slice(0, 4)] = true; });
     state.manhwas.forEach(function (m) {
       var ts = getCreatedAt(m);
       if (ts !== null) years[new Date(ts).getFullYear()] = true;
@@ -922,18 +928,19 @@
   }
 
   function championsForYear(year) {
-    var counts = {};
-    Object.keys(state.awardWinners).forEach(function (monthKey) {
+    var counts = {}, snapshots = {};
+    Object.keys(state.awardWinners).sort().forEach(function (monthKey) {
       if (parseInt(monthKey.split("-")[0], 10) !== year) return;
       var picks = state.awardWinners[monthKey];
       Object.keys(picks).forEach(function (ck) {
         if (ck === "worst") return; // anti-award doesn't count toward "title of the year"
-        var mid = picks[ck];
+        var mid = winnerId(picks[ck]);
+        snapshots[mid] = getWinner(monthKey, ck);
         counts[mid] = (counts[mid] || 0) + 1;
       });
     });
     var list = Object.keys(counts).map(function (mid) {
-      return { manhwa: findManhwa(mid), count: counts[mid] };
+      return { manhwa: snapshots[mid] || findManhwa(mid), count: counts[mid] };
     }).filter(function (x) { return x.manhwa; });
     list.sort(function (a, b) { return b.count - a.count; });
     return list;
@@ -1026,10 +1033,10 @@
     return null;
   }
 
-  var RATING_FIELDS = ["criteria", "notes", "tags", "genres", "altTitles", "coverUrl", "emotionRating", "emotionRatedAt"];
+  var RATING_FIELDS = ["criteria", "notes", "tags", "genres", "altTitles", "coverUrl", "emotionRating", "emotionRatedAt", "ratingReason"];
 
   function ratingFingerprint(m) {
-    return JSON.stringify(RATING_FIELDS.map(function (key) { return m[key]; }).concat([m.lastRatedAt, m.ratingHistory || []]));
+    return JSON.stringify(RATING_FIELDS.filter(function (key) { return key !== "ratingReason"; }).map(function (key) { return m[key]; }).concat([m.lastRatedAt, m.ratingHistory || []]));
   }
 
   function editableManhwa(id) {
@@ -1047,8 +1054,9 @@
     state.ratingDrafts[id] = {
       base: ratingFingerprint(m),
       value: JSON.parse(JSON.stringify(m)),
-      snapshot: { ts: ratingTs(m), avg: average(m.criteria), criteria: JSON.parse(JSON.stringify(m.criteria)) }
+      snapshot: { ts: ratingTs(m), avg: average(m.criteria), criteria: JSON.parse(JSON.stringify(m.criteria)), notes: m.notes || "", reason: m.ratingReason || "" }
     };
+    state.ratingDrafts[id].value.ratingReason = "";
     saveRatingDrafts();
   }
 
@@ -1093,17 +1101,162 @@
     return m.rated === true ? average(m.criteria) : null;
   }
 
-  // Called right before a manhwa is actually removed, so a deleted title
-  // can't leave a "phantom" winner slot behind (see setWinner) and doesn't
-  // linger forever in candidate shortlists.
-  function purgeAwardReferences(id) {
-    var changed = false;
-    Object.keys(state.awardWinners).forEach(function (monthKey) {
-      var picks = state.awardWinners[monthKey];
-      Object.keys(picks).forEach(function (ck) {
-        if (picks[ck] === id) { delete picks[ck]; changed = true; }
+  function winnerId(value) { return String(isPlainObject(value) ? value.id : value); }
+
+  function normalizeWinners(raw) {
+    var out = {};
+    if (!isPlainObject(raw)) return out;
+    Object.keys(raw).filter(function (key) { return /^\d{4}-(0[1-9]|1[0-2])$/.test(key); }).forEach(function (key) {
+      if (!isPlainObject(raw[key])) return;
+      out[key] = {};
+      AWARD_CATEGORY_KEYS.forEach(function (cat) {
+        var v = raw[key][cat];
+        if (v === undefined || v === null) return;
+        if (isPlainObject(v)) {
+          var m = sanitizeImportedManhwa(v, {});
+          if (!m) return;
+          var snap = Features.awardSnapshot(m, key, cat, average, v.legacy);
+          snap.avg = v.avg === null ? null : Math.max(1, Math.min(100, finiteOr(v.avg, average(m.criteria))));
+          snap.awardedAt = finiteOr(v.awardedAt, null);
+          out[key][cat] = snap;
+        } else if (typeof v === "string" || typeof v === "number") {
+          var live = findManhwa(String(v));
+          var historical = live && Features.ratingInMonth(live, key, average);
+          out[key][cat] = Features.awardSnapshot(historical || live || {
+            id: String(v), title: "Удалённый тайтл", criteria: []
+          }, key, cat, average, true);
+        }
       });
     });
+    return out;
+  }
+
+  function saveRecentOpened() { return persistKey(RECENT_OPENED_KEY, state.recentOpened).catch(function () {}); }
+  function loadRecentOpened() {
+    return readKey(RECENT_OPENED_KEY).then(function (raw) {
+      if (!isPlainObject(raw)) return;
+      state.manhwas.forEach(function (m) {
+        if (typeof raw[m.id] === "number" && isFinite(raw[m.id]) && raw[m.id] > 0) state.recentOpened[m.id] = raw[m.id];
+      });
+    });
+  }
+  function openTitle(id) {
+    var m = findManhwa(id);
+    if (!m) return;
+    state.recentOpened[id] = Date.now();
+    saveRecentOpened();
+    state.selectedId = id;
+    state.candidatePanelOpen = false;
+    state.statusPickerOpen = false;
+    render();
+  }
+
+  function renderContinueReading() {
+    var list = Features.continueReading(state.manhwas, state.recentOpened);
+    if (!list.length || state.searchQuery.trim() || state.filterStatus !== "all" || state.filterGenre !== "all") return "";
+    return '<section class="mt-continue"><div class="mt-section-eyebrow">ТВОЯ ПОЛКА</div>' +
+      '<h2 class="mt-section-heading">Продолжить читать</h2><div class="mt-continue-strip">' + list.map(function (m) {
+        return '<button class="mt-continue-card" data-open-id="' + escapeHtml(m.id) + '">' +
+          (m.coverUrl ? '<img loading="lazy" src="' + escapeHtml(m.coverUrl) + '" alt="" />' : '<span class="mt-continue-placeholder">AM</span>') +
+          '<span><strong>' + escapeHtml(displayTitle(m)) + '</strong><small>Последний визит · ' +
+          escapeHtml(formatActivityDate(state.recentOpened[m.id])) + '</small></span><span aria-hidden="true">↗</span></button>';
+      }).join("") + '</div></section>';
+  }
+
+  function deltaText(value) { return value > 0 ? "+" + value : String(value); }
+  function deltaClass(value) { return value > 0 ? "up" : value < 0 ? "down" : "same"; }
+  function renderComparison(m) {
+    var all = Features.ratings(m, average), to = viewedHistoryIndex(m);
+    if (to === null) to = all.length - 1;
+    if (to < 1) return "";
+    var from = state.compareFrom[m.id];
+    if (!(from >= 0 && from < to)) from = to - 1;
+    var diff = Features.comparison(all[from], all[to]);
+    return '<section class="mt-paper mt-comparison"><div class="mt-section-eyebrow">КАК ИЗМЕНИЛОСЬ МНЕНИЕ</div>' +
+      '<div class="mt-comparison-score"><span>' + Math.round(all[from].avg) + '</span><span class="mt-comparison-arrow">→</span><strong>' +
+      Math.round(all[to].avg) + '</strong><span class="mt-delta ' + deltaClass(diff.delta) + '">' + deltaText(diff.delta) + '</span></div>' +
+      '<label class="mt-field-label" for="compare-from">Сравнить выбранную оценку с</label><select class="mt-input" id="compare-from">' +
+      all.slice(0, to).map(function (r, i) { return '<option value="' + i + '"' + (i === from ? ' selected' : '') + '>' +
+        escapeHtml(ratingChipLabel(r.ts, true) || "Ранее") + ' · ' + Math.round(r.avg) + '/100</option>'; }).join("") + '</select>' +
+      '<div class="mt-comparison-rows">' + diff.rows.map(function (r) {
+        return '<div class="mt-comparison-row"><span>' + escapeHtml(r.name) + '</span><span>' +
+          (r.before === null ? '—' : r.before) + ' → ' + (r.after === null ? '—' : r.after) + '</span><b class="mt-delta ' + deltaClass(r.delta || 0) + '">' +
+          (r.delta === null ? (r.before === null ? 'Новый' : 'Убран') : deltaText(r.delta)) + '</b></div>';
+      }).join("") + '</div>' + (all[to].reason ? '<p class="mt-comparison-reason">' + escapeHtml(all[to].reason) + '</p>' : '') + '</section>';
+  }
+
+  function awardMonths() {
+    var last = lastCompletedMonthKey(), keys = {};
+    keys[last] = true;
+    Object.keys(state.awardWinners).concat(Object.keys(state.awardCandidates)).forEach(function (k) { if (k <= last) keys[k] = true; });
+    state.manhwas.forEach(function (m) {
+      if (!m.rated) return;
+      Features.ratings(m, average).forEach(function (r) { if (typeof r.ts === "number") { var k = monthKeyOf(r.ts); if (k <= last) keys[k] = true; } });
+    });
+    return Object.keys(keys).sort().reverse();
+  }
+  function awardPreviewAttrs(w) {
+    return 'data-preview-month="' + escapeHtml(w.month || state.awardsMonth || lastCompletedMonthKey()) + '" data-preview-category="' + escapeHtml(w.category || "overall") + '"';
+  }
+  function renderAwardPreview() {
+    var w = state.awardPreview;
+    if (!w) return "";
+    return '<div class="mt-feature-backdrop"><section class="mt-feature-dialog" role="dialog" aria-modal="true" aria-label="Победитель премии">' +
+      '<button class="mt-ghost-btn mt-dialog-close" id="close-award-preview">Закрыть ✕</button>' +
+      '<div class="mt-section-eyebrow">' + escapeHtml(monthLabel(w.month)) + ' · ' + escapeHtml(AWARD_LABELS[w.category] || w.category) + '</div>' +
+      '<h2>' + escapeHtml(displayTitle(w)) + '</h2>' +
+      (w.coverUrl ? '<img class="mt-archive-cover" src="' + escapeHtml(w.coverUrl) + '" alt="Обложка победителя" />' : '') +
+      '<div class="mt-archive-score">' + (w.avg === null ? '—' : Math.round(w.avg) + '/100') + '</div>' +
+      radarSvg(w.criteria, {}) + '<p class="mt-feature-hint">' + (w.legacy ?
+        'Старая награда: снимок восстановлен из доступных данных. Оригинальное оформление могло отличаться.' :
+        'Сохранено при вручении награды. Последующие изменения тайтла не меняют этот снимок.') + '</p>' +
+      (findManhwa(w.id) ? '<button class="mt-primary-btn" id="open-archive-title">Открыть тайтл в библиотеке</button>' : '') + '</section></div>';
+  }
+
+  var shareSequence = 0;
+  function closeShareCard() {
+    shareSequence++;
+    if (state.shareCard && state.shareCard.url) URL.revokeObjectURL(state.shareCard.url);
+    state.shareCard = null;
+  }
+  function openShareCard(m) {
+    closeShareCard();
+    var token = shareSequence;
+    var index = viewedHistoryIndex(m), all = Features.ratings(m, average), r = all[index === null ? all.length - 1 : index];
+    state.shareCard = { loading: true };
+    render();
+    return Features.createShareCard({ title: displayTitle(m), coverUrl: m.coverUrl, criteria: r.criteria,
+      avg: r.avg, ts: r.ts, notes: r.notes || "", nick: displayNick() }).then(function (result) {
+      if (token !== shareSequence) return;
+      state.shareCard = { blob: result.blob, url: URL.createObjectURL(result.blob), missingCover: result.missingCover };
+      render();
+    }).catch(function () {
+      if (token !== shareSequence) return;
+      state.shareCard = { error: "Не удалось создать карточку. Попробуй ещё раз." };
+      render();
+    });
+  }
+  function renderShareCard() {
+    var s = state.shareCard;
+    if (!s) return "";
+    return '<div class="mt-feature-backdrop"><section class="mt-feature-dialog" role="dialog" aria-modal="true" aria-label="Карточка для публикации">' +
+      '<button class="mt-ghost-btn mt-dialog-close" id="close-share-card">Закрыть ✕</button><h2>Поделиться впечатлением</h2>' +
+      (s.loading ? '<p role="status">Готовлю карточку…</p>' : s.error ? '<p role="alert">' + escapeHtml(s.error) + '</p>' :
+        '<img class="mt-share-preview" src="' + s.url + '" alt="Карточка с оценкой и рецензией" />' +
+        (s.missingCover ? '<p class="mt-feature-hint">Обложка недоступна для экспорта. Вместо неё — фирменная заставка AM.</p>' : '') +
+        '<a class="mt-primary-btn mt-download-card" download="AM-Tracker-rating.png" href="' + s.url + '">Скачать PNG</a>' +
+        (navigator.share && navigator.canShare && typeof File !== 'undefined' && navigator.canShare({ files: [new File([s.blob], 'AM-Tracker-rating.png', { type: 'image/png' })] }) ?
+          '<button class="mt-ghost-btn" id="native-share-card">Поделиться…</button>' : '')) + '</section></div>';
+  }
+
+  // Preserve awarded snapshots and remove the deleted title from candidate lists.
+  function purgeAwardReferences(id) {
+    var changed = false;
+    // Freeze legacy winners before deleting a title; the archive survives deletion.
+    state.awardWinners = normalizeWinners(state.awardWinners);
+    changed = true;
+    delete state.recentOpened[id];
+    saveRecentOpened();
     Object.keys(state.awardCandidates).forEach(function (monthKey) {
       var byCategory = state.awardCandidates[monthKey];
       Object.keys(byCategory).forEach(function (ck) {
@@ -1161,6 +1314,7 @@
 
     m.completedAt = finiteOr(m.completedAt, null);
     m.notes = typeof m.notes === "string" ? m.notes : "";
+    m.ratingReason = typeof m.ratingReason === "string" ? m.ratingReason.slice(0, 500) : "";
     var emo = finiteOr(m.emotionRating, null);
     m.emotionRating = emo === null ? null : Math.min(5, Math.max(1, emo));
     m.emotionRatedAt = finiteOr(m.emotionRatedAt, null);
@@ -1200,7 +1354,8 @@
         }).map(function (c) {
           return { id: String(c.id || uid()), name: c.name, score: Math.min(10, Math.max(1, finiteOr(c.score, 5))) };
         }) : [];
-        return { ts: h.ts, avg: finiteOr(h.avg, average(crit) || 0), criteria: crit };
+        return { ts: h.ts, avg: finiteOr(h.avg, average(crit) || 0), criteria: crit,
+          notes: typeof h.notes === "string" ? h.notes : "", reason: typeof h.reason === "string" ? h.reason.slice(0, 500) : "" };
       });
     } else {
       m.ratingHistory = [];
@@ -1323,6 +1478,9 @@
         }
       });
     });
+    var normalizedWinners = normalizeWinners(state.awardWinners);
+    if (JSON.stringify(normalizedWinners) !== JSON.stringify(state.awardWinners)) awardsMigrated = true;
+    state.awardWinners = normalizedWinners;
     if (awardsMigrated) saveAwards();
 
     // One-time migration: titles imported with non-standard ids (e.g. bulk backups
@@ -1794,14 +1952,14 @@
       ? "background-image:url('" + escapeHtml(m.coverUrl).replace(/'/g, "%27") + "')"
       : "";
     return (
-      '<div class="mt-winner-card" data-open-id="' + m.id + '">' +
+      '<button class="mt-winner-card" ' + (m.awardSnapshot ? awardPreviewAttrs(m) : 'data-open-id="' + escapeHtml(m.id) + '"') + '>' +
       '<div class="mt-winner-cover' + (m.coverUrl ? "" : " mt-winner-cover-empty") + '" style="' + coverStyle + '">' +
       (m.coverUrl ? "" : '<span class="mt-winner-cover-fallback">' + escapeHtml((displayTitle(m)[0] || "?").toUpperCase()) + "</span>") +
       '<span class="mt-winner-trophy-badge">🏆</span>' +
       "</div>" +
       '<div class="mt-winner-category">' + escapeHtml(subtitle) + "</div>" +
       '<div class="mt-winner-title">' + escapeHtml(displayTitle(m)) + "</div>" +
-      "</div>"
+      "</button>"
     );
   }
 
@@ -1810,14 +1968,14 @@
       ? "background-image:url('" + escapeHtml(w.coverUrl).replace(/'/g, "%27") + "')"
       : "";
     return (
-      '<div class="mt-winner-card" data-open-id="' + w.id + '">' +
+      '<button class="mt-winner-card" ' + awardPreviewAttrs(w) + '>' +
       '<div class="mt-winner-cover' + (w.coverUrl ? "" : " mt-winner-cover-empty") + '" style="' + coverStyle + '">' +
       (w.coverUrl ? "" : '<span class="mt-winner-cover-fallback">' + escapeHtml((displayTitle(w)[0] || "?").toUpperCase()) + "</span>") +
       '<span class="mt-winner-trophy-badge">' + awardIcon(ck) + "</span>" +
       "</div>" +
       '<div class="mt-winner-category">' + escapeHtml(AWARD_LABELS[ck] || ck) + "</div>" +
       '<div class="mt-winner-title">' + escapeHtml(displayTitle(w)) + "</div>" +
-      "</div>"
+      '<div class="mt-winner-category">' + (w.avg === null ? '—' : Math.round(w.avg) + '/100') + '</div></button>'
     );
   }
 
@@ -1856,7 +2014,9 @@
   }
 
   function renderAwardsTab() {
-    var monthKey = lastCompletedMonthKey();
+    var months = awardMonths();
+    if (months.indexOf(state.awardsMonth) < 0) state.awardsMonth = lastCompletedMonthKey();
+    var monthKey = state.awardsMonth;
     var toggle =
       '<div class="mt-filter-row">' +
       '<button class="mt-filter-chip' + (state.awardsView === "month" ? " active" : "") +
@@ -1885,6 +2045,17 @@
       html += renderYearSummary();
       html += "</div>";
       return html;
+    }
+
+    html += '<label class="mt-field-label" for="awards-month">Месяц премии</label><select id="awards-month" class="mt-input">' +
+      months.map(function (key) { return '<option value="' + key + '"' + (key === monthKey ? ' selected' : '') + '>' +
+        escapeHtml(monthLabel(key)) + (key === lastCompletedMonthKey() ? ' · подводим итоги' : ' · архив') + '</option>'; }).join('') + '</select>';
+    if (monthKey < lastCompletedMonthKey()) {
+      var archived = AWARD_CATEGORY_KEYS.filter(function (ck) { return !!getWinner(monthKey, ck); });
+      html += '<div class="mt-section-eyebrow">АРХИВ ПРЕМИИ</div>' +
+        (archived.length ? '<div class="mt-winner-carousel">' + archived.map(function (ck) { return winnerCardHtml(ck, getWinner(monthKey, ck)); }).join('') + '</div>' :
+          '<div class="mt-paper mt-empty"><div class="mt-empty-title">Победители не выбраны</div><p class="mt-feature-hint">За этот месяц нет сохранённых победителей.</p></div>');
+      return html + '</div>';
     }
 
     var availableCategories = availableCategoriesForMonth(monthKey);
@@ -1956,7 +2127,7 @@
       html +=
         '<div class="mt-paper mt-award-panel">' +
         '<div class="mt-panel-title">' + escapeHtml(AWARD_LABELS[ck] || ck) + "</div>" +
-        '<div class="mt-award-row" data-open-id="' + winner.id + '">' +
+        '<div class="mt-award-row" ' + awardPreviewAttrs(winner) + '>' +
         '<span class="mt-award-trophy">' + awardIcon(ck) + "</span>" +
         '<div class="mt-award-info"><div class="mt-award-title">' + escapeHtml(displayTitle(winner)) + "</div>" +
         '<div class="mt-award-sub">Победитель выбран — изменить нельзя</div></div>' +
@@ -2129,6 +2300,7 @@
     var list = sortedManhwas();
 
     html += '<div class="mt-list">';
+    if (!state.addingManhwa) html += renderContinueReading();
 
     if (state.addingManhwa) {
       var typeBtns = TYPES.map(function (t) {
@@ -2402,6 +2574,14 @@
 
     html += '<button class="mt-ghost-btn" id="copy-scores-btn" data-manhwa-id="' + m.id +
       '" style="width:100%">📋 Копировать оценки</button>';
+    if (!editable && m.rated) {
+      html += renderComparison(m) + '<button class="mt-primary-btn" id="share-rating-card" data-manhwa-id="' + escapeHtml(m.id) + '">Создать карточку для публикации</button>';
+    }
+    if (rerateSnap) {
+      html += '<div class="mt-paper"><label class="mt-field-label" for="rating-reason">Почему изменилось мнение?</label>' +
+        '<textarea class="mt-input" id="rating-reason" maxlength="500" placeholder="Новые главы, развитие персонажей, другое впечатление…">' +
+        escapeHtml(m.ratingReason || '') + '</textarea><p class="mt-feature-hint">Необязательно. Заметка останется рядом со сравнением оценок.</p></div>';
+    }
 
     if (editable) {
       if (state.addingCriterion) {
@@ -3623,7 +3803,7 @@
     var showTabs = !selected && !state.showChangelog;
     var revealManhwa = state.revealManhwaId ? findManhwa(state.revealManhwaId) : null;
     app.innerHTML = '<div class="mt-shell"><div id="storage-notice"></div>' + body + "</div>" + (showTabs ? renderTabbar() : "") +
-      (revealManhwa ? renderRevealOverlay(revealManhwa) : "");
+      (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard();
     patchStorageNotice();
     attachHandlers(selected);
     attachAcctHandlers();
@@ -3648,6 +3828,33 @@
   /* ---------- event handlers ---------- */
   function attachHandlers(selected) {
     var app = document.getElementById("app");
+    var compare = document.getElementById("compare-from");
+    if (compare && selected) compare.addEventListener("change", function () { state.compareFrom[selected.id] = Number(compare.value); render(); });
+    var reason = document.getElementById("rating-reason");
+    if (reason && selected) reason.addEventListener("input", function () { selected.ratingReason = reason.value.slice(0, 500); saveRatingDrafts(); });
+    var monthSelect = document.getElementById("awards-month");
+    if (monthSelect) monthSelect.addEventListener("change", function () {
+      state.awardsMonth = monthSelect.value; state.awardsCategory = null; state.confirmWinnerPick = null; state.awardsCandidatesConfirmed = false; render();
+    });
+    app.querySelectorAll('[data-preview-month]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        state.awardPreview = getWinner(el.getAttribute('data-preview-month'), el.getAttribute('data-preview-category')); render();
+      });
+    });
+    var closeAward = document.getElementById('close-award-preview');
+    if (closeAward) closeAward.addEventListener('click', function () { state.awardPreview = null; render(); });
+    var openArchive = document.getElementById('open-archive-title');
+    if (openArchive) openArchive.addEventListener('click', function () { var id = state.awardPreview.id; state.awardPreview = null; openTitle(id); });
+    var shareBtn = document.getElementById('share-rating-card');
+    if (shareBtn) shareBtn.addEventListener('click', function () { openShareCard(findManhwa(shareBtn.getAttribute('data-manhwa-id'))); });
+    var closeShare = document.getElementById('close-share-card');
+    if (closeShare) closeShare.addEventListener('click', function () { closeShareCard(); render(); });
+    var nativeShare = document.getElementById('native-share-card');
+    if (nativeShare) nativeShare.addEventListener('click', function () {
+      navigator.share({ files: [new File([state.shareCard.blob], 'AM-Tracker-rating.png', { type: 'image/png' })] }).catch(function (err) {
+        if (err.name !== 'AbortError') { nativeShare.textContent = 'Не удалось отправить — скачай PNG'; }
+      });
+    });
 
     // tabs
     app.querySelectorAll("[data-tab]").forEach(function (btn) {
@@ -3723,10 +3930,7 @@
     // open manhwa
     app.querySelectorAll("[data-open-id]").forEach(function (el) {
       el.addEventListener("click", function () {
-        state.selectedId = el.getAttribute("data-open-id");
-        state.candidatePanelOpen = false;
-        state.statusPickerOpen = false;
-        render();
+        openTitle(el.getAttribute("data-open-id"));
       });
     });
 
@@ -4339,7 +4543,7 @@
       // just without those.
       var backup = {
         format: "am-tracker-backup",
-        version: 5,
+        version: 6,
         manhwas: state.manhwas,
         awardWinners: state.awardWinners,
         awardCandidates: state.awardCandidates,
@@ -4401,9 +4605,7 @@
               hasAwards = false;
             } else if (isPlainObject(parsed) && Array.isArray(parsed.manhwas)) {
               rawList = parsed.manhwas;
-              awardWinners = sanitizeMonthMap(parsed.awardWinners, function (v) {
-                return typeof v === "string" || typeof v === "number";
-              });
+              awardWinners = parsed.awardWinners;
               awardCandidates = sanitizeMonthMap(parsed.awardCandidates, Array.isArray);
               awardEditUsed = isPlainObject(parsed.awardEditUsed) ? parsed.awardEditUsed : {};
               hasAwards = true;
@@ -4450,7 +4652,7 @@
               state.ratingDrafts = {};
               state.manhwas = manhwas;
               if (hasAwards) {
-                state.awardWinners = awardWinners;
+                state.awardWinners = normalizeWinners(awardWinners);
                 state.awardCandidates = awardCandidates;
                 state.awardEditUsed = awardEditUsed;
               }
@@ -4488,6 +4690,8 @@
   // Single "go back" action for the in-app ← buttons — closes whichever
   // "sub-page" is currently open, innermost first.
   function goBack() {
+    if (state.shareCard) { closeShareCard(); render(); return; }
+    if (state.awardPreview) { state.awardPreview = null; render(); return; }
     if (state.revealManhwaId) {
       state.revealManhwaId = null;
       render();
@@ -4524,6 +4728,10 @@
   function wipeLocalData() {
     state.manhwas = [];
     state.ratingDrafts = {};
+    state.recentOpened = {};
+    saveRecentOpened();
+    state.awardPreview = null;
+    closeShareCard();
     state.awardWinners = {};
     state.awardCandidates = {};
     state.awardEditUsed = {};
@@ -4578,7 +4786,7 @@
           persistKey(STORAGE_KEY, state.manhwas).catch(function () {});
         }
         if (ch.awards) {
-          state.awardWinners = ch.awards.w || {};
+          state.awardWinners = normalizeWinners(ch.awards.w || {});
           state.awardCandidates = ch.awards.c || {};
           state.awardEditUsed = ch.awards.e || {};
           saveAwards();
@@ -4606,7 +4814,7 @@
   };
 
   /* ---------- boot ---------- */
-  load().then(loadProfile).then(loadRatingDrafts).then(render).catch(function () { render(); }).then(function () {
+  load().then(loadProfile).then(loadRatingDrafts).then(loadRecentOpened).then(render).catch(function () { render(); }).then(function () {
     if (!window.AMSync) return;
     // Repaint only the status line when the sync state changes (so a form the
     // user is typing into is never wiped); a full render when signing in/out.
