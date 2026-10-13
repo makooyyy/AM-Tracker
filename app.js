@@ -2268,10 +2268,14 @@
     return (
       '<div class="mt-header">' +
       '<div class="mt-title-row">' +
-      '<div class="mt-title">AM<span class="accent">•</span>TRACKER</div>' +
+      '<div class="mt-brand"><span class="mt-brand-mark" aria-hidden="true">AM</span><div><div class="mt-title">AM<span class="accent">•</span>TRACKER</div><div class="mt-brand-caption">Личный дневник чтения</div></div></div>' +
       '<button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL +
       (hasUnseen ? '<span class="mt-notify-dot"></span>' : "") + "</button>" +
       "</div>" +
+      '<div class="mt-library-intro"><div class="mt-section-eyebrow">ТВОИ ИСТОРИИ — ТВОИ ВПЕЧАТЛЕНИЯ</div><h1>Библиотека<span class="mt-heading-dot">.</span></h1>' +
+      '<div class="mt-library-stats"><span><strong>' + state.manhwas.length + '</strong> в коллекции</span><span><strong>' +
+      state.manhwas.filter(function (m) { return m.status === "reading"; }).length + '</strong> читаю</span><span><strong>' +
+      state.manhwas.filter(function (m) { return ratedScore(m) !== null; }).length + '</strong> оценено</span></div></div>' +
       '<div class="mt-subrow">' +
       '<div class="mt-subrow-actions">' +
       '<div class="mt-sort-group">' + btns + "</div>" +
@@ -2342,14 +2346,14 @@
     if (list.length === 0 && !state.addingManhwa) {
       var noneAtAll = state.manhwas.length === 0;
       html += noneAtAll
-        ? '<div class="mt-paper mt-empty"><div class="mt-empty-title">Пока пусто</div>' +
-          '<div class="mt-empty-text">Добавь манхву — оценишь рисовку, сюжет, персонажей и всё остальное по отдельности.</div></div>'
+        ? '<div class="mt-paper mt-empty"><div class="mt-empty-art" aria-hidden="true">' + ICON_BOOK + '</div><div class="mt-empty-title">Хорошая история начинается здесь</div>' +
+          '<div class="mt-empty-text">Добавь первый тайтл. Сохраняй впечатления, оценивай любимые истории и собирай свою коллекцию.</div></div>'
         : '<div class="mt-paper mt-empty"><div class="mt-empty-title">Ничего не найдено</div>' +
           '<div class="mt-empty-text">Попробуй изменить поиск или фильтр.</div></div>';
     }
 
     if (list.length > 0) {
-      html += '<div class="mt-grid">';
+      html += '<div class="mt-collection-heading"><h2>Твоя коллекция</h2><span>' + list.length + '</span></div><div class="mt-grid">';
       list.forEach(function (m, gridIdx) {
         var avg = ratedScore(m);
         var st = statusById(m.status);
@@ -3757,20 +3761,20 @@
   function renderTabbar() {
     var tabs = [
       ["library", "Библиотека", ICON_BOOK],
-      ["awards", "Премия", '<span class="mt-tab-emoji">🏆</span>'],
-      ["achievements", "Ачивки", '<span class="mt-tab-emoji">🎖️</span>'],
+      ["awards", "Премия", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm0 2H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4M12 13v5m-4 3h8m-6-3h4v3h-4z"/></svg>'],
+      ["achievements", "Достижения", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="m8 14-2 7 6-3 6 3-2-7m-4-8v6m-3-3h6"/></svg>'],
       ["profile", "Профиль", ICON_USER]
     ];
     var inner = tabs.map(function (t) {
       var active = state.tab === t[0];
       return (
-        '<button class="mt-tab-v2' + (active ? " active" : "") + '" data-tab="' + t[0] + '">' +
+        '<button class="mt-tab-v2' + (active ? " active" : "") + '" data-tab="' + t[0] + '"' + (active ? ' aria-current="page"' : '') + '>' +
         '<span class="mt-tab-icon-wrap">' + t[2] + "</span>" +
         '<span class="mt-tab-label">' + t[1] + "</span>" +
         "</button>"
       );
     }).join("");
-    return '<div class="mt-tabbar"><div class="mt-tabbar-inner">' + inner + "</div></div>";
+    return '<nav class="mt-tabbar" aria-label="Основная навигация"><div class="mt-tabbar-inner">' + inner + "</div></nav>";
   }
 
   /* ---------- main render ---------- */

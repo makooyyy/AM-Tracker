@@ -28,6 +28,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.route('https://**/*', route => route.abort());
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForSelector('[data-tab="library"]');
+    fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
+    await page.screenshot({animations:'disabled',path:path.join(root,'test-results','design-empty.png'),fullPage:true});
     await page.evaluate(() => {
       const {state, newManhwa, average, render} = e2e;
       const m = newManhwa('Поднятие уровня в одиночку');
@@ -36,13 +38,25 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       m.notes = 'Сильный сюжет и выразительная рисовка. После перечитывания особенно понравилось развитие персонажей.';
       m.ratingReason = 'После перечитывания оценил персонажей выше.';
       m.ratingHistory = [{ts:new Date(2026,7,10).getTime(),avg:70,criteria:m.criteria.map(c => ({...c,score:7})),notes:'Первое впечатление'}];
-      state.manhwas = [m]; state.recentOpened = {sample:Date.now()}; state.tab = 'library';
+      state.manhwas = [m].concat(['Всеведущий читатель', 'Начало после конца', 'Башня Бога', 'Возвращение героя', 'Магия возвращённого'].map((title,i) => {
+        const entry = newManhwa(title); entry.id = 'demo-' + i;
+        entry.rated = i < 3; entry.lastRatedAt = Date.now();
+        entry.criteria.forEach(c => c.score = 8 - i / 2);
+        return entry;
+      })); state.recentOpened = {sample:Date.now()}; state.tab = 'library';
       state.awardWinners = {'2026-08':{overall:AMFeatures.awardSnapshot(m,'2026-08','overall',average,false)}};
       render();
     });
     assert.equal(await page.locator('.mt-continue-card').count(),1);
+    for (const width of [320,390,1280]) {
+      await page.setViewportSize({width,height:844});
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`library overflow at ${width}px`);
+      await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`design-library-${width}.png`),fullPage:true});
+    }
+    await page.setViewportSize({width:390,height:844});
     await page.locator('.mt-continue-card').click();
     await page.waitForSelector('#compare-from');
+    await page.screenshot({animations:'disabled',path:path.join(root,'test-results','design-detail.png'),fullPage:true});
     assert.match(await page.locator('.mt-comparison-score').innerText(),/\+20/);
     for (const width of [320,390,1280]) {
       await page.setViewportSize({width,height:900});
@@ -57,7 +71,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const download = await downloadPromise;
     fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
     await download.saveAs(path.join(root,'test-results','share-card.png'));
-    await page.screenshot({path:path.join(root,'test-results','share-mobile.png')});
+    await page.screenshot({animations:'disabled',path:path.join(root,'test-results','share-mobile.png')});
     await page.locator('#close-share-card').click();
     await page.evaluate(() => { e2e.state.selectedId = null; e2e.state.tab = 'awards'; e2e.render(); });
     await page.waitForSelector('#awards-month');
@@ -65,6 +79,16 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('[data-preview-month="2026-08"]').first().click();
     await page.waitForSelector('#close-award-preview');
     assert.match(await page.locator('.mt-feature-dialog').innerText(),/Поднятие уровня/);
+    await page.locator('#close-award-preview').click();
+    for (const tab of ['awards','achievements','profile']) {
+      await page.locator(`[data-tab="${tab}"]`).click();
+      for (const width of [320,390,1280]) {
+        await page.setViewportSize({width,height:844});
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`${tab} overflow at ${width}px`);
+      }
+      await page.setViewportSize({width:390,height:844});
+      await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`design-${tab}.png`),fullPage:true});
+    }
     assert.deepEqual(errors,[]);
     console.log('PASS: reading shelf, rating comparison, 320/390/1280px layout, PNG download, monthly award preview; no page errors');
   } finally {
