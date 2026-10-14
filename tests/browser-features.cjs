@@ -10,9 +10,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const name = req.url.split('?')[0].replace(/^\//, '') || 'index.html';
     if (!/^[a-zA-Z0-9./_-]+$/.test(name) || name.includes('..')) { res.writeHead(400).end(); return; }
     let file = path.join(root, name);
-    if (name.startsWith('icons/')) file = path.join(root, '.publish-am-tracker', name);
+    if (name.startsWith('icons/') && !fs.existsSync(file)) file = path.join(root, '.publish-am-tracker', name);
     if (!fs.existsSync(file)) { res.writeHead(404).end(); return; }
-    res.setHeader('Content-Type', ({'.js':'text/javascript','.html':'text/html','.css':'text/css','.png':'image/png','.json':'application/json'})[path.extname(file)] || 'application/octet-stream');
+    res.setHeader('Content-Type', ({'.js':'text/javascript','.html':'text/html','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.json':'application/json'})[path.extname(file)] || 'application/octet-stream');
     let body = fs.readFileSync(file);
     if (name === 'sync.js') body = '';
     if (name === 'app.js') body = body.toString().replace('/* ---------- boot ---------- */', 'window.e2e = {state, render, newManhwa, average, openTitle}; /* ---------- boot ---------- */');
@@ -28,6 +28,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.route('https://**/*', route => route.abort());
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForSelector('[data-tab="library"]');
+    assert.equal(await page.locator('.mt-brand-mark').evaluate(img => img.complete && img.naturalWidth > 0),true);
     fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
     await page.screenshot({animations:'disabled',path:path.join(root,'test-results','design-empty.png'),fullPage:true});
     await page.evaluate(() => {
@@ -54,6 +55,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`design-library-${width}.png`),fullPage:true});
     }
     await page.setViewportSize({width:390,height:844});
+    await page.locator('#toggle-search').click();
+    await page.locator('#search-input').fill('Всеведущий');
+    assert.equal(await page.locator('.mt-grid-card').count(),1);
+    await page.locator('#search-clear-btn').click();
+    await page.locator('#toggle-search').click();
+    await page.locator('#start-add-manhwa').click();
+    await page.locator('#new-title-input').fill('Проверка формы добавления');
+    await page.locator('#cancel-add-manhwa').click();
+    assert.equal(await page.locator('.mt-grid-card').count(),6);
     await page.locator('.mt-continue-card').click();
     await page.waitForSelector('#compare-from');
     await page.screenshot({animations:'disabled',path:path.join(root,'test-results','design-detail.png'),fullPage:true});

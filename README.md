@@ -152,6 +152,7 @@ python -m http.server 8000
 | [`app.js`](app.js) | Интерфейс, оценки, библиотека, премии и локальное хранение |
 | [`features.js`](features.js) | История оценок, снимки премий и создание PNG-карточек |
 | [`styles.css`](styles.css) | Тёмная тема, мобильная вёрстка и анимации |
+| [`design.css`](design.css) | Оформление личного журнала: композиция библиотеки, книжные карточки и боковая навигация |
 | [`sync.js`](sync.js) | Вход в аккаунт и синхронизация с Firebase |
 | [`firebase-config.js`](firebase-config.js) | Параметры Firebase-проекта |
 | [`firestore.rules`](firestore.rules) | Правила доступа к облачным данным |
@@ -159,6 +160,7 @@ python -m http.server 8000
 | [`manifest.json`](manifest.json) | Название, оформление и параметры установки PWA |
 | [`changelog.js`](changelog.js) | Содержимое экрана «Журнал обновлений» |
 | [`icons/`](icons/) | Иконки приложения |
+| [`scripts/generate-icons.cjs`](scripts/generate-icons.cjs) | Создание PNG-иконок для установки приложения из векторного знака `icons/mark.svg` |
 
 При выпуске обновления добавь запись в начало `changelog.js` и измени `CACHE_NAME` в `service-worker.js`, чтобы новая версия получила отдельный кэш.
 

@@ -1154,12 +1154,11 @@
   function renderContinueReading() {
     var list = Features.continueReading(state.manhwas, state.recentOpened);
     if (!list.length || state.searchQuery.trim() || state.filterStatus !== "all" || state.filterGenre !== "all") return "";
-    return '<section class="mt-continue"><div class="mt-section-eyebrow">ТВОЯ ПОЛКА</div>' +
-      '<h2 class="mt-section-heading">Продолжить читать</h2><div class="mt-continue-strip">' + list.map(function (m) {
+    return '<section class="mt-continue" aria-label="Продолжить читать"><div class="mt-continue-strip">' + list.map(function (m) {
         return '<button class="mt-continue-card" data-open-id="' + escapeHtml(m.id) + '">' +
           (m.coverUrl ? '<img loading="lazy" src="' + escapeHtml(m.coverUrl) + '" alt="" />' : '<span class="mt-continue-placeholder">AM</span>') +
-          '<span><strong>' + escapeHtml(displayTitle(m)) + '</strong><small>Последний визит · ' +
-          escapeHtml(formatActivityDate(state.recentOpened[m.id])) + '</small></span><span aria-hidden="true">↗</span></button>';
+          '<span class="mt-continue-copy"><span class="mt-section-eyebrow">ПРОДОЛЖИТЬ ЧИТАТЬ</span><strong>' + escapeHtml(displayTitle(m)) + '</strong><small>' +
+          escapeHtml(formatActivityDate(state.recentOpened[m.id])) + '</small><span class="mt-continue-link">Вернуться к тайтлу <span aria-hidden="true">↗</span></span></span></button>';
       }).join("") + '</div></section>';
   }
 
@@ -2032,7 +2031,7 @@
     var html =
       '<div class="mt-header">' +
       '<div class="mt-title-row">' +
-      '<div class="mt-title">🏆 ПРЕМИЯ</div>' +
+      '<div><div class="mt-section-eyebrow">ЛУЧШЕЕ ИЗ ПРОЧИТАННОГО</div><h1 class="mt-page-title">Твоя премия</h1></div>' +
       "</div>" +
       '<div class="mt-subrow"><div class="mt-subtitle">' +
       (state.awardsView === "year" ? "Итоги года" : "Итоги месяца — " + escapeHtml(monthLabel(monthKey))) +
@@ -2268,14 +2267,16 @@
     return (
       '<div class="mt-header">' +
       '<div class="mt-title-row">' +
-      '<div class="mt-brand"><span class="mt-brand-mark" aria-hidden="true">AM</span><div><div class="mt-title">AM<span class="accent">•</span>TRACKER</div><div class="mt-brand-caption">Личный дневник чтения</div></div></div>' +
+      '<div class="mt-brand"><img class="mt-brand-mark" src="icons/mark.svg" alt="" /><div><div class="mt-title">AM TRACKER</div><div class="mt-brand-caption">Твой дневник историй</div></div></div>' +
       '<button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL +
       (hasUnseen ? '<span class="mt-notify-dot"></span>' : "") + "</button>" +
       "</div>" +
-      '<div class="mt-library-intro"><div class="mt-section-eyebrow">ТВОИ ИСТОРИИ — ТВОИ ВПЕЧАТЛЕНИЯ</div><h1>Библиотека<span class="mt-heading-dot">.</span></h1>' +
+      '<div class="mt-library-intro"><div class="mt-section-eyebrow">ЛИЧНАЯ КОЛЛЕКЦИЯ</div><h1>Истории, которые<br><em>остаются с тобой.</em></h1>' +
       '<div class="mt-library-stats"><span><strong>' + state.manhwas.length + '</strong> в коллекции</span><span><strong>' +
       state.manhwas.filter(function (m) { return m.status === "reading"; }).length + '</strong> читаю</span><span><strong>' +
-      state.manhwas.filter(function (m) { return ratedScore(m) !== null; }).length + '</strong> оценено</span></div></div>' +
+      state.manhwas.filter(function (m) { return ratedScore(m) !== null; }).length + '</strong> оценено</span></div></div></div>' +
+      (!state.addingManhwa ? '<div class="mt-featured-slot">' + renderContinueReading() + '</div>' : '') +
+      '<div class="mt-library-controls">' +
       '<div class="mt-subrow">' +
       '<div class="mt-subrow-actions">' +
       '<div class="mt-sort-group">' + btns + "</div>" +
@@ -2304,7 +2305,6 @@
     var list = sortedManhwas();
 
     html += '<div class="mt-list">';
-    if (!state.addingManhwa) html += renderContinueReading();
 
     if (state.addingManhwa) {
       var typeBtns = TYPES.map(function (t) {
@@ -2340,7 +2340,9 @@
         '<button class="mt-ghost-btn" id="cancel-add-manhwa">Отмена</button>' +
         "</div></div>";
     } else {
-      html += '<button class="mt-add-btn" id="start-add-manhwa"><span class="mt-add-icon">+</span>Добавить манхву</button>';
+      html += '<div class="mt-collection-heading"><div><h2>Библиотека <span>' + list.length + '</span></h2><p>' +
+        (state.searchQuery.trim() || state.filterStatus !== "all" || state.filterGenre !== "all" ? 'По выбранным фильтрам' : 'Каждая история — часть тебя') +
+        '</p></div><button class="mt-add-btn" id="start-add-manhwa"><span aria-hidden="true">+</span> Добавить</button></div>';
     }
 
     if (list.length === 0 && !state.addingManhwa) {
@@ -2353,7 +2355,7 @@
     }
 
     if (list.length > 0) {
-      html += '<div class="mt-collection-heading"><h2>Твоя коллекция</h2><span>' + list.length + '</span></div><div class="mt-grid">';
+      html += '<div class="mt-grid">';
       list.forEach(function (m, gridIdx) {
         var avg = ratedScore(m);
         var st = statusById(m.status);
@@ -2367,8 +2369,8 @@
         var title = displayTitle(m);
         html +=
           '<div class="mt-grid-card" style="animation-delay:' + Math.min(gridIdx * 30, 240) + 'ms">' +
-          '<div class="mt-cover' + (m.coverUrl ? "" : " mt-cover-empty") + (isWinnerTitle ? " mt-cover-winner" : "") +
-          '" style="' + coverStyle + '" data-open-id="' + m.id + '">' +
+          '<button class="mt-cover' + (m.coverUrl ? "" : " mt-cover-empty") + (isWinnerTitle ? " mt-cover-winner" : "") +
+          '" style="' + coverStyle + '" data-open-id="' + m.id + '" aria-label="Открыть: ' + escapeHtml(title) + '">' +
           (m.coverUrl ? "" : '<span class="mt-cover-fallback">' + escapeHtml((title[0] || "?").toUpperCase()) + "</span>") +
           '<div class="mt-cover-top-row">' +
           '<span class="mt-cover-status" style="background:' + st.color + '">' + st.label + "</span>" +
@@ -2377,7 +2379,7 @@
           (isWinnerTitle ? '<span class="mt-cover-trophy">🏆</span>' : "") +
           '<span class="mt-cover-score' + (avg === null ? ' mt-cover-unrated' : '') + '" style="border-color:' + scoreColor(avg) + ";color:" + scoreColor(avg) +
           '">' + (avg === null ? "Не оценено" : Math.round(avg)) + "</span>" +
-          "</div>" +
+          "</button>" +
           '<div class="mt-cover-title" data-open-id="' + m.id + '">' + escapeHtml(title) + "</div>" +
           '<div class="mt-cover-type-line">' + ty.label + "</div>" +
           "</div>";
@@ -2537,8 +2539,9 @@
         '<span class="mt-emotion-recap-label">' + escapeHtml(EMOTION_LABELS[m.emotionRating - 1]) + "</span></div>";
     }
 
-    var html = ratingTabs + '<div class="mt-paper mt-radar-panel">' +
-      (shownCriteria.length ? radarSvg(shownCriteria, {}) : "") + stampHtml(shownAvg, 50) +
+    var html = ratingTabs + '<div class="mt-paper mt-radar-panel"><div class="mt-rating-summary"><span class="mt-section-eyebrow">ТВОЯ ОЦЕНКА</span><div class="mt-editorial-score" style="--score-color:' + scoreColor(shownAvg) + '">' +
+      (shownAvg === null ? '—' : Math.round(shownAvg)) + '<small>/ 100</small></div><span class="mt-rating-summary-caption">' + (snapView ? 'Из истории впечатлений' : 'Твой взгляд на эту историю') + '</span></div>' +
+      (shownCriteria.length ? radarSvg(shownCriteria, {}) : "") +
       emotionRecap + "</div>" +
       '<div class="mt-paper mt-criteria-panel">';
 
@@ -3091,7 +3094,7 @@
 
     return (
       '<div class="mt-header">' +
-      '<div class="mt-title-row"><div class="mt-title">🎖️ ДОСТИЖЕНИЯ</div></div>' +
+      '<div class="mt-section-eyebrow">ТВОЙ ПУТЬ ЧИТАТЕЛЯ</div><h1 class="mt-page-title">Достижения</h1>' +
       '<div class="mt-subrow"><div class="mt-subtitle">Получено ' + unlockedCount + " из " + ACHIEVEMENTS.length + "</div></div>" +
       "</div>" +
       '<div class="mt-list">' + sections + "</div>"
@@ -3105,7 +3108,7 @@
       : null;
 
     var html =
-      renderProfileHero() + renderErrorBanner() +
+      '<div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
       renderRankPanel() +
       '<div class="mt-chip-row">' +
@@ -3774,7 +3777,7 @@
         "</button>"
       );
     }).join("");
-    return '<nav class="mt-tabbar" aria-label="Основная навигация"><div class="mt-tabbar-inner">' + inner + "</div></nav>";
+    return '<nav class="mt-tabbar" aria-label="Основная навигация"><div class="mt-nav-brand"><img src="icons/mark.svg" alt=""/><strong>AM TRACKER</strong><span>Личный дневник чтения</span></div><div class="mt-tabbar-inner">' + inner + '</div><div class="mt-nav-note">Хорошие истории<br>заслуживают места.</div></nav>';
   }
 
   /* ---------- main render ---------- */
@@ -3806,7 +3809,7 @@
 
     var showTabs = !selected && !state.showChangelog;
     var revealManhwa = state.revealManhwaId ? findManhwa(state.revealManhwaId) : null;
-    app.innerHTML = '<div class="mt-shell"><div id="storage-notice"></div>' + body + "</div>" + (showTabs ? renderTabbar() : "") +
+    app.innerHTML = '<div class="mt-shell' + (showTabs ? ' mt-shell-tabs' : ' mt-shell-detail') + '"><div id="storage-notice"></div>' + body + "</div>" + (showTabs ? renderTabbar() : "") +
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard();
     patchStorageNotice();
     attachHandlers(selected);
