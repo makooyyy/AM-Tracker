@@ -38,6 +38,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       m.criteria.forEach(c => c.score = 9); m.lastRatedAt = Date.now();
       m.notes = 'Сильный сюжет и выразительная рисовка. После перечитывания особенно понравилось развитие персонажей.';
       m.ratingReason = 'После перечитывания оценил персонажей выше.';
+      m.genres = ['Фэнтези','Повседневность','Сверхъестественное','ОченьДлинноеНазваниеЖанраБезПробеловДляПроверкиПереноса'];
       m.ratingHistory = [{ts:new Date(2026,7,10).getTime(),avg:70,criteria:m.criteria.map(c => ({...c,score:7})),notes:'Первое впечатление'}];
       state.manhwas = [m].concat(['Всеведущий читатель', 'Начало после конца', 'Башня Бога', 'Возвращение героя', 'Магия возвращённого'].map((title,i) => {
         const entry = newManhwa(title); entry.id = 'demo-' + i;
@@ -97,6 +98,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       for (const width of [320,390,1280]) {
         await page.setViewportSize({width,height:844});
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`${tab} overflow at ${width}px`);
+        if (tab === 'profile') {
+          assert.equal(await page.locator('.mt-profile-genres .mt-bar-row').count(),4);
+          assert.equal(await page.locator('.mt-profile-page .mt-bar-row').evaluateAll(rows => rows.every(row => {
+            const name = row.querySelector('.mt-bar-name').getBoundingClientRect();
+            const track = row.querySelector('.mt-bar-track').getBoundingClientRect();
+            const value = row.querySelector('.mt-bar-value').getBoundingClientRect();
+            return name.bottom <= track.top && value.bottom <= track.top && name.right <= value.left;
+          })),true,`profile label overlaps track or value at ${width}px`);
+        }
       }
       await page.setViewportSize({width:390,height:844});
       await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`design-${tab}.png`),fullPage:true});

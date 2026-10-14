@@ -2909,10 +2909,11 @@
   function miniRowHtml(m) {
     var avg = average(m.criteria);
     return (
-      '<div class="mt-mini-row" data-open-id="' + m.id + '">' +
+      '<button class="mt-mini-row" data-open-id="' + m.id + '">' +
+      (m.coverUrl ? '<img class="mt-profile-book" src="' + escapeHtml(m.coverUrl) + '" alt="" loading="lazy" />' : '<span class="mt-profile-book mt-profile-book-empty" aria-hidden="true">' + escapeHtml((displayTitle(m)[0] || '?').toUpperCase()) + '</span>') +
       '<div class="mt-mini-title">' + escapeHtml(displayTitle(m)) + "</div>" +
       '<span class="mt-mini-score" style="color:#C9BFA8">' +
-      (avg === null ? "—" : Math.round(avg)) + "</span></div>"
+      (avg === null ? "—" : Math.round(avg)) + "</span></button>"
     );
   }
 
@@ -3109,7 +3110,7 @@
       : null;
 
     var html =
-      '<div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
+      '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
       renderRankPanel() +
       '<div class="mt-chip-row">' +
@@ -3128,10 +3129,10 @@
       if (pct > 0) track += '<div style="width:' + pct + "%;background:" + s.color + ';" title="' + s.label + '"></div>';
       legend +=
         '<div class="mt-legend-item"><span class="mt-legend-dot" style="background:' + s.color + '"></span>' +
-        '<span class="mt-legend-label">' + s.label + " · " + count + "</span></div>";
+        '<span class="mt-legend-label">' + s.label + '</span><strong>' + count + '</strong></div>';
     });
     html +=
-      '<div class="mt-paper"><div class="mt-panel-title">СТАТУСЫ</div>' +
+      '<div class="mt-paper"><div class="mt-panel-title">Твоя коллекция</div><p class="mt-profile-caption">Как продвигается чтение</p>' +
       '<div class="mt-status-track">' + track + "</div>" +
       '<div class="mt-status-legend">' + legend + "</div></div>";
 
@@ -3139,7 +3140,7 @@
     if (agg.length >= 3) {
       html +=
         '<div class="mt-paper mt-radar-panel" style="align-items:flex-start">' +
-        '<div class="mt-panel-title">СРЕДНЕЕ ПО КРИТЕРИЯМ</div>' +
+        '<div class="mt-panel-title">Портрет твоих оценок</div>' +
         '<div style="width:100%;display:flex;justify-content:center">' +
         radarSvg(agg, { fillColor: "#C9BFA8", dotColor: "#C9BFA8" }) + "</div></div>";
     }
@@ -3150,10 +3151,10 @@
           '<div class="mt-bar-row"><span class="mt-bar-name">' + escapeHtml(c.name) + "</span>" +
           '<div class="mt-bar-track"><div class="mt-bar-fill" style="width:' + (c.score / 10) * 100 +
           '%;background:#C9BFA8;"></div></div>' +
-          '<span class="mt-bar-value" style="color:#C9BFA8">' + c.score.toFixed(1) + "</span></div>"
+          '<span class="mt-bar-value" style="color:#C9BFA8">' + c.score.toFixed(1) + '<small> / 10</small></span></div>'
         );
       }).join("");
-      html += '<div class="mt-paper"><div class="mt-panel-title">ЧТО ТЫ ЦЕНИШЬ ВЫШЕ ВСЕГО</div>' + bars + "</div>";
+      html += '<div class="mt-paper mt-profile-criteria"><div class="mt-panel-title">Что ты ценишь выше всего</div><p class="mt-profile-caption">Средние баллы по оценённым тайтлам</p>' + bars + "</div>";
     }
 
     var genreStats = {};
@@ -3176,10 +3177,10 @@
           '<div class="mt-bar-row"><span class="mt-bar-name">' + escapeHtml(g) + "</span>" +
           '<div class="mt-bar-track"><div class="mt-bar-fill" style="width:' + (s.count / maxCount) * 100 +
           "%;background:" + color + ';"></div></div>' +
-          '<span class="mt-bar-value" style="color:' + color + '">' + s.count + "</span></div>"
+          '<span class="mt-bar-value" style="color:' + color + '">' + s.count + '<small> шт.</small></span></div>'
         );
       }).join("");
-      html += '<div class="mt-paper"><div class="mt-panel-title">ЛЮБИМЫЕ ЖАНРЫ</div>' + genreBars + "</div>";
+      html += '<div class="mt-paper mt-profile-genres"><div class="mt-panel-title">Любимые жанры</div><p class="mt-profile-caption">По количеству тайтлов в коллекции</p>' + genreBars + "</div>";
     }
 
     var sortedByScore = rated.slice().sort(function (a, b) { return average(b.criteria) - average(a.criteria); });
@@ -3188,12 +3189,12 @@
 
     if (top.length > 0) {
       html +=
-        '<div class="mt-paper"><div class="mt-panel-title" style="color:#7FBF9B">ТОП ПО ОЦЕНКЕ</div>' +
+        '<div class="mt-paper"><div class="mt-panel-title">Твои фавориты</div><p class="mt-profile-caption">Истории с самыми высокими оценками</p>' +
         top.map(miniRowHtml).join("") + "</div>";
     }
     if (bottom.length > 0) {
       html +=
-        '<div class="mt-paper"><div class="mt-panel-title" style="color:#D9838F">АУТСАЙДЕРЫ</div>' +
+        '<div class="mt-paper"><div class="mt-panel-title">Впечатлили меньше</div><p class="mt-profile-caption">Самые низкие оценки вне топа</p>' +
         bottom.map(miniRowHtml).join("") + "</div>";
     }
 
@@ -3203,7 +3204,7 @@
     }
 
     html +=
-      '<div class="mt-paper"><div class="mt-panel-title">РЕЗЕРВНАЯ КОПИЯ</div>' +
+      '<div class="mt-paper mt-profile-backup"><div class="mt-panel-title">Сохрани свою историю</div>' +
       '<div class="mt-backup-text">Сохрани файл с оценками себе на телефон — так данные ' +
       'не потеряются при очистке браузера, и их можно перенести на другое устройство.</div>' +
       '<div class="mt-form-row">' +
@@ -3213,7 +3214,7 @@
       '<input type="file" id="import-file-input" accept="application/json" style="display:none" />' +
       "</div>";
 
-    html += "</div>";
+    html += "</div></section>";
     return html;
   }
 
