@@ -142,7 +142,41 @@
       });
     });
   }
-  var api = { ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  // Every positive monthly nomination is one vote. Equal totals share a place.
+  function annualAwards(winners, year, now) {
+    var current = month(now === undefined ? Date.now() : now), total = {}, categories = {}, months = {}, count = 0;
+    function add(map, w, key, category) {
+      var id = String(w.id);
+      if (!map[id]) map[id] = { winner: copy(w), count: 0, months: [], categories: [] };
+      var row = map[id]; row.winner = Object.assign(copy(w), {month:key, category:category}); row.count++;
+      if (row.months.indexOf(key) < 0) row.months.push(key);
+      if (row.categories.indexOf(category) < 0) row.categories.push(category);
+    }
+    Object.keys(winners).sort().forEach(function (key) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(key) || Number(key.slice(0,4)) !== year || key >= current) return;
+      Object.keys(winners[key]).forEach(function (category) {
+        var w = winners[key][category];
+        if (category === 'worst' || !w || typeof w !== 'object' || !w.id) return;
+        add(total,w,key,category);
+        if (!categories[category]) categories[category] = {};
+        add(categories[category],w,key,category);
+        if (!months[key]) months[key] = {count:0, overall:null};
+        months[key].count++; count++;
+        if (category === 'overall') months[key].overall = Object.assign(copy(w),{month:key,category:category});
+      });
+    });
+    function rank(map) {
+      var rows = Object.keys(map).map(function (id) { return map[id]; }).sort(function (a,b) {
+        return b.count-a.count || title(a.winner).localeCompare(title(b.winner),'ru') || String(a.winner.id).localeCompare(String(b.winner.id));
+      });
+      rows.forEach(function (r,i) { r.place = i && rows[i-1].count === r.count ? rows[i-1].place : i+1; });
+      return rows;
+    }
+    var leaders = rank(total), categoryLeaders = {};
+    Object.keys(categories).forEach(function (c) { var rows = rank(categories[c]); categoryLeaders[c] = rows.filter(function (r) { return r.place === 1; }); });
+    return {ranking:leaders, leaders:leaders.filter(function (r) { return r.place === 1; }), categories:categoryLeaders, months:months, awardCount:count};
+  }
+  var api = { annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

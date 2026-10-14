@@ -914,6 +914,7 @@
     state.manhwas.forEach(function (m) {
       var ts = getCreatedAt(m);
       if (ts !== null) years[new Date(ts).getFullYear()] = true;
+      if (m.rated) Features.ratings(m, average).forEach(function (r) { if (Number.isFinite(r.ts)) years[new Date(r.ts).getFullYear()] = true; });
     });
     var list = Object.keys(years).map(Number);
     list.sort(function (a, b) { return b - a; });
@@ -1187,6 +1188,7 @@
   function awardMonths() {
     var last = lastCompletedMonthKey(), keys = {};
     keys[last] = true;
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(state.awardsMonth || '') && state.awardsMonth <= last) keys[state.awardsMonth] = true;
     Object.keys(state.awardWinners).concat(Object.keys(state.awardCandidates)).forEach(function (k) { if (k <= last) keys[k] = true; });
     state.manhwas.forEach(function (m) {
       if (!m.rated) return;
@@ -1870,75 +1872,71 @@
     return { label: "ОБНОВЛЕНИЕ", color: "#8CA0D0" };
   }
 
-  function renderYearSummary() {
-    var years = yearsWithData();
-    if (!years.length) {
-      return '<div class="mt-paper mt-empty"><div class="mt-empty-title">Пока нет данных</div>' +
-        '<div class="mt-empty-text">Итоги года появятся, когда в библиотеке будут тайтлы с датой добавления.</div></div>';
-    }
-    if (!state.awardsYear || years.indexOf(state.awardsYear) === -1) {
-      state.awardsYear = years[0];
-    }
-    var year = state.awardsYear;
-
-    var yearChips = years.map(function (y) {
-      var active = y === year;
-      return '<button class="mt-genre-filter-chip' + (active ? " active" : "") + '" data-awards-year="' + y + '">' + y + "</button>";
-    }).join("");
-
-    var titles = titlesForYear(year);
-    var rated = titles.filter(function (m) { return ratedScore(m) !== null; });
-    var avg = rated.length ? rated.reduce(function (a, m) { return a + average(m.criteria); }, 0) / rated.length : null;
-
-    var genreCounts = {};
-    titles.forEach(function (m) {
-      (m.genres || []).forEach(function (g) { genreCounts[g] = (genreCounts[g] || 0) + 1; });
-    });
-    var topGenre = Object.keys(genreCounts).sort(function (a, b) { return genreCounts[b] - genreCounts[a]; })[0];
-
-    var champions = championsForYear(year);
-
-    var html = '<div class="mt-genre-filter-row" style="margin-top:0">' + yearChips + "</div>";
-
-    html +=
-      '<div class="mt-chip-row" style="margin-top:14px">' +
-      '<div class="mt-chip"><div class="mt-chip-value">' + titles.length + '</div><div class="mt-chip-label">тайтлов за год</div></div>' +
-      '<div class="mt-chip"><div class="mt-chip-value" style="color:#C9BFA8">' +
-      (avg === null ? "—" : Math.round(avg)) + '</div><div class="mt-chip-label">средняя оценка</div></div>' +
-      "</div>";
-
-    if (topGenre) {
-      html +=
-        '<div class="mt-paper"><div class="mt-panel-title">ЖАНР ГОДА</div>' +
-        '<div class="mt-year-genre">' + escapeHtml(topGenre) + '<span class="mt-year-genre-count">×' + genreCounts[topGenre] + "</span></div>" +
-        "</div>";
-    }
-
-    if (champions.length > 0) {
-      var top = champions[0];
-      html +=
-        '<div class="mt-winner-section-title">🏆 ТАЙТЛ ГОДА</div>' +
-        '<div class="mt-winner-carousel">' +
-        championCardHtml(top.manhwa, top.count + " " + winWord(top.count) + " за год") +
-        "</div>";
-
-      if (champions.length > 1) {
-        html +=
-          '<div class="mt-winner-section-title" style="margin-top:8px">ВСЕ ЧЕМПИОНЫ ГОДА</div>' +
-          '<div class="mt-winner-carousel">' +
-          champions.map(function (c) {
-            return championCardHtml(c.manhwa, "×" + c.count + " " + winWord(c.count));
-          }).join("") +
-          "</div>";
-      }
-    } else {
-      html +=
-        '<div class="mt-paper mt-empty"><div class="mt-empty-text">В этом году ещё нет победителей месячных номинаций — выбери их во вкладке «Месяц».</div></div>';
-    }
-
-    return html;
+  function annualCover(w, className) {
+    return w.coverUrl ? '<img class="' + className + '" src="' + escapeHtml(w.coverUrl) + '" alt="" loading="lazy" />' :
+      '<span class="' + className + ' mt-annual-cover-empty" aria-hidden="true">' + escapeHtml((displayTitle(w)[0] || '?').toUpperCase()) + '</span>';
   }
 
+  function renderYearSummary() {
+    var years = yearsWithData();
+    if (!years.length) return '<div class="mt-paper mt-empty"><div class="mt-empty-title">Твой зал славы впереди</div><p class="mt-feature-hint">Добавляй тайтлы и вручай премии месяца. Здесь соберутся главные истории твоего года.</p></div>';
+    if (years.indexOf(state.awardsYear) < 0) state.awardsYear = years[0];
+    var year = state.awardsYear, now = new Date(), ongoing = year >= now.getFullYear();
+    var data = Features.annualAwards(normalizeWinners(state.awardWinners), year);
+    var annualRatings = [];
+    state.manhwas.forEach(function (m) {
+      if (!m.rated) return;
+      var saved = Features.ratings(m, average).filter(function (r) { return Number.isFinite(r.ts) && new Date(r.ts).getFullYear() === year && r.ts <= Date.now(); }).sort(function (a,b) { return b.ts-a.ts; });
+      if (saved.length) annualRatings.push(saved[0]);
+    });
+    var avg = annualRatings.length ? Math.round(annualRatings.reduce(function (sum,r) { return sum+r.avg; },0)/annualRatings.length) : null;
+    var html = '<section class="mt-annual"><div class="mt-annual-years" role="group" aria-label="Год премии">' + years.map(function (y) {
+      return '<button data-awards-year="' + y + '" class="mt-annual-year' + (y === year ? ' active' : '') + '" aria-pressed="' + (y === year) + '">' + y + '</button>';
+    }).join('') + '</div><header class="mt-annual-intro"><span class="mt-section-eyebrow">AM AWARDS · ' + year + '</span><h2>Год, достойный<br><em>своей истории.</em></h2><span class="mt-annual-season">' + (ongoing ? 'Сезон продолжается · промежуточные итоги' : 'Итоги сезона · ' + year) + '</span></header>';
+
+    if (data.leaders.length) {
+      html += '<div class="mt-annual-crown" aria-hidden="true">✦</div><div class="mt-annual-heading"><h3>' + (ongoing ? (data.leaders.length > 1 ? 'Лидеры сезона' : 'Лидер сезона') : (data.leaders.length > 1 ? 'Тайтлы года' : 'Тайтл года')) + '</h3><p>' + (data.leaders.length > 1 ? 'Одинаковое число наград — разделённое первое место' : 'Больше всего побед в премиях месяца') + '</p></div>';
+      html += '<div class="mt-annual-winners">' + data.leaders.map(function (r) {
+        return '<button class="mt-annual-winner" ' + awardPreviewAttrs(r.winner) + '><span class="mt-annual-winner-year" aria-hidden="true">' + year + '</span>' + annualCover(r.winner,'mt-annual-main-cover') +
+          '<span class="mt-annual-winner-copy"><span class="mt-section-eyebrow">ПЕРВОЕ МЕСТО</span><strong>' + escapeHtml(displayTitle(r.winner)) + '</strong><span class="mt-annual-wins">' + r.count + ' ' + winWord(r.count) + '</span><small>Месяцев с наградами: ' + r.months.length + ' · Номинаций: ' + r.categories.length + '</small><span class="mt-annual-open">Карточка победителя ↗</span></span></button>';
+      }).join('') + '</div>';
+    } else {
+      html += '<div class="mt-annual-await"><span aria-hidden="true">✦</span><h3>Место для твоего фаворита</h3><p>Выбери победителей премии месяца — и здесь начнётся гонка за тайтл года.</p><button class="mt-primary-btn" data-awards-view="month">К премии месяца</button></div>';
+    }
+
+    html += '<div class="mt-annual-numbers"><div><strong>' + data.awardCount + '</strong><span>наград вручено</span></div><div><strong>' + Object.keys(data.months).length + '<small> / 12</small></strong><span>месяцев с наградами</span></div><div><strong>' + (avg === null ? '—' : avg) + '</strong><span>средняя оценка года</span></div></div>';
+    html += '<p class="mt-annual-footnote">Средняя — по последней сохранённой оценке каждого тайтла за ' + year + ' год. Оценено тайтлов: ' + annualRatings.length + '.</p>';
+    var discoveries = titlesForYear(year), genres = {};
+    discoveries.forEach(function (m) { (m.genres || []).forEach(function (g) { genres[g] = (genres[g] || 0) + 1; }); });
+    var genreOrder = Object.keys(genres).sort(function (a,b) { return genres[b]-genres[a] || a.localeCompare(b,'ru'); });
+    if (genreOrder.length) {
+      var favoriteGenres = genreOrder.filter(function (g) { return genres[g] === genres[genreOrder[0]]; });
+      html += '<div class="mt-annual-discovery"><span class="mt-section-eyebrow">ЖАНРЫ ТВОИХ ОТКРЫТИЙ</span><strong>' + favoriteGenres.map(escapeHtml).join(' · ') + '</strong><p>Самые частые жанры среди тайтлов, добавленных в ' + year + ' году. Пополнений коллекции: ' + discoveries.length + '.</p></div>';
+    }
+
+    if (data.ranking.length > 1) {
+      html += '<div class="mt-annual-heading"><span class="mt-section-eyebrow">ГОНКА ЗА ПРИЗНАНИЕМ</span><h3>Пьедестал года</h3></div><div class="mt-annual-podium">' + data.ranking.filter(function (r) { return r.place <= 3; }).map(function (r) {
+        return '<button class="mt-annual-runner" ' + awardPreviewAttrs(r.winner) + '><span class="mt-annual-place">' + String(r.place).padStart(2,'0') + '</span>' + annualCover(r.winner,'mt-annual-small-cover') + '<span class="mt-annual-runner-title">' + escapeHtml(displayTitle(r.winner)) + '<small>' + r.count + ' ' + winWord(r.count) + '</small></span></button>';
+      }).join('') + '</div>';
+      var rest = data.ranking.filter(function (r) { return r.place > 3; });
+      if (rest.length) html += '<details class="mt-annual-rest"><summary>Все участники · ' + data.ranking.length + '</summary>' + rest.map(function (r) { return '<button class="mt-annual-runner" ' + awardPreviewAttrs(r.winner) + '><span class="mt-annual-place">' + r.place + '</span><span class="mt-annual-runner-title">' + escapeHtml(displayTitle(r.winner)) + '<small>' + r.count + ' ' + winWord(r.count) + '</small></span></button>'; }).join('') + '</details>';
+    }
+
+    var categories = AWARD_CATEGORY_KEYS.filter(function (c) { return c !== 'worst' && c !== 'overall' && data.categories[c]; });
+    if (categories.length) {
+      html += '<div class="mt-annual-heading"><span class="mt-section-eyebrow">У КАЖДОЙ ИСТОРИИ СВОЯ СИЛА</span><h3>Зал номинаций</h3><p>Больше всего месячных побед в каждой категории</p></div><div class="mt-annual-categories">' + categories.map(function (c) {
+        return '<section class="mt-annual-category"><h4>' + escapeHtml(c === 'cover' ? 'Обложка года' : AWARD_LABELS[c]) + '</h4>' + data.categories[c].map(function (r) { return '<button ' + awardPreviewAttrs(r.winner) + '>' + annualCover(r.winner,'mt-annual-small-cover') + '<span>' + escapeHtml(displayTitle(r.winner)) + '<small>' + r.count + ' ' + winWord(r.count) + (data.categories[c].length > 1 ? ' · разделённая победа' : '') + '</small></span></button>'; }).join('') + '</section>';
+      }).join('') + '</div>';
+    }
+
+    html += '<div class="mt-annual-heading"><span class="mt-section-eyebrow">ДВЕНАДЦАТЬ ГЛАВ ТВОЕГО ГОДА</span><h3>Сезон по месяцам</h3><p>Нажми на завершённый месяц, чтобы открыть его премию</p></div><div class="mt-annual-calendar">';
+    var monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    for (var i=0;i<12;i++) {
+      var key = year + '-' + pad2(i+1), record = data.months[key], open = key < monthKeyOf(Date.now());
+      html += '<button class="mt-annual-month' + (record ? ' awarded' : '') + '" data-year-month="' + key + '"' + (open ? '' : ' disabled') + '><span>' + monthNames[i] + '</span><strong>' + (record ? record.count + ' ' + winWord(record.count) : (open ? 'Без наград' : 'Впереди')) + '</strong>' + (record && record.overall ? '<small>' + escapeHtml(displayTitle(record.overall)) + '</small>' : '') + '</button>';
+    }
+    return html + '</div><details class="mt-annual-rules"><summary>Как определяется победитель</summary><p>Каждая победа в номинации месяца даёт один балл. Антипремия не учитывается. При равенстве баллов тайтлы разделяют место. Учитываются только завершённые месяцы выбранного года.</p><p>Результаты строятся по сохранённым премиям: переоценка или удаление тайтла не меняет его прошлые награды. Годовые итоги пересчитываются при изменении архива. Для старых премий используются восстановленные данные.</p></details></section>';
+  }
   function winWord(n) {
     var mod10 = n % 10, mod100 = n % 100;
     if (mod10 === 1 && mod100 !== 11) return "победа";
@@ -3841,6 +3839,13 @@
     if (compare && selected) compare.addEventListener("change", function () { state.compareFrom[selected.id] = Number(compare.value); render(); });
     var reason = document.getElementById("rating-reason");
     if (reason && selected) reason.addEventListener("input", function () { selected.ratingReason = reason.value.slice(0, 500); saveRatingDrafts(); });
+    app.querySelectorAll('[data-year-month]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.awardsMonth = btn.getAttribute('data-year-month'); state.awardsView = 'month';
+        state.awardsCategory = null; state.confirmWinnerPick = null; state.awardsCandidatesConfirmed = false;
+        render(); window.scrollTo(0,0);
+      });
+    });
     app.querySelectorAll('[data-awards-month]').forEach(function (btn) {
       btn.addEventListener("click", function () {
         state.awardsMonth = btn.getAttribute('data-awards-month'); state.awardsCategory = null; state.confirmWinnerPick = null; state.awardsCandidatesConfirmed = false; render();

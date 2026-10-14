@@ -47,7 +47,7 @@ function harness(saved = new Map()) {
       renderLibrary, renderProfile, aggregateCriteria, sortedManhwas, ratedScore,
       sanitizeImportedManhwa,
       setWinner, getWinner, normalizeWinners, purgeAwardReferences, championsForYear,
-      eligibleForMonth, lastCompletedMonthKey, renderAwardsTab, renderComparison,
+      eligibleForMonth, lastCompletedMonthKey, renderAwardsTab, renderComparison, renderYearSummary, yearsWithData,
       openTitle, loadRecentOpened,
       persistKey, retryFailedWrites, failedWrites, storageNoticeHtml,
       flush: async function () { await Promise.all(Object.values(storageWrites).map(p => p.catch(() => {}))); },
@@ -232,4 +232,33 @@ test('comparison calculates signed deltas and handles zero change', () => {
   const d = f.comparison({avg:72,criteria:[{name:'Plot',score:7},{name:'Art',score:8}]},
     {avg:86,criteria:[{name:'Plot',score:9},{name:'Art',score:8}]});
   assert.equal(d.delta,14); assert.equal(d.rows[0].delta,2); assert.equal(d.rows[1].delta,0);
+});
+
+test('annual awards share tied places, exclude anti-awards and unfinished months, and preserve snapshots', () => {
+  const f = require('../features.js');
+  const a = {id:'a',title:'Alpha',avg:80,awardSnapshot:1}, b = {id:'b',title:'Beta',avg:90,awardSnapshot:1};
+  const winners = {'2025-01':{overall:a,Art:a,Plot:b,worst:b},'2025-02':{overall:b,Art:b,Plot:a},'2026-01':{overall:a}};
+  const data = f.annualAwards(winners,2025,new Date(2026,1,1).getTime());
+  assert.equal(data.awardCount,6);
+  assert.equal(data.leaders.length,2);
+  assert.deepEqual(data.ranking.map(r=>r.place),[1,1]);
+  assert.equal(data.categories.Art.length,2);
+  assert.equal(data.months['2025-01'].count,3);
+  assert.equal(data.leaders[0].winner.month,'2025-02');
+  a.title = 'Renamed'; assert.equal(data.leaders[0].winner.title,'Alpha');
+  const unfinished = f.annualAwards(winners,2025,new Date(2025,1,15).getTime());
+  assert.equal(unfinished.awardCount,3);
+  assert.equal(unfinished.leaders[0].winner.id,'a');
+  assert.equal(f.annualAwards({},2025).ranking.length,0);
+});
+
+test('annual recap uses historical scores from the selected year, even for titles added earlier', () => {
+  const {api:a} = harness(), m = addRated(a);
+  m.createdAt = new Date(2020,1,1).getTime(); m.lastRatedAt = new Date(2026,1,1).getTime();
+  m.ratingHistory = [{ts:new Date(2024,4,1).getTime(),avg:60,criteria:m.criteria.map(c=>({...c,score:6}))},
+    {ts:new Date(2024,8,1).getTime(),avg:70,criteria:m.criteria.map(c=>({...c,score:7}))}];
+  a.state.awardsYear = 2024;
+  assert.ok(a.yearsWithData().includes(2024));
+  assert.match(a.renderYearSummary(), /<strong>70<\/strong><span>средняя оценка года/);
+  assert.match(a.renderYearSummary(), /Оценено тайтлов: 1/);
 });

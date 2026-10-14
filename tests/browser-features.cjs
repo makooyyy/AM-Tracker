@@ -93,6 +93,32 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.waitForSelector('#close-award-preview');
     assert.match(await page.locator('.mt-feature-dialog').innerText(),/Поднятие уровня/);
     await page.locator('#close-award-preview').click();
+    await page.evaluate(() => {
+      const {state,average,render} = e2e, a = state.manhwas[0], b = state.manhwas[1];
+      const snap = (m,key,category) => AMFeatures.awardSnapshot(m,key,category,average,false);
+      state.awardWinners['2025-01'] = {overall:snap(a,'2025-01','overall'),'Рисовка':snap(a,'2025-01','Рисовка'),'Сюжет':snap(b,'2025-01','Сюжет'),worst:snap(b,'2025-01','worst')};
+      state.awardWinners['2025-02'] = {overall:snap(b,'2025-02','overall'),'Рисовка':snap(b,'2025-02','Рисовка'),'Сюжет':snap(a,'2025-02','Сюжет')};
+      state.awardWinners['2024-01'] = {};
+      render();
+    });
+    await page.locator('[data-awards-view="year"]').click();
+    await page.locator('[data-awards-year="2025"]').click();
+    assert.equal(await page.locator('.mt-annual-winner').count(),2);
+    assert.equal(await page.locator('.mt-annual-month').count(),12);
+    for (const width of [320,390,1280]) {
+      await page.setViewportSize({width,height:844});
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`annual overflow at ${width}px`);
+      await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`annual-${width}.png`),fullPage:true});
+    }
+    await page.locator('.mt-annual-winner').first().click();
+    await page.waitForSelector('#close-award-preview');
+    await page.locator('#close-award-preview').click();
+    await page.locator('[data-year-month="2025-03"]').click();
+    assert.match(await page.locator('.mt-empty-title').innerText(),/Победители не выбраны/);
+    await page.locator('[data-awards-view="year"]').click();
+    await page.locator('[data-awards-year="2024"]').click();
+    assert.equal(await page.locator('.mt-annual-await').count(),1);
+    await page.locator('.mt-annual-await [data-awards-view="month"]').click();
     for (const tab of ['awards','achievements','profile']) {
       await page.locator(`[data-tab="${tab}"]`).click();
       for (const width of [320,390,1280]) {
