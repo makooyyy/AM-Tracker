@@ -2046,9 +2046,10 @@
       return html;
     }
 
-    html += '<label class="mt-field-label" for="awards-month">Месяц премии</label><select id="awards-month" class="mt-input">' +
-      months.map(function (key) { return '<option value="' + key + '"' + (key === monthKey ? ' selected' : '') + '>' +
-        escapeHtml(monthLabel(key)) + (key === lastCompletedMonthKey() ? ' · подводим итоги' : ' · архив') + '</option>'; }).join('') + '</select>';
+    html += '<div class="mt-award-months" role="group" aria-label="Месяц премии">' +
+      months.map(function (key) { return '<button class="mt-award-month' + (key === monthKey ? ' active' : '') +
+        '" data-awards-month="' + key + '" aria-pressed="' + (key === monthKey ? 'true' : 'false') + '"><strong>' +
+        escapeHtml(monthLabel(key)) + '</strong><span>' + (key === lastCompletedMonthKey() ? 'Подводим итоги' : 'Архив') + '</span></button>'; }).join('') + '</div>';
     if (monthKey < lastCompletedMonthKey()) {
       var archived = AWARD_CATEGORY_KEYS.filter(function (ck) { return !!getWinner(monthKey, ck); });
       html += '<div class="mt-section-eyebrow">АРХИВ ПРЕМИИ</div>' +
@@ -3839,9 +3840,10 @@
     if (compare && selected) compare.addEventListener("change", function () { state.compareFrom[selected.id] = Number(compare.value); render(); });
     var reason = document.getElementById("rating-reason");
     if (reason && selected) reason.addEventListener("input", function () { selected.ratingReason = reason.value.slice(0, 500); saveRatingDrafts(); });
-    var monthSelect = document.getElementById("awards-month");
-    if (monthSelect) monthSelect.addEventListener("change", function () {
-      state.awardsMonth = monthSelect.value; state.awardsCategory = null; state.confirmWinnerPick = null; state.awardsCandidatesConfirmed = false; render();
+    app.querySelectorAll('[data-awards-month]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.awardsMonth = btn.getAttribute('data-awards-month'); state.awardsCategory = null; state.confirmWinnerPick = null; state.awardsCandidatesConfirmed = false; render();
+      });
     });
     app.querySelectorAll('[data-preview-month]').forEach(function (el) {
       el.addEventListener('click', function () {

@@ -52,6 +52,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     for (const width of [320,390,1280]) {
       await page.setViewportSize({width,height:844});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`library overflow at ${width}px`);
+      assert.equal(await page.locator('.mt-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length),3);
       await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`design-library-${width}.png`),fullPage:true});
     }
     await page.setViewportSize({width:390,height:844});
@@ -84,8 +85,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.screenshot({animations:'disabled',path:path.join(root,'test-results','share-mobile.png')});
     await page.locator('#close-share-card').click();
     await page.evaluate(() => { e2e.state.selectedId = null; e2e.state.tab = 'awards'; e2e.render(); });
-    await page.waitForSelector('#awards-month');
-    await page.selectOption('#awards-month','2026-08');
+    await page.waitForSelector('[data-awards-month]');
+    await page.locator('[data-awards-month="2026-08"]').click();
+    assert.equal(await page.locator('[data-awards-month="2026-08"]').getAttribute('aria-pressed'),'true');
     await page.locator('[data-preview-month="2026-08"]').first().click();
     await page.waitForSelector('#close-award-preview');
     assert.match(await page.locator('.mt-feature-dialog').innerText(),/Поднятие уровня/);

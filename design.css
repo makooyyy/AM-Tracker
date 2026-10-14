@@ -56,7 +56,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-add-btn span { font-size:17px; line-height:1; }
 .mt-add-btn::after { display:none; }
 .mt-add-btn:active { box-shadow:none; }
-.mt-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 16px; }
+.mt-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px 10px; }
 .mt-grid-card { gap:4px; }
 .mt-cover { display:block; width:100%; padding:0; border:1px solid #ffffff12; border-radius:5px 15px 15px 5px; box-shadow:5px 8px 20px #0004; text-align:left; }
 .mt-cover::after { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg,#0005,transparent 5%,#ffffff12 7%,transparent 9%),linear-gradient(0deg,#0006,transparent 40%); }
@@ -139,5 +139,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
  .mt-nav-note { display:block; margin:auto 12px 0; color:var(--text-faint); font:italic 19px/1.5 Georgia,serif; }
  .mt-radar-panel:has(.mt-rating-summary) { grid-template-columns:1fr 1fr; align-items:center; } .mt-emotion-recap { grid-column:1/-1; }
 }
-@media (min-width:1200px) { .mt-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.mt-award-months { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:9px; }
+.mt-award-month { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:13px; border:1px solid #ffffff20; border-radius:13px; background:#ffffff03; color:var(--text-muted); text-align:left; cursor:pointer; }
+.mt-award-month strong { font-size:12px; font-weight:600; }
+.mt-award-month span { font-size:10px; }
+.mt-award-month.active { border-color:var(--pink); background:#c4b2ed15; color:var(--text-primary); }
+.mt-award-month.active span { color:var(--pink); }
+@media (max-width:599px) {
+ .mt-cover-top-row { top:6px; left:5px; right:5px; }
+ .mt-cover-status { font-size:7px; padding:3px 4px; }
+ .mt-cover-score { right:6px; bottom:6px; font-size:15px; padding:4px 6px; }
+ .mt-cover-title { font-size:11px; }
+ .mt-cover-fallback { font-size:48px; }
+ .mt-cover-score.mt-cover-unrated { font-size:7px; padding:3px 4px; }
+}
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } .mt-cover:hover { transform:none; } }
