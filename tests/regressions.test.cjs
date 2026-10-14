@@ -48,7 +48,7 @@ function harness(saved = new Map()) {
       sanitizeImportedManhwa,
       setWinner, getWinner, normalizeWinners, purgeAwardReferences, championsForYear,
       eligibleForMonth, lastCompletedMonthKey, renderAwardsTab, renderComparison, renderYearSummary, yearsWithData,
-      openTitle, loadRecentOpened,
+      openTitle, loadRecentOpened, ACHIEVEMENTS, achievementMetrics, achievementProgress, renderAchievementsTab,
       persistKey, retryFailedWrites, failedWrites, storageNoticeHtml,
       flush: async function () { await Promise.all(Object.values(storageWrites).map(p => p.catch(() => {}))); },
       setWriter: function (fn) { idbAvailable = true; idbSet = fn; },
@@ -261,4 +261,21 @@ test('annual recap uses historical scores from the selected year, even for title
   assert.ok(a.yearsWithData().includes(2024));
   assert.match(a.renderYearSummary(), /<strong>70<\/strong><span>средняя оценка года/);
   assert.match(a.renderYearSummary(), /Оценено тайтлов: 1/);
+});
+
+test('achievement progress measures targets, preserves earned medals and never grants XP on render', () => {
+  const {api:a} = harness();
+  for (let i=0;i<6;i++) addRated(a);
+  const collection = a.ACHIEVEMENTS.find(x=>x.id==='collect_10');
+  let progress = a.achievementProgress(collection,a.achievementMetrics());
+  assert.equal(progress.current,6); assert.equal(progress.target,10); assert.equal(progress.fraction,.6);
+  a.state.unlockedAchievements.collect_10 = 1700000000000;
+  a.state.manhwas = [];
+  progress = a.achievementProgress(collection,a.achievementMetrics());
+  assert.equal(progress.current,10); assert.equal(progress.unlocked,true);
+  const xp = a.state.totalXp, medals = JSON.stringify(a.state.unlockedAchievements);
+  assert.match(a.renderAchievementsTab(), /ПАСПОРТ ЧИТАТЕЛЯ/);
+  assert.equal(a.state.totalXp,xp); assert.equal(JSON.stringify(a.state.unlockedAchievements),medals);
+  a.state.achievementFilter='earned'; a.state.achievementCategory='Библиотека';
+  assert.match(a.renderAchievementsTab(), /Показано: 1/);
 });

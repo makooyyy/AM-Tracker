@@ -121,6 +121,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('.mt-annual-await [data-awards-view="month"]').click();
     for (const tab of ['awards','achievements','profile']) {
       await page.locator(`[data-tab="${tab}"]`).click();
+      if (tab === 'achievements') {
+        await page.evaluate(() => { e2e.state.unlockedAchievements = {first_add:Date.now(),first_rated:Date.now()-1000,genres_5:Date.now()-2000}; e2e.render(); });
+        await page.locator('[data-achievement-filter="earned"]').click();
+        assert.equal(await page.locator('.mt-achievement-grid .earned').count(),3);
+        await page.locator('[data-achievement-category="Библиотека"]').click();
+        assert.equal(await page.locator('.mt-achievement-grid .mt-achievement-card').count(),1);
+        await page.locator('[data-achievement-filter="locked"]').click();
+        assert.equal(await page.locator('.mt-achievement-grid .earned').count(),0);
+        assert.match(await page.locator('.mt-achievement-grid [data-achievement-id="collect_10"]').innerText(),/6 \/ 10/);
+        await page.locator('[data-achievement-category="Все категории"]').click();
+        await page.locator('[data-achievement-filter="all"]').click();
+      }
       for (const width of [320,390,1280]) {
         await page.setViewportSize({width,height:844});
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`${tab} overflow at ${width}px`);
@@ -136,6 +148,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       }
       await page.setViewportSize({width:390,height:844});
       await page.screenshot({animations:'disabled',path:path.join(root,'test-results',`design-${tab}.png`),fullPage:true});
+      if (tab === 'achievements') {
+        await page.evaluate(() => window.scrollTo(0,0));
+        await page.screenshot({animations:'disabled',path:path.join(root,'test-results','achievements-top.png')});
+        await page.locator('.mt-achievement-filters').scrollIntoViewIfNeeded();
+        await page.screenshot({animations:'disabled',path:path.join(root,'test-results','achievements-collection.png')});
+      }
     }
     assert.deepEqual(errors,[]);
     console.log('PASS: reading shelf, rating comparison, 320/390/1280px layout, PNG download, monthly award preview; no page errors');

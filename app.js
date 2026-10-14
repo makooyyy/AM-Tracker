@@ -599,6 +599,8 @@
     activityLog: [],
     totalXp: 0,
     unlockedAchievements: {},
+    achievementFilter: 'all',
+    achievementCategory: 'Все категории',
     confirmEditWinnersMonth: null,
     awardsView: "month",
     awardsCategory: null,
@@ -3064,43 +3066,65 @@
     return '<div class="mt-paper mt-rank-ladder">' + rows + "</div>";
   }
 
-  function renderAchievementsTab() {
-    var unlockedCount = ACHIEVEMENTS.filter(function (a) { return !!state.unlockedAchievements[a.id]; }).length;
-
-    var sections = ACHIEVEMENT_CATEGORIES.map(function (cat) {
-      var items = ACHIEVEMENTS.filter(function (a) { return a.category === cat; });
-      if (!items.length) return "";
-      var catUnlocked = items.filter(function (a) { return !!state.unlockedAchievements[a.id]; }).length;
-      var rows = items.map(function (a) {
-        var unlocked = !!state.unlockedAchievements[a.id];
-        return (
-          '<div class="mt-achv-row' + (unlocked ? " unlocked" : "") + '">' +
-          '<span class="mt-achv-icon">' + a.icon + "</span>" +
-          '<div class="mt-achv-body">' +
-          '<div class="mt-achv-name">' + escapeHtml(a.name) + "</div>" +
-          '<div class="mt-achv-desc">' + escapeHtml(a.desc) + "</div>" +
-          "</div>" +
-          (unlocked ? '<span class="mt-achv-check">✓</span>' : "") +
-          "</div>"
-        );
-      }).join("");
-      return (
-        '<div class="mt-paper">' +
-        '<div class="mt-panel-title">' + escapeHtml(cat.toUpperCase()) + " · " + catUnlocked + "/" + items.length + "</div>" +
-        '<div class="mt-achv-list">' + rows + "</div>" +
-        "</div>"
-      );
-    }).join("");
-
-    return (
-      '<div class="mt-header">' +
-      '<div class="mt-section-eyebrow">ТВОЙ ПУТЬ ЧИТАТЕЛЯ</div><h1 class="mt-page-title">Достижения</h1>' +
-      '<div class="mt-subrow"><div class="mt-subtitle">Получено ' + unlockedCount + " из " + ACHIEVEMENTS.length + "</div></div>" +
-      "</div>" +
-      '<div class="mt-list">' + sections + "</div>"
-    );
+  function achievementMetrics() {
+    return { collect: state.manhwas.length, genres: distinctGenresCount(), rated: ratedTitlesCount(),
+      review: reviewCount(), award: totalAwardWinsCount(), dropper: droppedTitlesCount(), completed: countByStatus('done'),
+      planned: countByStatus('plan'), reading: countByStatus('reading'), streak: longestStreakDays(),
+      types: TYPES.filter(function (t) { return state.manhwas.some(function (m) { return (m.type || 'manhwa') === t.id; }); }).length,
+      categories: AWARD_CATEGORY_KEYS.filter(categoryEverWon).length, ceremonies: monthsFullyDecidedCount(),
+      actions: maxActionsInOneDay(), xp: state.totalXp };
   }
 
+  function achievementProgress(a, metrics) {
+    var current = 0, target = 1, measured = false, match = a.id.match(/^(collect|genres|rated|review|award|dropper|completed|planned|reading|streak)_(\d+)$/);
+    if (match) { current = metrics[match[1]]; target = Number(match[2]); measured = true; }
+    var first = {first_add:'collect',first_rated:'rated',first_review:'review',first_award:'award'};
+    if (first[a.id]) { current = metrics[first[a.id]]; measured = true; }
+    var special = { all_types:[metrics.types,3], all_categories:[metrics.categories,AWARD_CATEGORY_KEYS.length],
+      ceremony_full:[metrics.ceremonies,1], ceremony_full_3:[metrics.ceremonies,3], busy_day:[metrics.actions,10], rank_legend:[metrics.xp,13000] };
+    if (special[a.id]) { current = special[a.id][0]; target = special[a.id][1]; measured = true; }
+    if (!measured) current = a.check() ? 1 : 0;
+    var unlocked = !!state.unlockedAchievements[a.id];
+    return {current:unlocked ? target : Math.min(target,Math.max(0,current)), target:target, measured:measured,
+      fraction:unlocked ? 1 : Math.min(1,Math.max(0,current / target)), unlocked:unlocked};
+  }
+
+  function achievementCard(a, p, compact) {
+    var stamp = state.unlockedAchievements[a.id];
+    var date = typeof stamp === 'number' && stamp > 1 ? new Date(stamp).toLocaleDateString('ru-RU') : '';
+    var status = p.unlocked ? 'Получено' + (date ? ' · ' + date : '') : (p.fraction === 1 ? 'Условие выполнено' : (p.measured ? p.current + ' / ' + p.target : 'Ещё впереди'));
+    return '<article class="mt-achievement-card' + (p.unlocked ? ' earned' : '') + (compact ? ' compact' : '') + '" data-achievement-id="' + a.id + '">' +
+      '<div class="mt-achievement-top"><span class="mt-achievement-medal" aria-hidden="true">' + a.icon + '</span><span class="mt-achievement-xp">' + (a.xp ? '+' + a.xp + ' XP' : 'Высший ранг') + '</span></div>' +
+      '<span class="mt-achievement-category">' + escapeHtml(a.category) + '</span><h3>' + escapeHtml(a.name) + '</h3><p>' + escapeHtml(a.desc) + '</p>' +
+      '<div class="mt-achievement-bottom"><div class="mt-achievement-state"><span>' + (p.unlocked ? '✓ ' : '') + status + '</span>' + (!p.unlocked && p.measured ? '<strong>' + Math.round(p.fraction*100) + '%</strong>' : '') + '</div>' +
+      (p.measured || p.unlocked ? '<div class="mt-achievement-track" role="progressbar" aria-label="' + escapeHtml(a.name) + '" aria-valuemin="0" aria-valuemax="' + p.target + '" aria-valuenow="' + p.current + '"><span style="width:' + p.fraction*100 + '%"></span></div>' : '') + '</div></article>';
+  }
+
+  function renderAchievementsTab() {
+    var metrics = achievementMetrics(), rows = ACHIEVEMENTS.map(function (a) { return {a:a,p:achievementProgress(a,metrics)}; });
+    var unlocked = rows.filter(function (r) { return r.p.unlocked; }), percent = Math.round(unlocked.length / rows.length * 100);
+    var next = rows.filter(function (r) { return !r.p.unlocked && r.p.measured && r.p.fraction > 0 && r.p.fraction < 1; }).sort(function (a,b) { return b.p.fraction-a.p.fraction || a.p.target-b.p.target; }).slice(0,3);
+    if (!next.length) next = rows.filter(function (r) { return !r.p.unlocked; }).slice(0,3);
+    var earnedXp = unlocked.reduce(function (sum,r) { return sum+r.a.xp; },0);
+    var html = '<section class="mt-achievement-page"><header class="mt-header"><div class="mt-section-eyebrow">ТВОЙ ПУТЬ В ИСТОРИЯХ</div><h1 class="mt-page-title">Коллекция достижений</h1></header><div class="mt-list">' +
+      '<section class="mt-achievement-passport"><div><span class="mt-section-eyebrow">ПАСПОРТ ЧИТАТЕЛЯ</span><h2>Каждая история<br><em>делает тебя сильнее.</em></h2><p>' + unlocked.length + ' из ' + rows.length + ' наград · ' + earnedXp + ' XP за достижения</p></div><div class="mt-achievement-ring" style="--progress:' + percent + '%"><strong>' + percent + '<small>%</small></strong><span>коллекции</span></div></section>' + renderRankPanel();
+    if (unlocked.length) {
+      html += '<div class="mt-achievement-heading"><h2>Последние награды</h2><span>Твоя витрина</span></div><div class="mt-achievement-showcase">' + unlocked.slice().sort(function (a,b) { return Number(state.unlockedAchievements[b.a.id])-Number(state.unlockedAchievements[a.a.id]); }).slice(0,3).map(function (r) {
+        return '<div><span class="mt-achievement-medal" aria-hidden="true">' + r.a.icon + '</span><strong>' + escapeHtml(r.a.name) + '</strong><small>✓ Получено</small></div>';
+      }).join('') + '</div>';
+    }
+    if (next.length) html += '<div class="mt-achievement-heading"><h2>Следующие цели</h2><span>Ближе, чем кажется</span></div><div class="mt-achievement-next">' + next.map(function (r) { return achievementCard(r.a,r.p,true); }).join('') + '</div>';
+    html += '<div class="mt-achievement-heading"><h2>Все достижения</h2><span>Всего: ' + rows.length + '</span></div>' +
+      '<div class="mt-achievement-filters" role="group" aria-label="Статус достижения">' + [['all','Все'],['locked','Впереди'],['earned','Получены']].map(function (f) {
+        return '<button data-achievement-filter="' + f[0] + '" aria-pressed="' + (state.achievementFilter === f[0]) + '">' + f[1] + '</button>';
+      }).join('') + '</div><div class="mt-achievement-categories" role="group" aria-label="Категория достижения">' + ['Все категории'].concat(ACHIEVEMENT_CATEGORIES).map(function (c) {
+        return '<button data-achievement-category="' + escapeHtml(c) + '" aria-pressed="' + (state.achievementCategory === c) + '">' + escapeHtml(c) + '</button>';
+      }).join('') + '</div>';
+    var visible = rows.filter(function (r) { return (state.achievementCategory === 'Все категории' || r.a.category === state.achievementCategory) && (state.achievementFilter === 'all' || (state.achievementFilter === 'earned' ? r.p.unlocked : !r.p.unlocked)); });
+    html += '<div class="mt-achievement-result-count" role="status">Показано: ' + visible.length + '</div><div class="mt-achievement-grid">' + visible.map(function (r) { return achievementCard(r.a,r.p,false); }).join('') + '</div>';
+    if (!visible.length) html += '<div class="mt-paper mt-empty"><div class="mt-empty-title">Здесь пока тихо</div><p class="mt-feature-hint">В этой категории пока нет наград с выбранным статусом. Попробуй другой фильтр.</p></div>';
+    return html + '<p class="mt-achievement-note">Полученные награды остаются с тобой навсегда. Прогресс незавершённых целей считается по текущей библиотеке и сохранённой истории активности. XP начисляется автоматически при действиях в приложении.</p></div></section>';
+  }
   function renderProfile() {
     var rated = state.manhwas.filter(function (m) { return ratedScore(m) !== null; });
     var overallAvg = rated.length
@@ -3835,6 +3859,12 @@
   /* ---------- event handlers ---------- */
   function attachHandlers(selected) {
     var app = document.getElementById("app");
+    app.querySelectorAll('[data-achievement-filter]').forEach(function (btn) {
+      btn.addEventListener('click', function () { state.achievementFilter = btn.getAttribute('data-achievement-filter'); render(); });
+    });
+    app.querySelectorAll('[data-achievement-category]').forEach(function (btn) {
+      btn.addEventListener('click', function () { state.achievementCategory = btn.getAttribute('data-achievement-category'); render(); });
+    });
     var compare = document.getElementById("compare-from");
     if (compare && selected) compare.addEventListener("change", function () { state.compareFrom[selected.id] = Number(compare.value); render(); });
     var reason = document.getElementById("rating-reason");
