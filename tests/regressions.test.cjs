@@ -48,7 +48,7 @@ function harness(saved = new Map()) {
       sanitizeImportedManhwa,
       setWinner, getWinner, normalizeWinners, purgeAwardReferences, championsForYear,
       eligibleForMonth, lastCompletedMonthKey, renderAwardsTab, renderComparison, renderYearSummary, yearsWithData,
-      openTitle, loadRecentOpened, ACHIEVEMENTS, achievementMetrics, achievementProgress, renderAchievementsTab,
+      openTitle, loadRecentOpened, ACHIEVEMENTS, achievementMetrics, achievementProgress, renderAchievementsTab, checkAchievements,
       persistKey, retryFailedWrites, failedWrites, storageNoticeHtml,
       flush: async function () { await Promise.all(Object.values(storageWrites).map(p => p.catch(() => {}))); },
       setWriter: function (fn) { idbAvailable = true; idbSet = fn; },
@@ -278,4 +278,28 @@ test('achievement progress measures targets, preserves earned medals and never g
   assert.equal(a.state.totalXp,xp); assert.equal(JSON.stringify(a.state.unlockedAchievements),medals);
   a.state.achievementFilter='earned'; a.state.achievementCategory='Библиотека';
   assert.match(a.renderAchievementsTab(), /Показано: 1/);
+});
+
+test('40 new achievements use consistent metrics and award XP only once', async () => {
+  const {api:a} = harness();
+  assert.equal(a.ACHIEVEMENTS.length,95);
+  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,95);
+  const m = addRated(a); m.notes = '   '; m.coverUrl = 'https://example.com/cover.png';
+  m.ratingHistory = [{ts:1700000000000,avg:70,criteria:m.criteria}];
+  a.state.activityLog = [{ts:1700000000000,type:'add'},{ts:1700000001000,type:'rated'}];
+  let metrics = a.achievementMetrics();
+  assert.equal(metrics.rerated,1); assert.equal(metrics.activeDays,1); assert.equal(metrics.covered,1); assert.equal(metrics.annotated,0);
+  const newGoals = a.ACHIEVEMENTS.filter(x=>x.metric);
+  assert.equal(newGoals.length,40);
+  for (const goal of newGoals) {
+    const p = a.achievementProgress(goal,metrics);
+    assert.equal(goal.check(),metrics[goal.metric] >= goal.target);
+    assert.equal(p.current,Math.min(metrics[goal.metric],goal.target));
+  }
+  a.checkAchievements(); const xp = a.state.totalXp;
+  assert.ok(a.state.unlockedAchievements.journey_rerated_1);
+  a.checkAchievements(); assert.equal(a.state.totalXp,xp);
+  a.state.manhwas = []; a.checkAchievements();
+  assert.ok(a.state.unlockedAchievements.journey_rerated_1);
+  await a.flush();
 });

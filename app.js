@@ -441,14 +441,62 @@
       check: function () { return state.totalXp >= 13000; } }
   ];
 
+  // Declarative goals share the same metric for unlocking and visible progress.
+  [
+    ['collect',25,'Библиотека','Своя полка','Собери 25 тайтлов в библиотеке','📚',20],
+    ['collect',200,'Библиотека','Дом историй','Собери 200 тайтлов в библиотеке','🏠',100],
+    ['rated',5,'Оценки','В поисках вкуса','Оцени 5 разных тайтлов','🔍',15],
+    ['rated',25,'Оценки','Уверенный голос','Оцени 25 разных тайтлов','🎙️',30],
+    ['review',3,'Рецензии','Есть что сказать','Запиши 3 оценки с рецензией','💬',15],
+    ['review',5,'Рецензии','Автор колонки','Запиши 5 оценок с рецензией','✍️',25],
+    ['review',50,'Рецензии','Литературный обозреватель','Запиши 50 оценок с рецензией','📰',180],
+    ['completed',1,'Статусы','До последней страницы','Заверши первый тайтл','📕',10],
+    ['completed',5,'Статусы','Пять финалов','5 завершённых тайтлов в библиотеке','🏁',15],
+    ['completed',10,'Статусы','Закрытая глава','10 завершённых тайтлов в библиотеке','✅',25],
+    ['completed',25,'Статусы','Знаток финалов','25 завершённых тайтлов в библиотеке','🎬',40],
+    ['completed',100,'Статусы','Сто историй позади','100 завершённых тайтлов в библиотеке','💯',110],
+    ['rerated',1,'Оценки','Второй взгляд','Переоцени тайтл, сохранив прошлую оценку','🔄',15],
+    ['rerated',5,'Оценки','Мнение меняется','Сохрани 5 переоценок в истории тайтлов','🔁',30],
+    ['rerated',15,'Оценки','Диалог с историей','Сохрани 15 переоценок в истории тайтлов','🪞',65],
+    ['rerated',30,'Оценки','Взгляд сквозь время','Сохрани 30 переоценок в истории тайтлов','⏳',120],
+    ['manhwa',10,'Жанры и типы','Мир манхвы','Собери 10 манхв','🇰🇷',20],
+    ['manhwa',50,'Жанры и типы','По следам вебтунов','Собери 50 манхв','🌆',55],
+    ['manga',5,'Жанры и типы','Чёрным по белому','Собери 5 манг','🖋️',20],
+    ['manga',20,'Жанры и типы','Мастер панелей','Собери 20 манг','🇯🇵',45],
+    ['manhua',5,'Жанры и типы','Новый горизонт','Собери 5 маньхуа','🏮',20],
+    ['manhua',20,'Жанры и типы','Путь дракона','Собери 20 маньхуа','🐉',45],
+    ['covered',10,'Библиотека','Галерея обложек','Добавь обложки к 10 тайтлам','🖼️',20],
+    ['covered',50,'Библиотека','Куратор коллекции','Добавь обложки к 50 тайтлам','🎨',60],
+    ['annotated',5,'Рецензии','На полях','Оставь непустые заметки у 5 разных тайтлов','🗒️',20],
+    ['annotated',20,'Рецензии','Личный дневник','Оставь непустые заметки у 20 разных тайтлов','📓',60],
+    ['award',50,'Премии','Золотой фонд','Вручи 50 месячных наград суммарно','🏆',180],
+    ['award',100,'Премии','Академия историй','Вручи 100 месячных наград суммарно','🏛️',250],
+    ['ceremonies',6,'Премии','Шесть церемоний','Полностью реши номинации за 6 разных месяцев','🎟️',130],
+    ['ceremonies',12,'Премии','Двенадцать церемоний','Полностью реши номинации за 12 разных месяцев','🎊',220],
+    ['activeDays',10,'Активность','Приятная привычка','10 разных дней с действиями в сохранённой истории','📅',20],
+    ['activeDays',30,'Активность','Всегда возвращаюсь','30 разных дней с действиями в сохранённой истории','🧭',65],
+    ['activeDays',100,'Активность','Сто дней историй','100 разных дней с действиями в сохранённой истории','🌅',180],
+    ['xp',200,'Ранг','Уже любитель','Достигни ранга «Любитель»','📖',0],
+    ['xp',500,'Ранг','Настоящий читатель','Достигни ранга «Читатель»','📚',0],
+    ['xp',1000,'Ранг','Знание — сила','Достигни ранга «Знаток»','🔎',0],
+    ['xp',2000,'Ранг','Тонкий вкус','Достигни ранга «Ценитель»','🎭',0],
+    ['xp',3500,'Ранг','Экспертное мнение','Достигни ранга «Эксперт»','⭐',0],
+    ['xp',5500,'Ранг','Мастер своего дела','Достигни ранга «Мастер»','🎖️',0],
+    ['xp',8500,'Ранг','Искусство читать','Достигни ранга «Виртуоз»','💎',0]
+  ].forEach(function (goal) {
+    ACHIEVEMENTS.push({ id:'journey_' + goal[0] + '_' + goal[1], metric:goal[0], target:goal[1], category:goal[2],
+      name:goal[3], desc:goal[4], icon:goal[5], xp:goal[6], check:function () { return achievementMetrics()[goal[0]] >= goal[1]; } });
+  });
+
   // Persists newly-met achievements permanently — once unlocked, never
   // re-checked or revoked even if the underlying stat later drops (e.g. a
   // title gets deleted). Called after every logged action.
   function checkAchievements() {
     var unlocked = [];
+    var metrics = achievementMetrics();
     ACHIEVEMENTS.forEach(function (a) {
       if (state.unlockedAchievements[a.id]) return;
-      if (a.check()) {
+      if (a.metric ? metrics[a.metric] >= a.target : a.check()) {
         state.unlockedAchievements[a.id] = Date.now();
         unlocked.push(a);
       }
@@ -3067,7 +3115,16 @@
   }
 
   function achievementMetrics() {
+    var days = {};
+    state.activityLog.forEach(function (e) { if (Number.isFinite(e.ts)) days[new Date(e.ts).toDateString()] = true; });
     return { collect: state.manhwas.length, genres: distinctGenresCount(), rated: ratedTitlesCount(),
+      rerated:state.manhwas.reduce(function (sum,m) { return sum + (m.ratingHistory || []).length; },0),
+      manhwa:state.manhwas.filter(function (m) { return (m.type || 'manhwa') === 'manhwa'; }).length,
+      manga:state.manhwas.filter(function (m) { return m.type === 'manga'; }).length,
+      manhua:state.manhwas.filter(function (m) { return m.type === 'manhua'; }).length,
+      covered:state.manhwas.filter(function (m) { return !!String(m.coverUrl || '').trim(); }).length,
+      annotated:state.manhwas.filter(function (m) { return !!String(m.notes || '').trim(); }).length,
+      activeDays:Object.keys(days).length,
       review: reviewCount(), award: totalAwardWinsCount(), dropper: droppedTitlesCount(), completed: countByStatus('done'),
       planned: countByStatus('plan'), reading: countByStatus('reading'), streak: longestStreakDays(),
       types: TYPES.filter(function (t) { return state.manhwas.some(function (m) { return (m.type || 'manhwa') === t.id; }); }).length,
@@ -3078,6 +3135,7 @@
   function achievementProgress(a, metrics) {
     var current = 0, target = 1, measured = false, match = a.id.match(/^(collect|genres|rated|review|award|dropper|completed|planned|reading|streak)_(\d+)$/);
     if (match) { current = metrics[match[1]]; target = Number(match[2]); measured = true; }
+    if (a.metric) { current = metrics[a.metric]; target = a.target; measured = true; }
     var first = {first_add:'collect',first_rated:'rated',first_review:'review',first_award:'award'};
     if (first[a.id]) { current = metrics[first[a.id]]; measured = true; }
     var special = { all_types:[metrics.types,3], all_categories:[metrics.categories,AWARD_CATEGORY_KEYS.length],
@@ -3094,7 +3152,7 @@
     var date = typeof stamp === 'number' && stamp > 1 ? new Date(stamp).toLocaleDateString('ru-RU') : '';
     var status = p.unlocked ? 'Получено' + (date ? ' · ' + date : '') : (p.fraction === 1 ? 'Условие выполнено' : (p.measured ? p.current + ' / ' + p.target : 'Ещё впереди'));
     return '<article class="mt-achievement-card' + (p.unlocked ? ' earned' : '') + (compact ? ' compact' : '') + '" data-achievement-id="' + a.id + '">' +
-      '<div class="mt-achievement-top"><span class="mt-achievement-medal" aria-hidden="true">' + a.icon + '</span><span class="mt-achievement-xp">' + (a.xp ? '+' + a.xp + ' XP' : 'Высший ранг') + '</span></div>' +
+      '<div class="mt-achievement-top"><span class="mt-achievement-medal" aria-hidden="true">' + a.icon + '</span><span class="mt-achievement-xp">' + (a.xp ? '+' + a.xp + ' XP' : 'Знак ранга') + '</span></div>' +
       '<span class="mt-achievement-category">' + escapeHtml(a.category) + '</span><h3>' + escapeHtml(a.name) + '</h3><p>' + escapeHtml(a.desc) + '</p>' +
       '<div class="mt-achievement-bottom"><div class="mt-achievement-state"><span>' + (p.unlocked ? '✓ ' : '') + status + '</span>' + (!p.unlocked && p.measured ? '<strong>' + Math.round(p.fraction*100) + '%</strong>' : '') + '</div>' +
       (p.measured || p.unlocked ? '<div class="mt-achievement-track" role="progressbar" aria-label="' + escapeHtml(a.name) + '" aria-valuemin="0" aria-valuemax="' + p.target + '" aria-valuenow="' + p.current + '"><span style="width:' + p.fraction*100 + '%"></span></div>' : '') + '</div></article>';
