@@ -42,7 +42,7 @@ function harness(saved = new Map()) {
   let source = fs.readFileSync('app.js','utf8');
   source = source.slice(0, source.indexOf('  /* ---------- boot ---------- */')) + `
     idbAvailable = false;
-    window.testApi = { state, newManhwa, beginRerating, editableManhwa, commitRerating,
+    window.testApi = { bridge: window.AMApp, saveProfile, loadProfile, state, newManhwa, beginRerating, editableManhwa, commitRerating,
       cancelRerating, saveRatingDrafts, loadRatingDrafts, save, goBack, render,
       renderLibrary, renderProfile, aggregateCriteria, sortedManhwas, ratedScore,
       sanitizeImportedManhwa,
@@ -345,4 +345,51 @@ test('discovery uses latest reading and excludes saved IDs, translations and ali
   assert.deepEqual(J.recentReading(list).map(m=>m.id),['b','a']);
   const media=[{id:10,title:{english:'Solo Leveling'},synonyms:['Поднятие уровня в одиночку']},{id:11,title:{english:'New title'}},{id:12,title:{english:'Unrelated spelling'}}];
   assert.deepEqual(J.unseenMedia(media,list).map(m=>m.id),[11]);
+});
+
+function syncHarness() {
+  const ctx=vm.createContext({window:{},console});
+  const source=fs.readFileSync('sync.js','utf8').replace('root.AMSync = setupBrowserApi();','root.syncTest = {createEngine, freshMeta};');
+  vm.runInContext(source,ctx);
+  const docs=new Map();let clock=100;
+  const remote={pull:async()=>({docs:[...docs.values()],maxSrv:clock}),push:async(items,confirm)=>{items.forEach(d=>docs.set(d.key,JSON.parse(JSON.stringify(d))));confirm(items.map(d=>d.key));}};
+  return {docs,engine(api,meta){return ctx.window.syncTest.createEngine({host:api.bridge,remote,meta:meta||ctx.window.syncTest.freshMeta('test',''),saveMeta:async()=>{},clock:()=>++clock});}};
+}
+test('selected goals and earned progress survive cloud sign-in, local reload and removal',async()=>{
+  const cloud=syncHarness(),a=harness();
+  a.api.state.profile.journey={goals:[{id:'finish3',started:10,baseline:['old'],earned:['new']}],duels:[{a:'one',b:'two',winner:'one'}]};
+  a.api.saveProfile();await a.api.flush();
+  const engine=cloud.engine(a.api);await engine.sync();
+  assert.equal(JSON.parse(cloud.docs.get('profile').json).journey.goals[0].id,'finish3');
+  const signedIn=harness();await cloud.engine(signedIn.api).sync();await signedIn.api.flush();
+  assert.equal(signedIn.api.state.profile.journey.goals[0].id,'finish3');
+  assert.deepEqual(Array.from(signedIn.api.state.profile.journey.goals[0].earned),['new']);
+  assert.equal(signedIn.api.state.profile.journey.duels.length,1);
+  const reloaded=harness(signedIn.saved);await reloaded.api.loadProfile();
+  assert.equal(reloaded.api.state.profile.journey.goals[0].id,'finish3');
+  a.api.state.profile.journey.goals=[];a.api.saveProfile();engine.noteChange();await engine.sync();
+  const another=harness();await cloud.engine(another.api).sync();
+  assert.equal(another.api.state.profile.journey.goals.length,0,'removed goals must not return');
+});
+
+test('upgrade restores goals omitted by old cloud parser without reviving removed goals',async()=>{
+  const cloud=syncHarness(),device=harness();
+  device.api.state.profile.n='Reader';
+  const old=cloud.engine(device.api);await old.sync();
+  const doc=cloud.docs.get('profile');
+  const remoteProfile=JSON.parse(doc.json);
+  remoteProfile.journey={goals:[{id:'notes10',started:10,baseline:[],earned:['a:n']}],duels:[]};
+  doc.json=JSON.stringify(remoteProfile);
+  delete old.meta.profileJourneyVersion;old.meta.watermark=999999;
+  const repaired=cloud.engine(device.api,old.meta);
+  assert.equal(repaired.meta.watermark,0);
+  await repaired.sync();await device.api.flush();
+  assert.equal(device.api.state.profile.journey.goals[0].id,'notes10');
+  assert.equal(device.api.state.profile.journey.goals[0].earned.length,1);
+  device.api.state.profile.journey.goals=[];
+  repaired.noteChange();
+  doc.updatedAt=repaired.meta.profile.u; // stale remote echo ties with pending edit
+  await repaired.sync();
+  assert.equal(device.api.state.profile.journey.goals.length,0);
+  assert.equal(JSON.parse(cloud.docs.get('profile').json).journey.goals.length,0);
 });

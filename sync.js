@@ -186,6 +186,9 @@
    */
   function createEngine(cfg) {
     var host = cfg.host, remote = cfg.remote, meta = cfg.meta;
+    // Re-read profiles once after fixing the legacy parser that dropped journey.
+    // The cloud can still contain goals absent from the local parsed copy.
+    if (!meta.profileJourneyVersion) { meta.watermark = 0; meta.profileJourneyVersion = 1; }
     var clock = cfg.clock || Date.now;
     var onState = cfg.onState || function () {};
     var running = null, again = false;
@@ -355,6 +358,7 @@
         var o = JSON.parse(d.json);
         if (!isObj(o)) return null;
         var p = { n: typeof o.n === "string" ? o.n : "", b: typeof o.b === "string" ? o.b : "", a: isObj(o.a) ? o.a : null };
+        if (isObj(o.journey)) p.journey = o.journey;
         return host.sanitizeProfile ? host.sanitizeProfile(p) : p;
       } catch (e) { return null; }
     }
@@ -372,7 +376,10 @@
         }
         return;
       }
-      if (remoteP && d.updatedAt > meta.profile.u) {
+      // Equal-version cloud data also repairs copies truncated by the old parser.
+      // Never overwrite a pending local edit with an equal-version remote value.
+      if (remoteP && (d.updatedAt > meta.profile.u ||
+          (d.updatedAt === meta.profile.u && !meta.profile.dirty && hashStr(canonProfile(remoteP)) !== meta.profile.h))) {
         ch.profile = remoteP;
         meta.profile = { h: hashStr(canonProfile(remoteP)), u: d.updatedAt, dirty: false };
       }
