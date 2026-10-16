@@ -2750,32 +2750,15 @@
 
   function renderRevealOverlay(m) {
     var avg = average(m.criteria);
-    var color = scoreColor(avg);
-    var coverInner = m.coverUrl
-      ? '<img class="mt-reveal-cover-img" src="' + escapeHtml(m.coverUrl).replace(/'/g, "%27") + '" alt="" />'
-      : '<div class="mt-reveal-cover-fallback">' + escapeHtml((displayTitle(m)[0] || "?").toUpperCase()) + "</div>";
-
-    var notesHtml = "";
-    if (m.notes && m.notes.trim()) {
-      notesHtml =
-        '<div class="mt-reveal-notes">' +
-        '<div class="mt-reveal-notes-label">Твоя заметка</div>' +
-        '<div class="mt-reveal-notes-text">' + escapeHtml(m.notes).replace(/\n/g, "<br>") + "</div>" +
-        "</div>";
-    }
-
-    return (
-      '<div class="mt-reveal-backdrop" id="reveal-backdrop">' +
-      '<div class="mt-reveal-card" role="dialog" aria-modal="true" aria-label="Оценка сохранена"><div class="mt-reveal-edition"><span>AM / READING JOURNAL</span><span>ПЕРВОЕ ВПЕЧАТЛЕНИЕ</span></div>' +
-      '<div class="mt-reveal-cover">' + coverInner + "</div>" +
-      '<div class="mt-reveal-title">' + escapeHtml(displayTitle(m)) + "</div>" +
-      '<div class="mt-reveal-stamp" style="border-color:' + color + ";color:" + color + '">' +
-      (avg === null ? "–" : Math.round(avg)) + "</div>" +
-      '<div class="mt-reveal-caption">Твоя оценка · из 100</div><div class="mt-reveal-criteria">' + m.criteria.map(function(c){return '<div><span>'+escapeHtml(c.name)+'</span><b>'+c.score.toFixed(1)+'</b></div>';}).join('') + '</div>' +
-      notesHtml +
-      '<button class="mt-primary-btn" id="reveal-close-btn" style="width:100%;margin-top:16px">Продолжить</button>' +
-      "</div></div>"
-    );
+    var verdict = avg === null ? 'Впечатление сохранено' : avg >= 90 ? 'В самое сердце' : avg >= 75 ? 'История, которую стоит помнить' : avg >= 50 ? 'Есть за что зацепиться' : 'Не твоя история';
+    var cover = m.coverUrl ? '<img class="mt-reveal-cover-img" src="' + escapeHtml(m.coverUrl) + '" alt="" />' : '<div class="mt-reveal-cover-fallback"><img src="icons/mark.svg" alt="" /><span>ТВОЯ<br>ИСТОРИЯ</span></div>';
+    return '<div class="mt-reveal-backdrop" id="reveal-backdrop"><section class="mt-reveal-card" role="dialog" aria-modal="true" aria-labelledby="reveal-title">' +
+      '<div class="mt-reveal-content"><div class="mt-reveal-edition"><span class="mt-reveal-saved">✓ Оценка сохранена</span><span>AM TRACKER</span></div>' +
+      '<div class="mt-reveal-hero"><div class="mt-reveal-cover">' + cover + '</div><div class="mt-reveal-result"><span class="mt-reveal-kicker">ПЕРВОЕ ВПЕЧАТЛЕНИЕ</span><div class="mt-reveal-stamp">' + (avg === null ? '—' : Math.round(avg)) + '<span>/ 100</span></div><p class="mt-reveal-verdict">' + verdict + '</p></div></div>' +
+      '<h2 class="mt-reveal-title" id="reveal-title">' + escapeHtml(displayTitle(m)) + '</h2>' +
+      '<div class="mt-reveal-criteria">' + m.criteria.map(function(c){return '<div><span>' + escapeHtml(c.name) + '</span><b>' + c.score.toFixed(1) + '</b><i aria-hidden="true"><em style="width:' + Math.max(0,Math.min(100,c.score*10)) + '%"></em></i></div>';}).join('') + '</div>' +
+      (m.notes && m.notes.trim() ? '<details class="mt-reveal-notes"><summary>Твоё послевкусие <span>Читать заметку ↗</span></summary><p>' + escapeHtml(m.notes) + '</p></details>' : '') +
+      '</div><footer class="mt-reveal-footer"><button class="mt-primary-btn" id="reveal-close-btn">Вернуться к тайтлу <span aria-hidden="true">↗</span></button><small>Оценка уже в твоей библиотеке</small></footer></section></div>';
   }
 
   // Categories still open for nomination for the month this title belongs to
@@ -4995,3 +4978,4 @@
     });
   }
 })();
+
