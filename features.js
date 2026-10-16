@@ -222,7 +222,35 @@
     return media.filter(function(m){return !ids.has(String(m.id)) && !Object.values(m.title||{}).concat(m.synonyms||[]).some(function(s){return names.has(titleKey(s));});});
   }
 
-  var api = {recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var shopItems = [
+    {id:'theme-dusk',kind:'theme',name:'Сумерки',price:150,icon:'☾',desc:'Лиловый закат и мягкое свечение'},
+    {id:'theme-ocean',kind:'theme',name:'Глубина',price:250,icon:'≈',desc:'Холодные синие переливы'},
+    {id:'theme-rose',kind:'theme',name:'Сакура',price:350,icon:'✿',desc:'Тёплый розовый свет'},
+    {id:'theme-gold',kind:'theme',name:'Золотой час',price:600,icon:'☀',desc:'Янтарь и тёмное золото'},
+    {id:'frame-orbit',kind:'frame',name:'Орбита',price:120,icon:'◎',desc:'Двойное кольцо вокруг аватара'},
+    {id:'frame-frost',kind:'frame',name:'Иней',price:220,icon:'❄',desc:'Серебристая рамка с голубым светом'},
+    {id:'frame-prism',kind:'frame',name:'Призма',price:400,icon:'◇',desc:'Переливы сиреневого и розового'},
+    {id:'frame-crown',kind:'frame',name:'Корона',price:700,icon:'♛',desc:'Золотая рамка для любимого профиля'},
+    {id:'badge-dreamer',kind:'badge',name:'Мечтатель',price:80,icon:'☁',desc:'Значок рядом с твоим именем'},
+    {id:'badge-explorer',kind:'badge',name:'Искатель историй',price:180,icon:'✧',desc:'Для тех, кто всегда ищет новую историю'},
+    {id:'badge-night',kind:'badge',name:'Ночной читатель',price:300,icon:'☾',desc:'Ещё одна глава перед сном'},
+    {id:'badge-legend',kind:'badge',name:'Хранитель историй',price:500,icon:'✦',desc:'Твоя личная коллекция впечатлений'}
+  ];
+  function shopItem(id){return shopItems.find(function(i){return i.id===id;});}
+  function cleanShop(raw,xp){
+    raw=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+    var budget=Number.isFinite(xp)?Math.max(0,Math.floor(xp)):0,out={};
+    Object.keys(raw).filter(function(id){return shopItem(id)&&Number.isFinite(raw[id])&&raw[id]>0;}).sort(function(a,b){return raw[a]-raw[b]||a.localeCompare(b);}).forEach(function(id){var cost=shopItem(id).price;if(cost<=budget){out[id]=raw[id];budget-=cost;}});
+    return out;
+  }
+  function mergeShop(a,b,xp){
+    var union={};[a,b].forEach(function(raw){Object.keys(raw||{}).forEach(function(id){if(!shopItem(id)||!Number.isFinite(raw[id])||raw[id]<=0)return;union[id]=union[id]?Math.min(union[id],raw[id]):raw[id];});});
+    return cleanShop(union,xp);
+  }
+  function coinBalance(xp,owned){return Math.max(0,Math.floor(Number.isFinite(xp)?xp:0)-Object.keys(cleanShop(owned,xp)).reduce(function(n,id){return n+shopItem(id).price;},0));}
+  function cleanStyle(raw){var out={};['theme','frame','badge'].forEach(function(k){var item=raw&&shopItem(raw[k]);out[k]=item&&item.kind===k?item.id:'';});return out;}
+
+  var api = {shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

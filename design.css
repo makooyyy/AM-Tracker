@@ -519,3 +519,34 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-discovery-panel .mt-discovery-credit {font-size:11px;line-height:1.7;color:#a393ae;}
 @media(max-width:399px){.mt-discovery-panel .mt-discovery-card{grid-template-columns:82px minmax(0,1fr);gap:14px;padding:14px;}.mt-discovery-panel .mt-discovery-copy h3{font-size:19px;}.mt-discovery-panel .mt-discovery-intro h2{font-size:26px;}.mt-discovery-types button{font-size:11px;}}
 @media(prefers-reduced-motion:reduce){.mt-discovery-types button{transition:none;}}
+/* Profile atelier */
+.mt-shop-entry {display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:20px;margin:18px 0 0;background:linear-gradient(120deg,#35283f,#211b2b);border:1px solid #d8b5ef30;border-radius:20px;color:#f0e6f7;text-align:left;cursor:pointer;}
+.mt-shop-entry small {display:block;font-size:9px;letter-spacing:1.5px;color:#bfa4d1;margin-bottom:8px;}.mt-shop-entry strong{font-size:15px;}.mt-shop-entry>b{font:600 18px Manrope,sans-serif;color:#e9cd93;white-space:nowrap;}
+.mt-shop-page {max-width:960px;margin:auto;padding:24px 0 40px;}
+.mt-shop-heading {display:flex;justify-content:space-between;align-items:center;gap:20px;margin:24px 0 12px;}
+.mt-shop-heading h1 {font:500 clamp(26px,4vw,42px)/1.15 Georgia,serif;margin:12px 0;letter-spacing:-.6px;}.mt-shop-heading h1 em{color:#c5a3e3;font-weight:400;}
+.mt-shop-wallet {padding:18px;border:1px solid #ddbc7833;border-radius:20px;background:#dfbf7a0b;flex-shrink:0;text-align:center;}.mt-shop-wallet small{display:block;font-size:8px;letter-spacing:1px;color:#bfae8a;}.mt-shop-wallet b{display:block;font-size:26px;margin-top:8px;color:#e7cc94;}
+.mt-shop-explain,.mt-shop-notice {font-size:12px;line-height:1.7;color:#b9a9c6;}.mt-shop-notice{min-height:21px;color:#d6bcf0;}
+.mt-shop-preview {position:relative;border-radius:24px;border:1px solid #ffffff20;padding:26px;background:radial-gradient(at top right,#66508088,transparent),#251e2f;margin-top:24px;scroll-margin-top:20px;overflow:hidden;}
+.mt-shop-preview-person {display:flex;align-items:center;gap:24px;margin-top:24px;}.mt-shop-preview-person>div:last-child{min-width:0;}.mt-shop-preview-person strong{display:block;font-size:22px;overflow-wrap:anywhere;}.mt-shop-preview-person p{font-size:12px;color:#d3c6de;line-height:1.6;}
+.mt-shop-avatar {width:78px;height:78px;padding:4px;border-radius:50%;flex-shrink:0;background:#b6a0cd;box-sizing:border-box;}.mt-shop-avatar>.mt-avatar{width:100%;height:100%;font-size:30px;}
+.mt-shop-preview-actions {display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}.mt-shop-preview-actions button{font-size:12px;min-height:44px;}
+.mt-shop-badge {display:inline-flex;padding:5px 9px;margin-top:9px;border:1px solid #ddbeff40;border-radius:20px;font-size:11px;color:#ecdbfc;background:#140e1c55;line-height:1.4;}
+.mt-shop-filters {display:flex;gap:8px;margin:24px 0 18px;flex-wrap:wrap;}.mt-shop-filters button{padding:11px 18px;border-radius:30px;border:1px solid #ffffff19;background:#ffffff04;color:#ae9dbf;font:600 12px Manrope,sans-serif;cursor:pointer;}.mt-shop-filters button[aria-pressed=true]{background:#d4bae9;color:#2d1d3b;}
+.mt-shop-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+.mt-shop-item {border:1px solid #ffffff16;background:#211b28;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .2s,transform .2s;}.mt-shop-item.previewing{border-color:#c1a0e3;}.mt-shop-item:hover{transform:translateY(-3px);}
+.mt-shop-swatch {height:115px;display:grid;place-items:center;background:radial-gradient(circle,#66457f88,transparent),#282032;color:#e5d3f4;}.mt-shop-swatch>span{font:46px Georgia,serif;}
+.mt-shop-item-body {padding:16px;display:flex;flex-direction:column;gap:10px;flex:1;}.mt-shop-item-body small{font-size:8px;letter-spacing:1px;color:#ad96bd;}.mt-shop-item-body h2{font:700 16px/1.3 Manrope,sans-serif;margin:0;overflow-wrap:anywhere;}.mt-shop-item-body p{font-size:12px;line-height:1.6;color:#ad9bbd;margin:0;flex:1;}.mt-shop-item-body>b{font-size:12px;color:#e3cc9e;}.mt-shop-item-body button{width:100%;font-size:12px;margin-top:4px;}
+.mt-theme-dusk {background:radial-gradient(ellipse at 90% 0,#b782d366,transparent 65%),linear-gradient(135deg,#392546,#1c1829)!important;}
+.mt-theme-ocean {background:radial-gradient(ellipse at 0 0,#478ca777,transparent 65%),linear-gradient(135deg,#183545,#161d31)!important;}
+.mt-theme-rose {background:radial-gradient(ellipse at 100% 0,#bc6d8c77,transparent 65%),linear-gradient(135deg,#402638,#251924)!important;}
+.mt-theme-gold {background:radial-gradient(ellipse at 0 0,#c3974e66,transparent 65%),linear-gradient(135deg,#3e3020,#231d24)!important;}
+.mt-hero[class*="mt-theme-"]>.mt-hero-glow{display:none;}
+.mt-frame-orbit .mt-shop-avatar,.mt-frame-orbit .mt-hero-avatar-ring {outline:2px solid #cdb4ea;outline-offset:5px;background:#9a79b8!important;box-shadow:0 0 0 9px #c9aff015;}
+.mt-frame-frost .mt-shop-avatar,.mt-frame-frost .mt-hero-avatar-ring {background:linear-gradient(120deg,#e0f7ff,#73abc6,#fff)!important;box-shadow:0 0 24px #96d4f044;}
+.mt-frame-prism .mt-shop-avatar,.mt-frame-prism .mt-hero-avatar-ring {background:conic-gradient(#b98ee2,#efb8d2,#90bdd7,#b98ee2)!important;box-shadow:0 0 18px #bc9aeb55;}
+.mt-frame-crown .mt-shop-avatar,.mt-frame-crown .mt-hero-avatar-ring {background:linear-gradient(135deg,#fff0b9,#b78431,#f2d689)!important;outline:1px solid #d7b76b;outline-offset:4px;box-shadow:0 0 22px #e0bf6744;}
+.mt-shop-swatch[class*="mt-frame-"]>span {display:grid;place-items:center;width:65px;height:65px;border-radius:50%;border:3px double #b6a0d6;}
+.mt-shop-swatch.mt-frame-frost>span{border-color:#a4e4ff;color:#bceaff;}.mt-shop-swatch.mt-frame-prism>span{border-color:#e6a1dc;color:#e6b7ef;}.mt-shop-swatch.mt-frame-crown>span{border-color:#ddba71;color:#e9cc91;}
+@media(max-width:700px){.mt-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}.mt-shop-heading{align-items:flex-start;}.mt-shop-wallet{padding:12px;}.mt-shop-wallet b{font-size:20px;}.mt-shop-heading h1{font-size:26px;}.mt-shop-preview{padding:20px;}.mt-shop-preview-person{gap:18px;}.mt-shop-item-body{padding:13px;}.mt-shop-filters button{padding:10px 13px;}}
+@media(prefers-reduced-motion:reduce){.mt-shop-item{transition:none;}}

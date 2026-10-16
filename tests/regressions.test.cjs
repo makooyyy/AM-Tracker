@@ -42,7 +42,7 @@ function harness(saved = new Map()) {
   let source = fs.readFileSync('app.js','utf8');
   source = source.slice(0, source.indexOf('  /* ---------- boot ---------- */')) + `
     idbAvailable = false;
-    window.testApi = { bridge: window.AMApp, saveProfile, loadProfile, state, newManhwa, beginRerating, editableManhwa, commitRerating,
+    window.testApi = { bridge: window.AMApp, saveProfile, loadProfile, buyShopItem, equipShopItem, activeStyle, loadShop, saveShop, logActivity, state, newManhwa, beginRerating, editableManhwa, commitRerating,
       cancelRerating, saveRatingDrafts, loadRatingDrafts, save, goBack, render,
       renderLibrary, renderProfile, aggregateCriteria, sortedManhwas, ratedScore,
       sanitizeImportedManhwa,
@@ -392,4 +392,40 @@ test('upgrade restores goals omitted by old cloud parser without reviving remove
   await repaired.sync();
   assert.equal(device.api.state.profile.journey.goals.length,0);
   assert.equal(JSON.parse(cloud.docs.get('profile').json).journey.goals.length,0);
+});
+
+test('shop earns alongside XP, charges once, preserves rank XP and rejects unaffordable items',async()=>{
+  const {api,saved}=harness();api.state.totalXp=200;
+  assert.equal(J.coinBalance(api.state.totalXp,api.state.shop),200);
+  assert.equal(api.buyShopItem('theme-dusk'),true);
+  assert.equal(api.state.totalXp,200);
+  assert.equal(J.coinBalance(200,api.state.shop),50);
+  assert.equal(api.buyShopItem('theme-dusk'),false);
+  assert.equal(api.buyShopItem('frame-crown'),false);
+  api.equipShopItem('theme-dusk');assert.equal(api.activeStyle().theme,'theme-dusk');
+  api.equipShopItem('frame-crown');assert.equal(api.activeStyle().frame,'');
+  const before=api.state.totalXp;api.logActivity('add','new','New',{});
+  assert.ok(api.state.totalXp>before);
+  assert.equal(J.coinBalance(api.state.totalXp,api.state.shop),50+api.state.totalXp-before);
+  await api.flush();const again=harness(saved);again.api.state.totalXp=api.state.totalXp;
+  await again.api.loadShop();await again.api.loadProfile();
+  assert.equal(again.api.activeStyle().theme,'theme-dusk');assert.equal(J.coinBalance(again.api.state.totalXp,again.api.state.shop),J.coinBalance(api.state.totalXp,api.state.shop));
+});
+test('shop merge deduplicates purchases and deterministically resolves simultaneous overspending',()=>{
+  const a={'theme-dusk':10},b={'theme-ocean':11};
+  assert.deepEqual(J.mergeShop(a,b,300),{'theme-dusk':10});
+  assert.deepEqual(J.mergeShop(b,a,300),J.mergeShop(a,b,300));
+  assert.deepEqual(J.mergeShop(a,{'theme-dusk':12},300),a);
+  assert.equal(J.coinBalance(300,J.mergeShop(a,b,300)),150);
+  assert.deepEqual(J.cleanShop({'unknown':1,'frame-orbit':-1,'theme-dusk':NaN},999),{});
+});
+test('cloud roundtrip preserves bought items, equipped style and spent balance',async()=>{
+  const cloud=syncHarness(),a=harness();a.api.state.totalXp=1000;
+  a.api.buyShopItem('theme-ocean');a.api.buyShopItem('frame-frost');a.api.equipShopItem('theme-ocean');a.api.equipShopItem('frame-frost');
+  await cloud.engine(a.api).sync();
+  const b=harness();await cloud.engine(b.api).sync();await b.api.flush();
+  assert.equal(b.api.state.totalXp,1000);
+  assert.equal(J.coinBalance(b.api.state.totalXp,b.api.state.shop),530);
+  assert.equal(b.api.activeStyle().theme,'theme-ocean');assert.equal(b.api.activeStyle().frame,'frame-frost');
+  assert.equal(Object.keys(b.api.state.shop).length,2);
 });

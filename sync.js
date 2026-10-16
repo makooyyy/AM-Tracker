@@ -65,7 +65,7 @@
     return JSON.stringify(c);
   }
   function canonAwards(a) { return stable({ w: (a && a.w) || {}, c: (a && a.c) || {}, e: (a && a.e) || {} }); }
-  function canonProgress(p) { return stable({ x: (p && p.x) || 0, a: (p && p.a) || {} }); }
+  function canonProgress(p) { return stable({ x: (p && p.x) || 0, a: (p && p.a) || {}, shop: (p && p.shop) || {} }); }
 
   function logKey(e) { return e.ts + "|" + e.type + "|" + (e.manhwaId == null ? "" : e.manhwaId); }
   function validLogEntry(e) { return isObj(e) && typeof e.ts === "number" && isFinite(e.ts) && typeof e.type === "string"; }
@@ -86,8 +86,8 @@
     }));
   }
 
-  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null, journey: (p && p.journey) || null }); }
-  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length))); }
+  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null, journey: (p && p.journey) || null, style: (p && p.style) || null }); }
+  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.style && (p.style.theme || p.style.frame || p.style.badge)) && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length))); }
 
   function isEmptyAwards(a) {
     return !a || (!Object.keys(a.w || {}).length && !Object.keys(a.c || {}).length && !Object.keys(a.e || {}).length);
@@ -285,12 +285,13 @@
       if (!d) return null;
       try {
         var o = JSON.parse(d.json);
-        return { x: Number(o.x) > 0 ? Number(o.x) : 0, a: isObj(o.a) ? o.a : {} };
+        return { x: Number(o.x) > 0 ? Number(o.x) : 0, a: isObj(o.a) ? o.a : {}, shop: host.cleanShop ? host.cleanShop(o.shop,Number(o.x)||0) : {} };
       } catch (e) { return null; }
     }
 
     function mergeProgressInto(local, remoteP, ch) {
       var merged = { x: Math.max(local.x || 0, remoteP.x || 0), a: unionAch(local.a, remoteP.a) };
+      merged.shop = host.mergeShop ? host.mergeShop(local.shop, remoteP.shop, merged.x) : {};
       var lh = hashStr(canonProgress(local));
       var mh = hashStr(canonProgress(merged));
       if (mh !== lh) ch.progress = merged;
@@ -359,6 +360,7 @@
         if (!isObj(o)) return null;
         var p = { n: typeof o.n === "string" ? o.n : "", b: typeof o.b === "string" ? o.b : "", a: isObj(o.a) ? o.a : null };
         if (isObj(o.journey)) p.journey = o.journey;
+        if (isObj(o.style)) p.style = o.style;
         return host.sanitizeProfile ? host.sanitizeProfile(p) : p;
       } catch (e) { return null; }
     }

@@ -24,6 +24,7 @@
   var ACTIVITY_LOG_MAX = 3000;
   var applyingRemote = false; // true while cloud changes are being written into state (must not trigger a sync)
   var SYNC_META_KEY = "manhwa-tracker:sync:v1";
+  var SHOP_STORAGE_KEY = "manhwa-tracker:shop:v1";
   var XP_STORAGE_KEY = "manhwa-tracker:xp:v1";
   var ACHIEVEMENTS_STORAGE_KEY = "manhwa-tracker:achievements:v1";
   var RATING_DRAFTS_KEY = "manhwa-tracker:rating-drafts:v1";
@@ -645,6 +646,7 @@
     awardCandidates: {},
     awardEditUsed: {},
     activityLog: [],
+    shop: {}, shopOpen: false, shopCategory: "all", shopPreview: null, shopNotice: "",
     totalXp: 0,
     unlockedAchievements: {},
     achievementFilter: 'all',
@@ -3171,14 +3173,53 @@
     if (!visible.length) html += '<div class="mt-paper mt-empty"><div class="mt-empty-title">Здесь пока тихо</div><p class="mt-feature-hint">В этой категории пока нет наград с выбранным статусом. Попробуй другой фильтр.</p></div>';
     return html + '<p class="mt-achievement-note">Полученные награды остаются с тобой навсегда. Прогресс незавершённых целей считается по текущей библиотеке и сохранённой истории активности. XP начисляется автоматически при действиях в приложении.</p></div></section>';
   }
+  function saveShop(){persistKey(SHOP_STORAGE_KEY,state.shop).catch(function(){});syncPing();}
+  function loadShop(){return readKey(SHOP_STORAGE_KEY).then(function(raw){state.shop=Features.cleanShop(raw,state.totalXp);});}
+  function activeStyle(preview){
+    var style=Features.cleanStyle(state.profile.style);
+    Object.keys(style).forEach(function(k){if(!state.shop[style[k]])style[k]='';});
+    var item=Features.shopItem(preview);if(item)style[item.kind]=item.id;
+    return style;
+  }
+  function styleClasses(style){return Object.keys(style).map(function(k){return style[k]?' mt-'+style[k]:'';}).join('');}
+  function styleBadge(style){var item=Features.shopItem(style.badge);return item?'<span class="mt-shop-badge">'+item.icon+' '+escapeHtml(item.name)+'</span>':'';}
+  function buyShopItem(id){
+    var item=Features.shopItem(id);if(!item||state.shop[id])return false;
+    if(Features.coinBalance(state.totalXp,state.shop)<item.price){state.shopNotice='Не хватает монет. Они начисляются вместе с опытом.';return false;}
+    state.shop[id]=Date.now();saveShop();state.shopNotice='Куплено: '+item.name+'. Теперь можно применить.';return true;
+  }
+  function equipShopItem(id){var item=Features.shopItem(id);if(!item||!state.shop[id])return;var style=Features.cleanStyle(state.profile.style);style[item.kind]=id;state.profile.style=style;saveProfile();state.shopNotice='Оформление применено.';}
+  function renderShopEntry(){return '<button class="mt-shop-entry" id="shop-open"><span><small>МАГАЗИН ПРОФИЛЯ</small><strong>Сделай его своим <span aria-hidden="true">↗</span></strong></span><b>◈ '+Features.coinBalance(state.totalXp,state.shop)+'</b></button>'+(state.shopNotice?'<p class="mt-feature-hint" role="status">'+escapeHtml(state.shopNotice)+'</p>':'');}
+  function renderShop(){
+    var style=activeStyle(state.shopPreview),balance=Features.coinBalance(state.totalXp,state.shop),preview=Features.shopItem(state.shopPreview);
+    var items=Features.shopItems.filter(function(i){return state.shopCategory==='all'||i.kind===state.shopCategory;});
+    return '<section class="mt-shop-page"><button id="shop-back" class="mt-ghost-btn">← Профиль</button><header class="mt-shop-heading"><div><span class="mt-section-eyebrow">КОЛЛЕКЦИЯ ТВОЕГО СТИЛЯ</span><h1>Истории меняют нас.<br><em>Выбери свой образ.</em></h1></div><div class="mt-shop-wallet"><small>ТВОИ МОНЕТЫ</small><b>◈ '+balance+'</b></div></header><p class="mt-shop-explain">За каждый полученный XP — 1 монета. Прошлый опыт уже учтён. Покупки не снижают опыт и ранг.</p>'+
+      '<div class="mt-shop-preview'+styleClasses(style)+'"><span class="mt-section-eyebrow">'+(preview?'ПРИМЕРКА · '+escapeHtml(preview.name):'ТВОЁ ОФОРМЛЕНИЕ')+'</span><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(state.profile)+'</div><div><strong>'+escapeHtml(displayNick())+'</strong>'+styleBadge(style)+'<p>Твоя следующая история уже рядом.</p></div></div></div>'+
+      '<div class="mt-shop-preview-actions">'+(preview?'<button class="mt-primary-btn" '+(state.shop[preview.id]?'data-shop-equip':'data-shop-buy')+'="'+preview.id+'"'+(!state.shop[preview.id]&&balance<preview.price?' disabled':'')+'>'+(state.shop[preview.id]?'Применить':balance<preview.price?'Не хватает '+(preview.price-balance)+' ◈':'Купить за '+preview.price+' ◈')+'</button><button class="mt-ghost-btn" id="shop-preview-clear">Закончить примерку</button>':'')+'<button class="mt-ghost-btn" id="shop-reset">Базовое оформление</button></div>'+
+      '<p class="mt-shop-notice" role="status">'+escapeHtml(state.shopNotice||'Примеряй бесплатно. Купленные вещи остаются в коллекции.')+'</p><nav class="mt-shop-filters" aria-label="Категории магазина">'+[['all','Всё'],['theme','Темы'],['frame','Рамки'],['badge','Значки']].map(function(c){return '<button data-shop-category="'+c[0]+'" aria-pressed="'+(state.shopCategory===c[0])+'">'+c[1]+'</button>';}).join('')+'</nav><div class="mt-shop-grid">'+items.map(function(item){var owned=!!state.shop[item.id],equipped=activeStyle()[item.kind]===item.id;return '<article class="mt-shop-item'+(state.shopPreview===item.id?' previewing':'')+'"><div class="mt-shop-swatch mt-'+item.id+'"><span>'+item.icon+'</span></div><div class="mt-shop-item-body"><small>'+({theme:'ТЕМА ПРОФИЛЯ',frame:'РАМКА АВАТАРА',badge:'ЗНАЧОК'})[item.kind]+'</small><h2>'+item.name+'</h2><p>'+item.desc+'</p><b>'+(equipped?'Применено ✓':owned?'В коллекции':item.price+' ◈')+'</b><button class="mt-ghost-btn" data-shop-preview="'+item.id+'">Примерить</button></div></article>';}).join('')+'</div></section>';
+  }
+  function attachShopHandlers(){
+    var app=document.getElementById('app');
+    function bind(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
+    bind('shop-open',function(){state.shopOpen=true;state.shopNotice='';render();window.scrollTo(0,0);});
+    bind('shop-back',function(){state.shopOpen=false;state.shopPreview=null;render();window.scrollTo(0,0);});
+    bind('shop-preview-clear',function(){state.shopPreview=null;render();});
+    bind('shop-reset',function(){state.profile.style=Features.cleanStyle(null);saveProfile();state.shopPreview=null;state.shopNotice='Базовое оформление применено. Покупки сохранены.';render();});
+    app.querySelectorAll('[data-shop-category]').forEach(function(el){el.addEventListener('click',function(){state.shopCategory=el.getAttribute('data-shop-category');render();});});
+    app.querySelectorAll('[data-shop-preview]').forEach(function(el){el.addEventListener('click',function(){state.shopPreview=el.getAttribute('data-shop-preview');state.shopNotice='';render();document.querySelector('.mt-shop-preview').scrollIntoView({block:'start'});});});
+    app.querySelectorAll('[data-shop-buy]').forEach(function(el){el.addEventListener('click',function(){buyShopItem(el.getAttribute('data-shop-buy'));render();});});
+    app.querySelectorAll('[data-shop-equip]').forEach(function(el){el.addEventListener('click',function(){equipShopItem(el.getAttribute('data-shop-equip'));render();});});
+  }
+
   function renderProfile() {
+    if(state.shopOpen) return renderShop();
     var rated = state.manhwas.filter(function (m) { return ratedScore(m) !== null; });
     var overallAvg = rated.length
       ? rated.reduce(function (a, m) { return a + average(m.criteria); }, 0) / rated.length
       : null;
 
     var html =
-      '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
+      '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderShopEntry() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
       renderRankPanel() +
       '<div class="mt-chip-row">' +
@@ -3322,6 +3363,7 @@
     if (!isPlainObject(p)) return out;
     if (typeof p.n === "string") out.n = p.n.replace(/\s+/g, " ").trim().slice(0, NICK_MAX);
     if (typeof p.b === "string") out.b = p.b.replace(/\s+/g, " ").trim().slice(0, BIO_MAX);
+    if (p.style) out.style = Features.cleanStyle(p.style);
     if (p.journey) out.journey = Features.cleanJourney(p.journey);
     var a = p.a;
     if (isPlainObject(a)) {
@@ -3492,6 +3534,7 @@
   function renderProfileHero() {
     if (state.profileEdit) return renderProfileEditor();
     var p = state.profile;
+    var style = activeStyle();
     var rank = RANKS[rankIndexForXp(state.totalXp)];
     var shown = { n: p.n || (accountSignedIn() ? emailPrefix() : ""), a: p.a };
     var glow = p.a && p.a.t === "img" ? rank.gradient : AVATAR_COLORS[p.a && p.a.t !== "img" ? p.a.c : seedColor(shown.n)];
@@ -3500,7 +3543,7 @@
       : '<div class="mt-hero-bio empty">Нажми ✎, чтобы добавить ник, фото и описание</div>';
     var since = joinedLabel();
     return (
-      '<div class="mt-hero">' +
+      '<div class="mt-hero'+styleClasses(style)+'">' +
       '<div class="mt-hero-glow" style="background:radial-gradient(120% 90% at 0% 0%,' + glow[0] + "59,transparent 60%)," +
       "radial-gradient(90% 80% at 100% 100%," + glow[glow.length - 1] + '33,transparent 60%)"></div>' +
       '<button class="mt-hero-edit" id="prof-edit" aria-label="Редактировать профиль">✎</button>' +
@@ -3508,7 +3551,7 @@
       '<button class="mt-hero-avatar-ring" id="prof-avatar-open" aria-label="Сменить аватар" style="background:linear-gradient(135deg,' +
       rank.gradient.join(",") + ')">' + avatarHtml(shown) + "</button>" +
       '<div class="mt-hero-id">' +
-      '<div class="mt-hero-nick">' + escapeHtml(displayNick()) + "</div>" + bio + renderRankBadge() +
+      '<div class="mt-hero-nick">' + escapeHtml(displayNick()) + "</div>" + styleBadge(style) + bio + renderRankBadge() +
       (since ? '<div class="mt-hero-since">' + escapeHtml(since) + "</div>" : "") +
       "</div></div>" +
       renderAccountStrip() +
@@ -3992,6 +4035,7 @@
     patchStorageNotice();
     attachHandlers(selected);
     attachJourneyHandlers(selected);
+    attachShopHandlers();
     attachAcctHandlers();
     attachProfileHandlers();
 
@@ -4745,7 +4789,8 @@
       // just without those.
       var backup = {
         format: "am-tracker-backup",
-        version: 6,
+        version: 7,
+        shop: state.shop,
         manhwas: state.manhwas,
         awardWinners: state.awardWinners,
         awardCandidates: state.awardCandidates,
@@ -4861,6 +4906,7 @@
               if (hasLog) state.activityLog = activityLog;
               if (hasProgress) {
                 state.totalXp = totalXp;
+                state.shop=Features.cleanShop(parsed.shop === undefined ? state.shop : parsed.shop,totalXp);saveShop();
                 state.unlockedAchievements = unlockedAchievements;
               }
               if (profile) {
@@ -4892,6 +4938,7 @@
   // Single "go back" action for the in-app ← buttons — closes whichever
   // "sub-page" is currently open, innermost first.
   function goBack() {
+    if (state.shopOpen && !state.selectedId) { state.shopOpen=false; state.shopPreview=null; render(); return; }
     if (state.shareCard) { closeShareCard(); render(); return; }
     if (state.awardPreview) { state.awardPreview = null; render(); return; }
     if (state.revealManhwaId) {
@@ -4938,6 +4985,7 @@
     state.awardCandidates = {};
     state.awardEditUsed = {};
     state.activityLog = [];
+    state.shop = {}; state.shopOpen=false; state.shopPreview=null; state.shopNotice="";
     state.totalXp = 0;
     state.unlockedAchievements = {};
     state.profile = emptyProfile(); // another person's nickname/avatar must not leak into a different account
@@ -4945,6 +4993,7 @@
     applyingRemote = true;
     try {
       save();
+      saveShop();
       saveProfile();
       saveAwards();
       saveActivityLog();
@@ -4957,10 +5006,11 @@
   window.AMApp = {
     titles: function () { return state.manhwas; },
     awards: function () { return { w: state.awardWinners, c: state.awardCandidates, e: state.awardEditUsed }; },
-    progress: function () { return { x: state.totalXp, a: state.unlockedAchievements }; },
+    progress: function () { return { x: state.totalXp, a: state.unlockedAchievements, shop: state.shop }; },
     log: function () { return state.activityLog; },
     profile: function () { return state.profile; },
     sanitizeProfile: sanitizeProfile,
+    cleanShop: Features.cleanShop, mergeShop: Features.mergeShop,
     sanitizeTitle: function (obj) { return sanitizeImportedManhwa(obj, {}); },
     loadMeta: function () { return readKey(SYNC_META_KEY); },
     saveMeta: function (meta) { return persistKey(SYNC_META_KEY, meta); },
@@ -4994,6 +5044,9 @@
           saveAwards();
         }
         if (ch.progress) {
+          var nextShop=Features.cleanShop(ch.progress.shop,ch.progress.x||0);
+          if(Object.keys(state.shop).some(function(id){return !nextShop[id];}))state.shopNotice='Покупки сверены между устройствами. Оформление сверх доступного баланса не списано — его можно купить позже.';
+          state.shop=nextShop;saveShop();
           state.totalXp = ch.progress.x || 0;
           state.unlockedAchievements = ch.progress.a || {};
           saveXp();
@@ -5016,7 +5069,7 @@
   };
 
   /* ---------- boot ---------- */
-  load().then(loadProfile).then(loadRatingDrafts).then(loadRecentOpened).then(render).catch(function () { render(); }).then(function () {
+  load().then(loadProfile).then(loadShop).then(loadRatingDrafts).then(loadRecentOpened).then(render).catch(function () { render(); }).then(function () {
     if (!window.AMSync) return;
     // Repaint only the status line when the sync state changes (so a form the
     // user is typing into is never wiped); a full render when signing in/out.
