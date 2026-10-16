@@ -422,3 +422,73 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-reveal-footer small {display:block;text-align:center;font-size:9px;color:#96869f;margin-top:10px;}
 @media(max-width:359px){.mt-reveal-content{padding:18px 18px 0;}.mt-reveal-hero{grid-template-columns:86px minmax(0,1fr);gap:18px;}.mt-reveal-cover{width:86px;height:124px;}.mt-reveal-stamp{font-size:63px;}.mt-reveal-title{font-size:23px;}.mt-reveal-footer{padding:14px 18px;}}
 @media(prefers-reduced-motion:reduce){.mt-reveal-backdrop,.mt-reveal-card{animation:none;}}
+/* For you — discovery studio */
+.mt-journey-page {max-width:1000px;padding:10px 0 40px;}
+.mt-journey-heading {position:relative;overflow:hidden;padding:28px 12px 32px;isolation:isolate;}
+.mt-journey-heading:before {content:'';position:absolute;width:280px;height:280px;right:-80px;top:-80px;border-radius:50%;background:radial-gradient(circle,#9873c82e,transparent 68%);z-index:-1;}
+.mt-journey-heading h1 {font-size:clamp(44px,8vw,80px);line-height:.98;margin:20px 0;letter-spacing:-2px;}
+.mt-journey-heading h1 em,.mt-journey-panel h2 em {font-weight:400;color:#c6a4e2;}
+.mt-journey-heading p {font-size:12px;line-height:1.8;color:#aaa0b8;}
+.mt-journey-orbit {position:absolute;right:20px;top:45px;font:100px Georgia,serif;color:#ba95df35;animation:journeyOrbit 14s ease-in-out infinite;pointer-events:none;}
+.mt-journey-nav {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:6px;background:#ffffff05;border:1px solid #ffffff0c;border-radius:20px;margin:0 0 20px;}
+.mt-journey-nav button {display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;border:0;border-radius:14px;color:#9c90aa;padding:16px 6px;font:700 12px Manrope,sans-serif;cursor:pointer;transition:background .25s,color .25s,transform .2s;}
+.mt-journey-nav button small {font-size:8px;font-weight:400;opacity:.6;}
+.mt-journey-nav button[aria-pressed=true] {background:#d9c3ef;color:#291b38;box-shadow:0 3px 15px #0002;}
+.mt-journey-nav button:active {transform:scale(.96);}
+.mt-journey-stage {animation:journeyEnter .38s ease both;}
+.mt-journey-page .mt-journey-panel {border-radius:26px;padding:clamp(20px,4vw,36px);background:linear-gradient(145deg,#27202f,#18151d);border-color:#cfb1ee20;overflow:hidden;}
+.mt-discovery-intro h2,.mt-duel-panel h2 {font-size:clamp(32px,5vw,48px);letter-spacing:-1px;margin:16px 0;}
+.mt-reading-seeds {margin:24px 0;padding-left:12px;border-left:2px solid #b394cf60;}
+.mt-reading-seeds>span {font-size:9px;color:#a89ab7;}
+.mt-reading-seeds>div {display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
+.mt-reading-seeds>div>span {font-size:10px;max-width:100%;overflow-wrap:anywhere;background:#cdb0eb0b;border:1px solid #cdb0eb12;border-radius:8px;padding:6px 8px;color:#d0bedf;}
+.mt-journey-page .mt-input {background:#151219;border-color:#ffffff12;border-radius:12px;min-height:44px;}
+.mt-discovery-card {display:grid;grid-template-columns:150px minmax(0,1fr);gap:26px;align-items:center;margin:12px 0 18px;padding:20px;border-radius:20px;background:linear-gradient(135deg,#403049,#282033);border:1px solid #d4a9ed25;animation:journeyEnter .45s ease both;}
+.mt-discovery-art {position:relative;min-width:0;}
+.mt-discovery-art>img,.mt-discovery-art>.mt-journey-placeholder {display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px;box-shadow:8px 12px 28px #0005;}
+.mt-discovery-art>.mt-journey-placeholder {display:grid;}
+.mt-discovery-art>span:last-child {position:absolute;bottom:9px;left:6px;right:6px;text-align:center;padding:6px 2px;background:#1c142ddd;backdrop-filter:blur(8px);border-radius:5px;color:#eadbf7;font-size:7px;letter-spacing:1px;}
+.mt-discovery-copy {min-width:0;}
+.mt-discovery-copy h3 {font:500 clamp(24px,4vw,34px)/1.1 Georgia,serif;overflow-wrap:anywhere;margin:14px 0;letter-spacing:-.5px;color:#f4eafc;}
+.mt-discovery-copy p {font-size:12px;overflow-wrap:anywhere;}
+.mt-discovery-actions {display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;}
+.mt-discovery-actions a {text-decoration:none;text-align:center;}
+.mt-discovery-actions>* {font-size:11px;}
+.mt-discovery-bottom {display:flex;align-items:center;justify-content:space-between;gap:14px;}
+.mt-discovery-bottom>span {font:10px 'Space Mono',monospace;color:#aa96ba;}
+.mt-journey-page .mt-discovery-credit {font-size:9px;color:#887b94;margin-top:18px;}
+.mt-discovery-skeleton {min-height:240px;background:linear-gradient(105deg,#b69acf04 30%,#b69acf16 50%,#b69acf04 70%);background-size:250% 100%;border-radius:20px;display:grid;place-content:center;text-align:center;animation:journeyShimmer 1.8s ease infinite;}
+.mt-discovery-skeleton span {display:block;width:34px;height:34px;margin:auto;border:1px solid #d2a9f233;border-top-color:#d2a9f2;border-radius:50%;animation:journeySpin 1s linear infinite;}
+.mt-journey-empty button {display:block;margin-top:16px;}
+.mt-duel-genre {display:flex;flex-wrap:wrap;gap:6px;margin:14px 0;}
+.mt-duel-genre span {font-size:9px;letter-spacing:.3px;color:#c4acd8;padding:5px 9px;border-radius:30px;border:1px solid #d1b1ed25;}
+.mt-duel-pair {position:relative;gap:20px;}
+.mt-duel-card {position:relative;padding:0;border-radius:18px;overflow:hidden;background:#211b2a;box-shadow:0 15px 30px #0002;animation:journeyLeft .45s cubic-bezier(.2,.8,.2,1) both;}
+.mt-duel-card:nth-child(2) {animation-name:journeyRight;}
+.mt-duel-card>img,.mt-duel-card>.mt-journey-placeholder {border-radius:0;aspect-ratio:3/4;transition:transform .4s;}
+.mt-duel-card:hover>img {transform:scale(1.04);}
+.mt-duel-card:hover {border-color:#b18bd8;box-shadow:0 16px 35px #aa6be218;}
+.mt-duel-card:active {transform:scale(.97);}
+.mt-duel-card strong {padding:4px 12px 0;}
+.mt-duel-card>span:last-child {padding:0 12px 14px;font-size:10px;}
+.mt-duel-choice {position:absolute;top:10px;left:10px;border:1px solid #ffffff30;border-radius:50%;padding:7px;background:#1b1229a6;font:9px 'Space Mono',monospace;color:#efddfc;}
+.mt-duel-vs {position:absolute;left:50%;top:40%;transform:translate(-50%,-50%) rotate(-9deg);background:#d8c0ed;border:4px solid #211b29;border-radius:50%;width:43px;height:43px;display:grid;place-items:center;font:italic 12px Georgia,serif;color:#34203e;pointer-events:none;}
+.mt-duel-summary {display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid #ffffff10;margin-top:22px;padding-top:14px;}
+.mt-duel-summary>span {font-size:10px;color:#b7a7c5;}.mt-duel-summary button{font-size:10px;}
+.mt-duel-history {padding-top:18px;margin-top:14px;border-top:1px solid #ffffff10;color:#bba9cc;font-size:12px;}
+.mt-duel-history summary {cursor:pointer;display:flex;justify-content:space-between;gap:12px;}.mt-duel-history summary span{font-size:10px;color:#8d7d9e;}
+.mt-duel-history ol {padding:0;list-style:none;max-height:300px;overflow:auto;}
+.mt-duel-history li {padding:12px 0;border-bottom:1px solid #ffffff0a;overflow-wrap:anywhere;}.mt-duel-history li span {display:block;font-size:10px;color:#9d8cac;margin-top:6px;}
+.mt-journey-page .mt-goal-card {background:linear-gradient(135deg,#ffffff04,transparent);transition:border-color .25s,transform .25s;animation:journeyEnter .4s both;}
+.mt-journey-page .mt-goal-card:nth-child(2){animation-delay:.05s;}.mt-journey-page .mt-goal-card:nth-child(3){animation-delay:.1s;}.mt-journey-page .mt-goal-card:nth-child(4){animation-delay:.15s;}.mt-journey-page .mt-goal-card:nth-child(5){animation-delay:.2s;}
+.mt-journey-page .mt-goal-card.selected {background:linear-gradient(140deg,#a577d51c,#33253d0a);}
+.mt-journey-page .mt-goal-card progress {animation:journeyProgress .6s ease both;transform-origin:left;}
+@keyframes journeyEnter {from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes journeyLeft {from{opacity:0;transform:translateX(-14px) rotate(-3deg)}to{opacity:1;transform:none}}
+@keyframes journeyRight {from{opacity:0;transform:translateX(14px) rotate(3deg)}to{opacity:1;transform:none}}
+@keyframes journeyProgress {from{transform:scaleX(.1)}to{transform:scaleX(1)}}
+@keyframes journeyOrbit {0%,100%{transform:rotate(-15deg) translateY(0)}50%{transform:rotate(15deg) translateY(12px)}}
+@keyframes journeyShimmer {to{background-position:-150% 0}}
+@keyframes journeySpin {to{transform:rotate(360deg)}}
+@media(max-width:599px){.mt-discovery-card{grid-template-columns:90px minmax(0,1fr);gap:16px;padding:14px;align-items:start;}.mt-discovery-copy h3{font-size:23px;margin:10px 0;}.mt-discovery-copy .mt-section-eyebrow{font-size:8px;}.mt-discovery-copy p{font-size:10px;}.mt-discovery-actions{grid-column:1/-1;}.mt-discovery-actions>*{padding:10px;font-size:10px;}.mt-duel-pair{gap:12px;}.mt-duel-card strong{font-size:12px;}.mt-journey-nav button{font-size:11px;gap:5px;}.mt-journey-orbit{font-size:80px;right:4px;top:60px;}}
+@media(prefers-reduced-motion:reduce){.mt-journey-page *,.mt-journey-page *:before{animation:none!important;transition:none!important;}}

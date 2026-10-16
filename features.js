@@ -196,18 +196,33 @@
     return {goals:(Array.isArray(raw.goals)?raw.goals:[]).filter(function(g){return g && goalOptions.some(function(o){return o.id===g.id;}) && Number.isFinite(g.started);}).slice(0,5).map(function(g){return {id:g.id,started:g.started,baseline:Array.isArray(g.baseline)?g.baseline.filter(function(s){return typeof s==='string';}):[],earned:Array.isArray(g.earned)?g.earned.filter(function(s){return typeof s==='string';}):[]};}),
       duels:(Array.isArray(raw.duels)?raw.duels:[]).filter(function(d){return d && typeof d.a==='string' && typeof d.b==='string' && d.a!==d.b && (d.winner===d.a||d.winner===d.b);}).slice(-2000).map(function(d){return {a:d.a,b:d.b,winner:d.winner};})};
   }
-  function recommendations(list, mood, genre, average) {
-    var moods={calm:['Повседневность','Романтика','Комедия'],adventure:['Фэнтези','Приключения','Экшн'],dark:['Ужасы','Триллер','Психология','Драма']}, affinity={};
-    list.filter(function(m){return m.rated;}).forEach(function(m){(m.genres||[]).forEach(function(g){affinity[g]=(affinity[g]||0)+(average(m.criteria)||0)/100;});});
-    return list.filter(function(m){return m.status==='plan' && (!genre || (m.genres||[]).includes(genre)) && (!mood || (m.genres||[]).some(function(g){return (moods[mood]||[]).includes(g);}));}).map(function(m){var best=(m.genres||[]).slice().sort(function(a,b){return (affinity[b]||0)-(affinity[a]||0);})[0];return {title:m,score:affinity[best]||0,reason:affinity[best]>0?'В твоих оценках выделяется жанр «'+best+'»':mood?'Подходит под выбранное настроение':'Из твоих планов на чтение'};}).sort(function(a,b){return b.score-a.score || String(a.title.id).localeCompare(String(b.title.id));});
-  }
-  function duelPair(list, history, genre, offset) {
+  function duelPair(list, history, genre, previous, random) {
     var pool=list.filter(function(m){return m.rated && (!genre||(m.genres||[]).includes(genre));}), pairs=[];
-    for(var i=0;i<pool.length;i++) for(var j=i+1;j<pool.length;j++) {var a=pool[i],b=pool[j];if(!history.some(function(d){return (d.a===a.id&&d.b===b.id)||(d.a===b.id&&d.b===a.id);})) pairs.push([a,b]);}
-    return pairs.length ? pairs[(offset||0)%pairs.length] : null;
+    var seen=new Set(history.map(function(d){return [d.a,d.b].sort().join('|');}));
+    for(var i=0;i<pool.length;i++) for(var j=i+1;j<pool.length;j++) {
+      var a=pool[i],b=pool[j];
+      if((a.genres||[]).some(function(g){return (b.genres||[]).includes(g);}) && !seen.has([a.id,b.id].sort().join('|'))) pairs.push([a,b]);
+    }
+    if(!pairs.length)return null;
+    previous=Array.isArray(previous)?previous:[];
+    var fresh=pairs.filter(function(p){return !previous.includes(p[0].id)&&!previous.includes(p[1].id);});
+    if(!fresh.length)fresh=pairs.filter(function(p){return !(previous.includes(p[0].id)&&previous.includes(p[1].id));});
+    if(!fresh.length)fresh=pairs;
+    var rng=random||Math.random, chosen=fresh[Math.min(fresh.length-1,Math.floor(rng()*fresh.length))];
+    return rng()<.5?chosen:chosen.slice().reverse();
+  }
+  function recentReading(list) {
+    function time(m){return Math.max(m.completedAt||0,m.lastRatedAt||0,...journal(m.journal).map(function(e){return e.ts;}));}
+    return list.filter(function(m){return m.status!=='plan'&&m.status!=='dropped'&&(m.rated||m.status==='done'||journal(m.journal).length);}).slice().sort(function(a,b){return time(b)-time(a);}).slice(0,5);
+  }
+  function titleKey(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');}
+  function unseenMedia(media,list){
+    var ids=new Set(list.map(function(m){return String(m.anilistId||'');})),names=new Set();
+    list.forEach(function(m){[m.title].concat(Object.values(m.altTitles||{})).forEach(function(s){if(titleKey(s))names.add(titleKey(s));});});
+    return media.filter(function(m){return !ids.has(String(m.id)) && !Object.values(m.title||{}).concat(m.synonyms||[]).some(function(s){return names.has(titleKey(s));});});
   }
 
-  var api = {goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney, recommendations:recommendations, duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

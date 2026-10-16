@@ -305,12 +305,6 @@ test('40 new achievements use consistent metrics and award XP only once', async 
 });
 
 const J = require('../features.js');
-test('reading recommendations respect plans, mood and genre and use personal ratings', () => {
-  const list=[{id:'rated',rated:true,criteria:[],genres:['Фэнтези']},{id:'a',status:'plan',genres:['Фэнтези']},{id:'b',status:'plan',genres:['Комедия']},{id:'c',status:'done',genres:['Фэнтези']}];
-  assert.deepEqual(J.recommendations(list,'adventure','',()=>90).map(r=>r.title.id),['a']);
-  assert.deepEqual(J.recommendations(list,'adventure','Комедия',()=>90),[]);
-  assert.equal(J.recommendations(list,'','',()=>90)[0].title.id,'a');
-});
 test('duels avoid repeats in either direction, filter by genre and handle exhausted pools',()=>{
   const list=[{id:'a',rated:true,genres:['Драма']},{id:'b',rated:true,genres:['Драма']},{id:'c',rated:false}];
   assert.equal(J.duelPair(list,[],'Драма',0).length,2);
@@ -336,4 +330,19 @@ test('chosen goals count only new results, persist progress and survive backup s
   const stored=JSON.parse(saved.get(api.keys.profile));assert.equal(stored.journey.goals[0].earned.length,1);
   const clean=api.sanitizeImportedManhwa({...m,journal:[{id:'note',ts:1,chapter:74,text:'Текст',spoiler:true}]},{});
   assert.equal(clean.journal[0].chapter,74);
+});
+
+test('random duels share a genre and replace both participants when possible',()=>{
+  const list=['a','b','c','d'].map(id=>({id,rated:true,genres:['Фэнтези']}));
+  list.push({id:'e',rated:true,genres:['Спорт']});
+  const pair=J.duelPair(list,[],'',['a','b'],()=>0);
+  assert.deepEqual(pair.map(m=>m.id),['c','d']);
+  assert.equal(J.duelPair([{id:'a',rated:true,genres:['Фэнтези']},{id:'b',rated:true,genres:['Спорт']}],[],'',[],()=>0),null);
+  assert.notDeepEqual(J.duelPair(list,[],'',[],()=>0).map(m=>m.id).sort(),J.duelPair(list,[],'',[],()=>.99).map(m=>m.id).sort());
+});
+test('discovery uses latest reading and excludes saved IDs, translations and aliases',()=>{
+  const list=[{id:'a',title:'Поднятие уровня в одиночку',rated:true,status:'done',completedAt:20},{id:'b',title:'Other',status:'reading',journal:[{id:'n',text:'t',chapter:1,ts:30}]},{id:'c',title:'Plan',rated:true,status:'plan',lastRatedAt:100},{id:'d',title:'Stored',anilistId:12,status:'plan'}];
+  assert.deepEqual(J.recentReading(list).map(m=>m.id),['b','a']);
+  const media=[{id:10,title:{english:'Solo Leveling'},synonyms:['Поднятие уровня в одиночку']},{id:11,title:{english:'New title'}},{id:12,title:{english:'Unrelated spelling'}}];
+  assert.deepEqual(J.unseenMedia(media,list).map(m=>m.id),[11]);
 });

@@ -684,7 +684,7 @@
     awardsMonth: null,
     awardPreview: null,
     compareFrom: {},
-    journeyUI: {mood:"",genre:"",duelGenre:"",pick:0,round:0},
+    journeyUI: {mood:"",genre:"",duelGenre:"",pick:0,section:"discover",results:[],previousPair:[]},
     shareCard: null,
     // Which past rating is shown on a title's page (index into m.ratingHistory).
     // No entry = the current rating. Pure UI state, never saved or synced.
@@ -3840,21 +3840,77 @@
     if(changed){state.profile.journey=data;saveProfile();}
   }
   function journeyCover(m) {return m.coverUrl ? '<img loading="lazy" src="'+escapeHtml(m.coverUrl)+'" alt="" />' : '<span class="mt-journey-placeholder">AM</span>';}
+  function discoverySelection() {
+    var ui=state.journeyUI, seeds=Features.recentReading(state.manhwas), weights={};
+    seeds.forEach(function(m,i){(m.genres||[]).forEach(function(g){weights[g]=(weights[g]||0)+(5-i);});});
+    var genres=Object.keys(weights).sort(function(a,b){return weights[b]-weights[a];});
+    var moods={calm:['Повседневность','Романтика','Комедия'],adventure:['Фэнтези','Приключения','Экшн'],dark:['Ужасы','Триллер','Психология','Драма']};
+    if(ui.genre)genres=[ui.genre];
+    else if(ui.mood)genres=(moods[ui.mood]||[]).slice().sort(function(a,b){return (weights[b]||0)-(weights[a]||0);});
+    var english=genres.map(function(g){return Object.keys(ANILIST_GENRE_RU).find(function(k){return ANILIST_GENRE_RU[k]===g;});}).filter(Boolean).slice(0,3);
+    return {seeds:seeds,english:english,moods:moods};
+  }
+  function loadDiscovery(force) {
+    var ui=state.journeyUI, selection=discoverySelection();
+    var key=JSON.stringify([selection.seeds.map(function(m){return [m.id,m.lastRatedAt,m.completedAt,m.genres];}),ui.genre,ui.mood]);
+    if(!force&&ui.discoveryKey===key)return;
+    if(ui.discoveryAbort)ui.discoveryAbort.abort();
+    ui.discoveryKey=key;ui.results=[];ui.pick=0;ui.discoveryError='';
+    if(!selection.seeds.length||!selection.english.length){ui.discoveryLoading=false;return;}
+    var controller=new AbortController();ui.discoveryAbort=controller;ui.discoveryLoading=true;
+    var timer=setTimeout(function(){controller.abort();},15000);
+    var query='query ($genres: [String]) { Page(page: 1, perPage: 50) { media(type: MANGA, genre_in: $genres, isAdult: false, sort: POPULARITY_DESC) { id title { romaji english native } synonyms coverImage { large } genres countryOfOrigin averageScore } } }';
+    fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},signal:controller.signal,body:JSON.stringify({query:query,variables:{genres:selection.english}})})
+      .then(function(r){if(!r.ok)throw new Error(r.status===429?'Каталог занят. Попробуй чуть позже.':'Не удалось связаться с каталогом.');return r.json();})
+      .then(function(r){if(r.errors||!r.data||!r.data.Page||!Array.isArray(r.data.Page.media))throw new Error('Каталог не вернул подборку.');if(ui.discoveryAbort!==controller)return;
+        ui.results=r.data.Page.media.filter(function(m){return m&&Number.isInteger(m.id)&&m.title;}).map(function(m){var translated=(m.genres||[]).map(translateAniListGenre);return Object.assign({},m,{localGenres:translated});});
+      }).catch(function(e){if(ui.discoveryAbort===controller)ui.discoveryError=e.name==='AbortError'?'Каталог не ответил вовремя. Проверь интернет и повтори.':e.message;})
+      .finally(function(){clearTimeout(timer);if(ui.discoveryAbort!==controller)return;ui.discoveryLoading=false;if(state.tab==='journey'&&!state.selectedId)render();});
+  }
+  function discoveryResults() {
+    var ui=state.journeyUI, selection=discoverySelection();
+    return Features.unseenMedia(ui.results||[],state.manhwas).filter(function(m){return (!ui.genre||m.localGenres.includes(ui.genre))&&(!ui.mood||m.localGenres.some(function(g){return (selection.moods[ui.mood]||[]).includes(g);}));}).map(function(m){var matches=selection.seeds.map(function(seed,i){var shared=(seed.genres||[]).filter(function(g){return m.localGenres.includes(g);});return {seed:seed,shared:shared,score:shared.length*(5-i)};}).sort(function(a,b){return b.score-a.score;});return {media:m,match:matches[0],score:matches.reduce(function(n,x){return n+x.score;},0)};}).sort(function(a,b){return b.score-a.score||(b.media.averageScore||0)-(a.media.averageScore||0);});
+  }
+  function renderDiscovery() {
+    loadDiscovery(false);
+    var ui=state.journeyUI, selection=discoverySelection(),results=discoveryResults(),rec=results.length?results[ui.pick%results.length]:null;
+    var html='<div class="mt-discovery-intro"><div class="mt-section-eyebrow">ЗА ПРЕДЕЛАМИ БИБЛИОТЕКИ</div><h2>Следующая<br><em>любимая история.</em></h2><p>Новые тайтлы по следам твоего недавнего чтения.</p></div>';
+    if(selection.seeds.length)html+='<div class="mt-reading-seeds"><span>Вдохновлено твоим чтением</span><div>'+selection.seeds.slice(0,3).map(function(m){return '<span>'+escapeHtml(displayTitle(m))+'</span>';}).join('')+'</div></div>';
+    html+='<div class="mt-journey-fields"><label>Настроение<select id="journey-mood" class="mt-input">'+[['','По моему вкусу'],['calm','Уют и лёгкость'],['adventure','Приключения'],['dark','Мрачные истории']].map(function(o){return '<option value="'+o[0]+'"'+(ui.mood===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label><label>Жанр<select id="journey-genre" class="mt-input"><option value="">На основе чтения</option>'+Object.values(ANILIST_GENRE_RU).filter(function(g){return g!=='Хентай';}).map(function(g){return '<option'+(ui.genre===g?' selected':'')+'>'+escapeHtml(g)+'</option>';}).join('')+'</select></label></div>';
+    if(ui.discoveryLoading)return html+'<div class="mt-discovery-skeleton" role="status"><span></span><p>Ищем историю под твой вкус…</p></div>';
+    if(ui.discoveryError)return html+'<div class="mt-journey-empty" role="status">'+escapeHtml(ui.discoveryError)+'<button class="mt-primary-btn" id="discovery-retry">Попробовать снова</button></div>';
+    if(!rec)return html+'<div class="mt-journey-empty">'+(!selection.seeds.length?'Сначала оцени или заверши хотя бы один тайтл — так мы узнаем твой вкус.':!selection.english.length?'У недавних тайтлов нет знакомых каталогу жанров. Выбери жанр выше.':'В этой подборке нет новых подходящих тайтлов. Попробуй другой жанр или настроение.')+'</div>';
+    var m=rec.media,title=m.title.english||m.title.romaji||m.title.native;
+    html+='<article class="mt-discovery-card"><div class="mt-discovery-art">'+journeyCover({coverUrl:m.coverImage&&m.coverImage.large})+'<span>НОВОЕ ДЛЯ ТЕБЯ</span></div><div class="mt-discovery-copy"><span class="mt-section-eyebrow">'+escapeHtml(m.localGenres.slice(0,2).join(' / '))+'</span><h3>'+escapeHtml(title)+'</h3><p>'+ (rec.match&&rec.match.shared.length?'Общие жанры с «'+escapeHtml(displayTitle(rec.match.seed))+'»: '+escapeHtml(rec.match.shared.join(', '))+'.':'Подходит под выбранные фильтры.')+'</p><div class="mt-discovery-actions"><button class="mt-primary-btn" id="discovery-add" data-media-id="'+m.id+'">+ В планы</button><a class="mt-ghost-btn" href="https://anilist.co/manga/'+m.id+'" target="_blank" rel="noopener noreferrer">О тайтле ↗</a></div></div></article><div class="mt-discovery-bottom"><button class="mt-ghost-btn" id="journey-surprise"'+(results.length<2?' disabled':'')+'>Другая история ↻</button><span>'+(ui.pick%results.length+1)+' / '+results.length+'</span></div><p class="mt-discovery-credit">Каталог AniList · названия могут быть на английском. Проверяем совпадения по ID и известным названиям.</p>';
+    return html;
+  }
+  function currentDuel() {
+    var ui=state.journeyUI,d=journeyData();
+    var key=JSON.stringify([ui.duelGenre,state.manhwas.map(function(m){return [m.id,m.rated,m.genres];}),d.duels.length]);
+    if(ui.pairKey!==key){ui.pair=null;ui.pairKey=key;}
+    if(!ui.pair)ui.pair=Features.duelPair(state.manhwas,d.duels,ui.duelGenre,ui.previousPair);
+    return ui.pair;
+  }
+  function nextDuel(){var ui=state.journeyUI;ui.previousPair=ui.pair?ui.pair.map(function(m){return m.id;}):[];ui.pair=null;}
+
   function renderJourney() {
-    var data=journeyData(), ui=state.journeyUI;
-    var genres=Array.from(new Set(state.manhwas.flatMap(function(m){return m.genres||[];}))).sort();
-    function options(value){return '<option value="">Все жанры</option>'+genres.map(function(g){return '<option'+(value===g?' selected':'')+'>'+escapeHtml(g)+'</option>';}).join('');}
-    var recs=Features.recommendations(state.manhwas,ui.mood,ui.genre,average), rec=recs.length?recs[ui.pick%recs.length]:null;
-    var pair=Features.duelPair(state.manhwas,data.duels,ui.duelGenre,ui.round);
-    var ranked=state.manhwas.filter(function(m){return m.rated && (!ui.duelGenre||(m.genres||[]).includes(ui.duelGenre));}).map(function(m){var games=data.duels.filter(function(d){return (d.a===m.id||d.b===m.id)&&state.manhwas.some(function(n){return n.id===(d.a===m.id?d.b:d.a);});});return {m:m,wins:games.filter(function(d){return d.winner===m.id;}).length,games:games.length};}).filter(function(r){return r.games;}).sort(function(a,b){return b.wins/b.games-a.wins/a.games || b.wins-a.wins;});
-    return '<div class="mt-journey-page"><header class="mt-journey-heading"><span class="mt-section-eyebrow">ТВОЯ СЛЕДУЮЩАЯ ИСТОРИЯ</span><h1>Для тебя<span>Читай. Чувствуй. Выбирай.</span></h1></header>'+
-      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">01 / ЧТО ЧИТАТЬ ДАЛЬШЕ</div><h2>Под настроение</h2><p>Выбираем из статуса «В планах», учитывая жанры и твои оценки.</p><div class="mt-journey-fields"><label>Настроение<select id="journey-mood" class="mt-input">'+[['','Любое'],['calm','Уют и лёгкость'],['adventure','Хочу приключений'],['dark','Что-нибудь мрачное']].map(function(o){return '<option value="'+o[0]+'"'+(ui.mood===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label><label>Жанр<select id="journey-genre" class="mt-input">'+options(ui.genre)+'</select></label></div>'+
-      (rec?'<button class="mt-journey-pick" data-open-id="'+escapeHtml(rec.title.id)+'">'+journeyCover(rec.title)+'<span><small>ТВОЙ СЛЕДУЮЩИЙ ТАЙТЛ</small><strong>'+escapeHtml(displayTitle(rec.title))+'</strong><span>'+escapeHtml(rec.reason)+'</span><b>Открыть историю ↗</b></span></button><button class="mt-ghost-btn" id="journey-surprise"'+(recs.length<2?' disabled':'')+'>Удиви меня · другой вариант</button>':'<div class="mt-journey-empty">Пока нет подходящей истории. Добавь тайтлы в планы или попробуй другие фильтры.</div>')+'</section>'+
-      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">02 / ЛИЧНЫЕ ДУЭЛИ</div><h2>Какой ближе тебе?</h2><p>Выбери любимый. Дуэли не меняют оценки тайтлов.</p><label>Турнир по жанру<select id="duel-genre" class="mt-input">'+options(ui.duelGenre)+'</select></label>'+
-      (pair?'<div class="mt-duel-pair">'+pair.map(function(m,i){return '<button class="mt-duel-card" data-duel-winner="'+escapeHtml(m.id)+'" data-duel-other="'+escapeHtml(pair[1-i].id)+'">'+journeyCover(m)+'<strong>'+escapeHtml(displayTitle(m))+'</strong><span>Выбираю этот</span></button>';}).join('')+'</div><button class="mt-ghost-btn" id="duel-skip">Пропустить пару</button>':'<div class="mt-journey-empty">'+(state.manhwas.filter(function(m){return m.rated&&(!ui.duelGenre||(m.genres||[]).includes(ui.duelGenre));}).length<2?'Нужны хотя бы два оценённых тайтла в выбранном жанре.':'Все пары сравнены. Твой выбор сохранён!')+'</div>')+
-      (data.duels.length?'<button class="mt-ghost-btn" id="duel-undo">Отменить последний выбор</button>':'')+
-      (ranked.length?'<h3>Твой топ предпочтений</h3><p class="mt-feature-hint">По доле побед; при равенстве — по числу побед. Чем больше дуэлей, тем точнее топ.</p><ol class="mt-duel-ranking">'+ranked.slice(0,10).map(function(r){return '<li><span>'+escapeHtml(displayTitle(r.m))+'</span><b>'+r.wins+' / '+r.games+' побед</b></li>';}).join('')+'</ol>':'')+'</section>'+
-      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">03 / ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section></div>';
+    var data=journeyData(),ui=state.journeyUI,pair=ui.section==='duels'?currentDuel():null;
+    var genres=Array.from(new Set(state.manhwas.filter(function(m){return m.rated;}).flatMap(function(m){return m.genres||[];}))).sort();
+    var html='<div class="mt-journey-page"><header class="mt-journey-heading"><div class="mt-journey-orbit" aria-hidden="true">✦</div><span class="mt-section-eyebrow">ТВОЁ ПРОСТРАНСТВО ЧТЕНИЯ</span><h1>За новой<br><em>историей.</em></h1><p>Открывай незнакомое. Выбирай любимое.<br>Двигайся в своём темпе.</p></header><nav class="mt-journey-nav" aria-label="Разделы для тебя">'+[['discover','01','Открытия'],['duels','02','Дуэли'],['goals','03','Мои цели']].map(function(x){return '<button data-journey-section="'+x[0]+'" aria-pressed="'+(ui.section===x[0])+'"><small>'+x[1]+'</small>'+x[2]+'</button>';}).join('')+'</nav><div class="mt-journey-stage">';
+    if(ui.section==='discover')html+='<section class="mt-journey-panel mt-discovery-panel">'+renderDiscovery()+'</section>';
+    if(ui.section==='duels'){
+      html+='<section class="mt-journey-panel mt-duel-panel"><div class="mt-section-eyebrow">ОДИН ЖАНР. ДВЕ ИСТОРИИ.</div><h2>Кого оставишь<br><em>в сердце?</em></h2><p>Случайные пары с общими жанрами. Твои оценки остаются прежними.</p><label>Жанр дуэли<select id="duel-genre" class="mt-input"><option value="">Любой общий жанр</option>'+genres.map(function(g){return '<option'+(ui.duelGenre===g?' selected':'')+'>'+escapeHtml(g)+'</option>';}).join('')+'</select></label>';
+      if(pair){
+        var shared=(pair[0].genres||[]).filter(function(g){return (pair[1].genres||[]).includes(g);});
+        html+='<div class="mt-duel-genre">'+shared.map(function(g){return '<span>'+escapeHtml(g)+'</span>';}).join('')+'</div><div class="mt-duel-pair">'+pair.map(function(m,i){return '<button class="mt-duel-card" data-duel-winner="'+escapeHtml(m.id)+'" data-duel-other="'+escapeHtml(pair[1-i].id)+'">'+journeyCover(m)+'<span class="mt-duel-choice">'+(i?'02':'01')+'</span><strong>'+escapeHtml(displayTitle(m))+'</strong><span>Этот ближе мне ↗</span></button>';}).join('')+'<span class="mt-duel-vs" aria-hidden="true">или</span></div><button class="mt-ghost-btn" id="duel-skip">Другая пара ↻</button>';
+        if(pair.some(function(m){return (ui.previousPair||[]).includes(m.id);}))html+='<p class="mt-feature-hint">'+(pair.every(function(m){return (ui.previousPair||[]).includes(m.id);})?'Другой несравнённой пары в этом жанре пока нет.':'Пары из двух новых участников пока нет: один тайтл повторяется.')+'</p>';
+      }else html+='<div class="mt-journey-empty">Нет новых пар с общими жанрами. Добавь жанры оценённым тайтлам или выбери другой жанр.</div>';
+      if(data.duels.length)html+='<div class="mt-duel-summary"><span>Сохранено выборов: <b>'+data.duels.length+'</b></span><button class="mt-ghost-btn" id="duel-undo">Отменить последний</button></div><details class="mt-duel-history"><summary>История выборов <span>Показать</span></summary><ol>'+data.duels.slice(-10).reverse().map(function(d){var winner=findManhwa(d.winner),loser=findManhwa(d.a===d.winner?d.b:d.a);return '<li><b>'+escapeHtml(winner?displayTitle(winner):'Удалённый тайтл')+'</b><span>выбран вместо «'+escapeHtml(loser?displayTitle(loser):'Удалённый тайтл')+'»</span></li>';}).join('')+'</ol><small>Последние 10 выборов</small></details>';
+      html+='</section>';
+    }
+    if(ui.section==='goals')html+=
+      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">03 / ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
+    return html+'</div></div>';
   }
   function renderChapterJournal(m) {
     var entries=Features.journal((findManhwa(m.id)||m).journal).slice().reverse();
@@ -3862,11 +3918,14 @@
   }
   function attachJourneyHandlers(selected) {
     function bind(id,event,fn){var el=document.getElementById(id);if(el)el.addEventListener(event,fn);}
-    [['journey-mood','mood'],['journey-genre','genre'],['duel-genre','duelGenre']].forEach(function(x){bind(x[0],'change',function(e){state.journeyUI[x[1]]=e.target.value;state.journeyUI.pick=0;state.journeyUI.round=0;render();});});
-    bind('journey-surprise','click',function(){var n=Features.recommendations(state.manhwas,state.journeyUI.mood,state.journeyUI.genre,average).length; if(n>1)state.journeyUI.pick=(state.journeyUI.pick+1+Math.floor(Math.random()*(n-1)))%n;render();});
-    bind('duel-skip','click',function(){state.journeyUI.round++;render();});
-    bind('duel-undo','click',function(){var d=journeyData();d.duels.pop();state.profile.journey=d;saveProfile();render();});
-    document.getElementById('app').querySelectorAll('[data-duel-winner]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),a=el.getAttribute('data-duel-winner'),b=el.getAttribute('data-duel-other');if(d.duels.some(function(x){return (x.a===a&&x.b===b)||(x.a===b&&x.b===a);}))return;d.duels.push({a:a,b:b,winner:a});state.profile.journey=d;saveProfile();render();});});
+    document.getElementById('app').querySelectorAll('[data-journey-section]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.section=el.getAttribute('data-journey-section');render();});});
+    [['journey-mood','mood'],['journey-genre','genre'],['duel-genre','duelGenre']].forEach(function(x){bind(x[0],'change',function(e){state.journeyUI[x[1]]=e.target.value;state.journeyUI.pick=0;state.journeyUI.pair=null;render();});});
+    bind('discovery-retry','click',function(){loadDiscovery(true);render();});
+    bind('journey-surprise','click',function(){var n=discoveryResults().length;if(n>1)state.journeyUI.pick=(state.journeyUI.pick+1+Math.floor(Math.random()*(n-1)))%n;render();});
+    bind('discovery-add','click',function(e){var media=(state.journeyUI.results||[]).find(function(m){return String(m.id)===e.currentTarget.getAttribute('data-media-id');});if(!media||!Features.unseenMedia([media],state.manhwas).length)return;var m=newManhwa(media.title.english||media.title.romaji||media.title.native,typeFromCountryOfOrigin(media.countryOfOrigin),media.coverImage&&media.coverImage.large);m.status='plan';m.anilistId=media.id;m.genres=media.localGenres.slice();m.altTitles={en:media.title.english||media.title.romaji||'',ja:media.countryOfOrigin==='JP'?media.title.native||'':'',ko:media.countryOfOrigin==='KR'?media.title.native||'':'',ru:''};state.manhwas.push(m);logActivity('add',m.id,displayTitle(m),{type:m.type});save();render();});
+    bind('duel-skip','click',function(){nextDuel();render();});
+    bind('duel-undo','click',function(){var d=journeyData();d.duels.pop();state.profile.journey=d;nextDuel();saveProfile();render();});
+    document.getElementById('app').querySelectorAll('[data-duel-winner]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),a=el.getAttribute('data-duel-winner'),b=el.getAttribute('data-duel-other');if(d.duels.some(function(x){return (x.a===a&&x.b===b)||(x.a===b&&x.b===a);}))return;d.duels.push({a:a,b:b,winner:a});state.profile.journey=d;nextDuel();saveProfile();render();});});
     document.getElementById('app').querySelectorAll('[data-goal-add]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),o=Features.goalOptions.find(function(o){return o.id===el.getAttribute('data-goal-add');});if(d.goals.some(function(g){return g.id===o.id;}))return;d.goals.push({id:o.id,started:Date.now(),baseline:Features.goalKeys(state.manhwas,o.metric),earned:[]});state.profile.journey=d;saveProfile();render();});});
     document.getElementById('app').querySelectorAll('[data-goal-remove]').forEach(function(el){el.addEventListener('click',function(){if(!window.confirm('Убрать цель? При повторном выборе прогресс начнётся заново.'))return;var d=journeyData();d.goals=d.goals.filter(function(g){return g.id!==el.getAttribute('data-goal-remove');});state.profile.journey=d;saveProfile();render();});});
     bind('chapter-form','submit',function(e){e.preventDefault();var m=selected&&findManhwa(selected.id),text=document.getElementById('chapter-text').value.trim(),chapter=Number(document.getElementById('chapter-number').value);if(!m||!text||!Number.isFinite(chapter)||chapter<0||chapter>1000000)return;m.journal=Features.journal(m.journal);m.journal.push({id:uid(),ts:Date.now(),chapter:chapter,text:text.slice(0,2000),spoiler:document.getElementById('chapter-spoiler').checked});m.updatedAt=Date.now();save();render();});
@@ -4227,6 +4286,8 @@
       }
       var coverVal = coverInputEl ? coverInputEl.value.trim() : "";
       var m = newManhwa(val, state.pendingType, coverVal);
+      var pickedMedia = state.aniListResults && state.aniListResults[state.aniListPickedIndex];
+      if (pickedMedia) m.anilistId = pickedMedia.id;
       if (state.pendingGenresDraft.length) m.genres = state.pendingGenresDraft.slice();
       if (state.pendingAltTitlesDraft) {
         m.altTitles.en = state.pendingAltTitlesDraft.en || "";

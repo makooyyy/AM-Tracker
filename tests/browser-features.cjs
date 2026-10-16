@@ -26,6 +26,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**/*', route => route.abort());
+    let catalogueFails=false;
+    await page.route('https://graphql.anilist.co',route=>catalogueFails?route.fulfill({status:429,body:'{}'}):route.fulfill({contentType:'application/json',body:JSON.stringify({data:{Page:{media:[
+      {id:101,title:{english:'Already saved'},synonyms:['Поднятие уровня в одиночку'],genres:['Fantasy'],countryOfOrigin:'KR'},
+      {id:102,title:{english:'A New Adventure'},synonyms:[],genres:['Fantasy','Adventure'],countryOfOrigin:'JP',averageScore:90},
+      {id:103,title:{english:'Another Story'},synonyms:[],genres:['Fantasy'],countryOfOrigin:'KR',averageScore:80}
+    ]}}})}));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForSelector('[data-tab="library"]');
     assert.equal(await page.locator('.mt-brand-mark').evaluate(img => img.complete && img.naturalWidth > 0),true);
@@ -155,22 +161,47 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.screenshot({animations:'disabled',path:path.join(root,'test-results','achievements-collection.png')});
       }
     }
-    await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.state.manhwas[1].status='plan';e2e.state.manhwas[1].genres=['Фэнтези'];e2e.render();});
+    await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.state.manhwas.forEach(m=>m.genres=['Фэнтези']);e2e.render();});
+    await page.locator('#discovery-add').waitFor();
+    assert.equal(await page.locator('.mt-discovery-card h3').innerText(),'A New Adventure');
+    assert.equal(await page.locator('.mt-discovery-card').innerText().then(t=>t.includes('Already saved')),false);
+    await page.locator('[data-journey-section="goals"]').click();
     await page.locator('[data-goal-add="notes10"]').click();
     assert.equal(await page.locator('.mt-goal-count').innerText(),'0 / 10');
+    await page.locator('[data-journey-section="duels"]').click();
+    const pairBefore=await page.locator('[data-duel-winner]').evaluateAll(els=>els.map(e=>e.dataset.duelWinner));
     await page.locator('[data-duel-winner]').first().click();
-    assert.equal(await page.locator('.mt-duel-ranking li').count(),2);
+    const pairAfter=await page.locator('[data-duel-winner]').evaluateAll(els=>els.map(e=>e.dataset.duelWinner));
+    assert.equal(pairAfter.some(id=>pairBefore.includes(id)),false,'both participants change');
+    assert.equal(await page.locator('.mt-duel-history').getAttribute('open'),null);
+    assert.equal(await page.locator('.mt-duel-ranking').count(),0);
+    await page.locator('.mt-duel-history summary').click();
+    assert.equal(await page.locator('.mt-duel-history li').count(),1);
     await page.locator('#duel-undo').click();
-    assert.equal(await page.locator('.mt-duel-ranking li').count(),0);
+    assert.equal(await page.locator('.mt-duel-history').count(),0);
+    await page.locator('[data-journey-section="discover"]').click();
     await page.locator('#journey-mood').selectOption('adventure');
-    assert.equal(await page.locator('.mt-journey-pick').count(),1);
-    for(const width of [320,390,1280]) {
-      await page.setViewportSize({width,height:844});
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth),true,'journey overflow '+width);
+    await page.locator('#discovery-add').waitFor();
+    for(const section of ['discover','duels','goals']) {
+      await page.locator('[data-journey-section="'+section+'"]').click();
+      for(const width of [320,390,1280]) {
+        await page.setViewportSize({width,height:844});
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth),true,section+' overflow '+width);
+      }
+      await page.setViewportSize({width:390,height:844});
+      await page.screenshot({animations:'disabled',path:path.join(root,'test-results','journey-'+section+'.png'),fullPage:true});
     }
-    await page.setViewportSize({width:390,height:844});
-    await page.screenshot({path:path.join(root,'test-results','journey.png'),fullPage:true});
-    await page.locator('.mt-journey-pick').click();
+    await page.locator('[data-journey-section="discover"]').click();
+    await page.locator('#discovery-add').click();
+    assert.equal(await page.evaluate(()=>e2e.state.manhwas.filter(m=>m.anilistId===102&&m.status==='plan').length),1);
+    assert.equal(await page.locator('.mt-discovery-card h3').innerText(),'Another Story');
+    catalogueFails=true;
+    await page.locator('#journey-mood').selectOption('calm');
+    await page.locator('#discovery-retry').waitFor();
+    catalogueFails=false;
+    await page.locator('#journey-mood').selectOption('adventure');
+    await page.locator('#discovery-add').waitFor();
+    await page.evaluate(()=>e2e.openTitle('sample'));
     await page.locator('#chapter-number').fill('74.5');
     await page.locator('#chapter-text').fill('Неожиданный поворот <script>');
     await page.locator('#chapter-spoiler').check();
@@ -179,11 +210,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.locator('.mt-journal-list details').getAttribute('open'),null);
     await page.locator('.mt-journal-list summary').click();
     assert.equal(await page.locator('.mt-journal-list p').innerText(),'Неожиданный поворот <script>');
-    await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.render();});
+    await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.state.journeyUI.section='goals';e2e.render();});
     assert.equal(await page.locator('.mt-goal-count').innerText(),'1 / 10');
     await page.reload();
     await page.waitForSelector('[data-tab="journey"]');
     await page.locator('[data-tab="journey"]').click();
+    await page.locator('[data-journey-section="goals"]').click();
     assert.equal(await page.locator('.mt-goal-count').innerText(),'1 / 10','goal survives reload');
     assert.equal(await page.evaluate(() => e2e.state.manhwas.reduce((n,m)=>n+(m.journal||[]).length,0)),1,'journal survives reload');
     await page.evaluate(() => {e2e.state.revealManhwaId='sample';e2e.render();});
