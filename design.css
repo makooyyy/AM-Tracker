@@ -492,3 +492,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @keyframes journeySpin {to{transform:rotate(360deg)}}
 @media(max-width:599px){.mt-discovery-card{grid-template-columns:90px minmax(0,1fr);gap:16px;padding:14px;align-items:start;}.mt-discovery-copy h3{font-size:23px;margin:10px 0;}.mt-discovery-copy .mt-section-eyebrow{font-size:8px;}.mt-discovery-copy p{font-size:10px;}.mt-discovery-actions{grid-column:1/-1;}.mt-discovery-actions>*{padding:10px;font-size:10px;}.mt-duel-pair{gap:12px;}.mt-duel-card strong{font-size:12px;}.mt-journey-nav button{font-size:11px;gap:5px;}.mt-journey-orbit{font-size:80px;right:4px;top:60px;}}
 @media(prefers-reduced-motion:reduce){.mt-journey-page *,.mt-journey-page *:before{animation:none!important;transition:none!important;}}
+/* Discovery: consistent reading scale and full-width actions. */
+.mt-discovery-panel {font-family:Manrope,sans-serif;}
+.mt-discovery-panel .mt-discovery-intro h2 {font:700 28px/1.22 Manrope,sans-serif;letter-spacing:-.8px;}
+.mt-discovery-panel .mt-discovery-intro h2 em {font-style:normal;}
+.mt-discovery-panel .mt-section-eyebrow {font-size:11px;line-height:1.5;letter-spacing:1px;}
+.mt-discovery-panel p,.mt-discovery-panel label,.mt-discovery-types legend {font-size:13px;line-height:1.65;}
+.mt-discovery-panel .mt-reading-seeds>span,.mt-discovery-panel .mt-reading-seeds>div>span {font-size:12px;line-height:1.5;}
+.mt-discovery-types {padding:0;margin:24px 0 20px;border:0;min-width:0;}
+.mt-discovery-types legend {color:#cbbfd6;margin-bottom:10px;}
+.mt-discovery-types>div {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:5px;background:#151219;border:1px solid #ffffff12;border-radius:14px;}
+.mt-discovery-types button {min-height:42px;min-width:0;border:0;border-radius:10px;background:transparent;color:#afa0bc;font:600 12px Manrope,sans-serif;cursor:pointer;padding:7px 2px;transition:background .2s,color .2s;}
+.mt-discovery-types button[aria-pressed=true] {background:#d9c3ee;color:#2c1d3a;box-shadow:0 2px 8px #0003;}
+.mt-discovery-panel .mt-journey-fields {gap:12px;}
+.mt-discovery-panel .mt-input {font:500 13px/1.5 Manrope,sans-serif;min-height:46px;padding:12px 9px;}
+.mt-discovery-panel .mt-discovery-card {grid-template-columns:110px minmax(0,1fr);gap:18px;padding:18px;align-items:start;}
+.mt-discovery-panel .mt-discovery-copy h3 {font:700 21px/1.35 Manrope,sans-serif;letter-spacing:-.4px;margin:10px 0 12px;}
+.mt-discovery-panel .mt-discovery-copy p {font-size:13px;line-height:1.65;margin:0;color:#c3b6ce;}
+.mt-discovery-panel .mt-discovery-copy .mt-section-eyebrow {font-size:11px;letter-spacing:.4px;text-transform:none;}
+.mt-discovery-panel .mt-discovery-art>span:last-child {font:600 9px/1.4 Manrope,sans-serif;letter-spacing:0;bottom:8px;padding:6px 2px;}
+.mt-discovery-panel .mt-discovery-actions {grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid #ffffff12;padding-top:16px;margin:0;}
+.mt-discovery-panel .mt-discovery-actions>* {display:flex;align-items:center;justify-content:center;min-height:46px;box-sizing:border-box;margin:0;padding:12px 8px;font:700 13px/1.4 Manrope,sans-serif;border-radius:12px;}
+.mt-discovery-panel .mt-discovery-bottom {padding-top:2px;}
+.mt-discovery-panel .mt-discovery-bottom button {min-height:44px;font:600 13px/1.4 Manrope,sans-serif;border-radius:12px;}
+.mt-discovery-panel .mt-discovery-bottom>span {font:500 12px Manrope,sans-serif;}
+.mt-discovery-panel .mt-discovery-credit {font-size:11px;line-height:1.7;color:#a393ae;}
+@media(max-width:399px){.mt-discovery-panel .mt-discovery-card{grid-template-columns:82px minmax(0,1fr);gap:14px;padding:14px;}.mt-discovery-panel .mt-discovery-copy h3{font-size:19px;}.mt-discovery-panel .mt-discovery-intro h2{font-size:26px;}.mt-discovery-types button{font-size:11px;}}
+@media(prefers-reduced-motion:reduce){.mt-discovery-types button{transition:none;}}

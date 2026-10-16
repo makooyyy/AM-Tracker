@@ -30,7 +30,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.route('https://graphql.anilist.co',route=>catalogueFails?route.fulfill({status:429,body:'{}'}):route.fulfill({contentType:'application/json',body:JSON.stringify({data:{Page:{media:[
       {id:101,title:{english:'Already saved'},synonyms:['Поднятие уровня в одиночку'],genres:['Fantasy'],countryOfOrigin:'KR'},
       {id:102,title:{english:'A New Adventure'},synonyms:[],genres:['Fantasy','Adventure'],countryOfOrigin:'JP',averageScore:90},
-      {id:103,title:{english:'Another Story'},synonyms:[],genres:['Fantasy'],countryOfOrigin:'KR',averageScore:80}
+      {id:103,title:{english:'Another Story'},synonyms:[],genres:['Fantasy'],countryOfOrigin:'KR',averageScore:80},
+      {id:104,title:{english:'A Very Long Title: The Beginning of Another Extraordinary Adventure'},synonyms:[],genres:['Fantasy'],countryOfOrigin:'CN',averageScore:70}
     ]}}})}));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForSelector('[data-tab="library"]');
@@ -165,6 +166,23 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('#discovery-add').waitFor();
     assert.equal(await page.locator('.mt-discovery-card h3').innerText(),'A New Adventure');
     assert.equal(await page.locator('.mt-discovery-card').innerText().then(t=>t.includes('Already saved')),false);
+    for(const [type,country,title] of [['manhwa','KR','Another Story'],['manhua','CN','A Very Long Title: The Beginning of Another Extraordinary Adventure'],['manga','JP','A New Adventure']]) {
+      const request=page.waitForRequest(r=>r.url().startsWith('https://graphql.anilist.co')&&r.method()==='POST'&&r.postDataJSON().variables.country===country);
+      await page.locator('[data-discovery-type="'+type+'"]').click();
+      await request;
+      await page.locator('#discovery-add').waitFor();
+      assert.equal(await page.locator('.mt-discovery-card h3').innerText(),title);
+      assert.equal(await page.locator('[data-discovery-type="'+type+'"]').getAttribute('aria-pressed'),'true');
+      for(const width of [320,390,1280]){
+        await page.setViewportSize({width,height:844});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'discovery type overflow '+width);
+        assert.equal(await page.locator('.mt-discovery-actions').evaluate(el=>el.getBoundingClientRect().top>=el.parentElement.querySelector('.mt-discovery-copy').getBoundingClientRect().bottom),true,'buttons below description');
+      }
+      await page.setViewportSize({width:390,height:844});
+      if(type==='manhua')await page.screenshot({animations:'disabled',fullPage:true,path:path.join(root,'test-results','discovery-type-long-title.png')});
+    }
+    await page.locator('[data-discovery-type=""]').click();
+    await page.locator('#discovery-add').waitFor();
     await page.locator('[data-journey-section="goals"]').click();
     await page.locator('[data-goal-add="notes10"]').click();
     assert.equal(await page.locator('.mt-goal-count').innerText(),'0 / 10');
