@@ -303,3 +303,37 @@ test('40 new achievements use consistent metrics and award XP only once', async 
   assert.ok(a.state.unlockedAchievements.journey_rerated_1);
   await a.flush();
 });
+
+const J = require('../features.js');
+test('reading recommendations respect plans, mood and genre and use personal ratings', () => {
+  const list=[{id:'rated',rated:true,criteria:[],genres:['Фэнтези']},{id:'a',status:'plan',genres:['Фэнтези']},{id:'b',status:'plan',genres:['Комедия']},{id:'c',status:'done',genres:['Фэнтези']}];
+  assert.deepEqual(J.recommendations(list,'adventure','',()=>90).map(r=>r.title.id),['a']);
+  assert.deepEqual(J.recommendations(list,'adventure','Комедия',()=>90),[]);
+  assert.equal(J.recommendations(list,'','',()=>90)[0].title.id,'a');
+});
+test('duels avoid repeats in either direction, filter by genre and handle exhausted pools',()=>{
+  const list=[{id:'a',rated:true,genres:['Драма']},{id:'b',rated:true,genres:['Драма']},{id:'c',rated:false}];
+  assert.equal(J.duelPair(list,[],'Драма',0).length,2);
+  assert.equal(J.duelPair(list,[{a:'b',b:'a',winner:'b'}],'',0),null);
+  assert.equal(J.duelPair(list,[],'Комедия',0),null);
+});
+test('journal validation and goal snapshots exclude existing results and duplicate genres',()=>{
+  assert.deepEqual(J.journal([null,{id:'x',text:'x',chapter:-1,ts:1}]),[]);
+  const list=[{id:'a',status:'done',rated:true,genres:['Драма','Драма'],journal:[{id:'n',text:'note',chapter:1,ts:1}]}];
+  assert.deepEqual(J.goalKeys(list,'done'),['a']);
+  assert.deepEqual(J.goalKeys(list,'genres'),['Драма']);
+  assert.deepEqual(J.goalKeys(list,'journal'),['a:n']);
+  assert.deepEqual(J.cleanJourney({goals:[{id:'bad',started:1}],duels:[{a:'a',b:'a',winner:'a'}]}),{goals:[],duels:[]});
+});
+
+test('chosen goals count only new results, persist progress and survive backup sanitization', async()=>{
+  const {api,saved}=harness();const m=addRated(api);m.status='reading';
+  api.state.profile.journey={goals:[{id:'finish3',started:Date.now(),baseline:[],earned:[]}],duels:[{a:m.id,b:'other',winner:m.id}]};
+  m.status='done';api.save();await api.flush();
+  assert.equal(api.state.profile.journey.goals[0].earned.length,1);
+  api.save();await api.flush();assert.equal(api.state.profile.journey.goals[0].earned.length,1);
+  api.state.manhwas=[];api.save();await api.flush();assert.equal(api.state.profile.journey.goals[0].earned.length,1);
+  const stored=JSON.parse(saved.get(api.keys.profile));assert.equal(stored.journey.goals[0].earned.length,1);
+  const clean=api.sanitizeImportedManhwa({...m,journal:[{id:'note',ts:1,chapter:74,text:'Текст',spoiler:true}]},{});
+  assert.equal(clean.journal[0].chapter,74);
+});

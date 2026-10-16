@@ -345,3 +345,63 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
  .mt-achievement-grid { gap:9px; }
  .mt-achievement-card h3 { font-size:13px; }
 }
+/* Reading studio */
+.mt-journey-page {max-width:960px;margin:auto;padding:28px 0 40px;}
+.mt-journey-heading {padding:12px 4px 32px;}
+.mt-journey-heading h1 {font:500 clamp(38px,7vw,68px)/1.05 Georgia,serif;margin:16px 0;letter-spacing:-2px;}
+.mt-journey-heading h1 span {display:block;font:400 14px/1.6 Manrope,sans-serif;letter-spacing:0;color:#aaa2b7;margin-top:16px;}
+.mt-journey-panel {padding:clamp(18px,4vw,32px);margin:0 0 22px;border:1px solid #c5b4e824;border-radius:26px;background:linear-gradient(145deg,#292331,#1b1920);min-width:0;}
+.mt-journey-panel h2 {font:500 clamp(25px,5vw,36px)/1.15 Georgia,serif;margin:14px 0;overflow-wrap:anywhere;}
+.mt-journey-panel p {color:#b4adbf;font-size:13px;line-height:1.7;}
+.mt-journey-panel label {display:block;font-size:12px;color:#cdc5d9;}
+.mt-journey-panel .mt-input {display:block;width:100%;box-sizing:border-box;margin:8px 0 16px;}
+.mt-journey-fields,.mt-goal-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.mt-journey-pick {display:flex;gap:20px;width:100%;text-align:left;border:0;background:#d4c4ed;color:#251d32;border-radius:18px;padding:20px;margin:8px 0 12px;align-items:center;}
+.mt-journey-pick>img,.mt-journey-pick>.mt-journey-placeholder {width:95px;aspect-ratio:2/3;object-fit:cover;flex-shrink:0;border-radius:9px;box-shadow:0 12px 25px #21143133;}
+.mt-journey-pick>span:last-child {min-width:0;display:grid;gap:12px;font-size:12px;}
+.mt-journey-pick strong {font:500 24px/1.15 Georgia,serif;overflow-wrap:anywhere;}
+.mt-journey-pick small {font-size:9px;letter-spacing:1px;}
+.mt-journey-placeholder {display:grid;place-items:center;background:linear-gradient(145deg,#67567e,#292032);color:#e5d5ff;font:32px Georgia,serif;}
+.mt-duel-pair {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0 8px;}
+.mt-duel-card {display:flex;flex-direction:column;gap:12px;min-width:0;border:1px solid #ffffff19;border-radius:16px;background:#ffffff06;padding:10px;color:#eee8f6;text-align:left;transition:transform .2s,border-color .2s;}
+.mt-duel-card:hover {transform:translateY(-3px);border-color:#c6a9f2;}
+.mt-duel-card img,.mt-duel-card>.mt-journey-placeholder {width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;}
+.mt-duel-card strong {font-size:14px;overflow-wrap:anywhere;flex:1;}
+.mt-duel-card>span:last-child {font-size:11px;color:#cdb5f0;padding-bottom:5px;}
+.mt-duel-ranking {padding-left:22px;}
+.mt-duel-ranking li {padding:12px 0;border-bottom:1px solid #ffffff12;font-size:13px;}
+.mt-duel-ranking li span {overflow-wrap:anywhere;}
+.mt-duel-ranking b {display:block;font-size:11px;color:#baa6d8;margin-top:5px;}
+.mt-goal-card {border:1px solid #ffffff18;border-radius:18px;padding:20px;display:flex;flex-direction:column;min-width:0;}
+.mt-goal-card.selected {background:#c5a4f40b;border-color:#b592e755;}
+.mt-goal-card h3 {font:500 23px/1.2 Georgia,serif;margin:14px 0 0;}
+.mt-goal-card p {flex:1;}
+.mt-goal-count {font-size:32px;font-weight:800;}.mt-goal-count span {font-size:15px;color:#aaa0b9;}
+.mt-goal-card progress {width:100%;height:7px;accent-color:#c4a5ef;border:0;border-radius:9px;margin:14px 0;background:#ffffff14;}
+.mt-goal-card progress::-webkit-progress-bar {background:#ffffff14;border-radius:9px;}.mt-goal-card progress::-webkit-progress-value {background:#c4a5ef;border-radius:9px;}
+.mt-journey-empty {padding:28px 18px;border:1px dashed #bfa7e03d;border-radius:16px;color:#b6acbf;font-size:13px;line-height:1.7;margin:18px 0;}
+.mt-chapter-journal textarea {min-height:110px;resize:vertical;}
+.mt-chapter-journal .mt-spoiler-check {display:flex;align-items:center;gap:10px;margin:10px 0 20px;}
+.mt-journal-list article {border-top:1px solid #ffffff16;margin-top:24px;padding-top:20px;}
+.mt-journal-list header {display:flex;justify-content:space-between;gap:12px;font-size:12px;}
+.mt-journal-list time {color:#a69bb3;font-size:11px;}
+.mt-journal-list p {white-space:pre-wrap;overflow-wrap:anywhere;color:#e0d7e9;}
+.mt-journal-list details {margin-top:14px;background:#ffffff05;padding:14px;border-radius:12px;font-size:12px;}
+.mt-journal-list summary {cursor:pointer;color:#c7b1e5;}
+.mt-reveal-card {position:relative;background:radial-gradient(ellipse at 50% 0,#554362 0,transparent 60%),#211b29;border:1px solid #d8c2f33b;border-radius:26px;padding:26px;max-height:88dvh;overflow:auto;width:min(420px,calc(100vw - 32px));box-sizing:border-box;box-shadow:0 30px 100px #0009;}
+.mt-reveal-edition {display:flex;justify-content:space-between;gap:16px;font:8px/1.7 'Space Mono',monospace;letter-spacing:1px;color:#cdb5e1;border-bottom:1px solid #ffffff20;padding-bottom:18px;margin-bottom:22px;}
+.mt-reveal-cover {width:120px;height:170px;margin:0 auto 18px;border-radius:8px;transform:rotate(-3deg);box-shadow:12px 16px 32px #0006;overflow:hidden;}
+.mt-reveal-cover-img {width:100%;height:100%;object-fit:cover;}
+.mt-reveal-title {font:500 28px/1.15 Georgia,serif;text-align:center;overflow-wrap:anywhere;}
+.mt-reveal-stamp {position:static;transform:none!important;display:block;border:0!important;width:auto;height:auto;line-height:1;font:500 80px/1.1 Georgia,serif;margin:15px auto 0;text-align:center;background:none;}
+.mt-reveal-caption {text-align:center;font-size:11px;color:#b4a5c3;margin-bottom:20px;}
+.mt-reveal-criteria {display:grid;gap:10px;padding:18px 0;border-block:1px solid #ffffff18;}
+.mt-reveal-criteria>div {display:flex;justify-content:space-between;gap:14px;font-size:12px;}.mt-reveal-criteria span {overflow-wrap:anywhere;}.mt-reveal-criteria b {color:#d2b6f1;flex-shrink:0;}
+.mt-reveal-notes {font-size:12px;line-height:1.7;overflow-wrap:anywhere;}
+@media(max-width:599px){.mt-tab-label{font-size:9px;}.mt-tab-v2{min-width:0;padding-left:2px;padding-right:2px;}.mt-goal-grid{grid-template-columns:1fr;}.mt-journey-pick{gap:12px;padding:14px;}.mt-journey-pick>img,.mt-journey-pick>.mt-journey-placeholder{width:70px;}.mt-journey-pick strong{font-size:20px;}}
+@media(prefers-reduced-motion:reduce){.mt-duel-card{transition:none;}}
+.mt-reveal-card {display:block;max-width:420px;}
+.mt-reveal-stamp {box-shadow:none;border-radius:0;color:#d7c1ef;}
+.mt-reveal-criteria {width:100%;text-align:left;}
+.mt-reveal-notes {box-sizing:border-box;}
+.mt-reveal-cover-fallback {color:#cbb6df;font:52px Georgia,serif;}

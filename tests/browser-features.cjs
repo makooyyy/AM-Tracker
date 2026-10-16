@@ -155,6 +155,40 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.screenshot({animations:'disabled',path:path.join(root,'test-results','achievements-collection.png')});
       }
     }
+    await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.state.manhwas[1].status='plan';e2e.state.manhwas[1].genres=['Фэнтези'];e2e.render();});
+    await page.locator('[data-goal-add="notes10"]').click();
+    assert.equal(await page.locator('.mt-goal-count').innerText(),'0 / 10');
+    await page.locator('[data-duel-winner]').first().click();
+    assert.equal(await page.locator('.mt-duel-ranking li').count(),2);
+    await page.locator('#duel-undo').click();
+    assert.equal(await page.locator('.mt-duel-ranking li').count(),0);
+    await page.locator('#journey-mood').selectOption('adventure');
+    assert.equal(await page.locator('.mt-journey-pick').count(),1);
+    for(const width of [320,390,1280]) {
+      await page.setViewportSize({width,height:844});
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth),true,'journey overflow '+width);
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({path:path.join(root,'test-results','journey.png'),fullPage:true});
+    await page.locator('.mt-journey-pick').click();
+    await page.locator('#chapter-number').fill('74.5');
+    await page.locator('#chapter-text').fill('Неожиданный поворот <script>');
+    await page.locator('#chapter-spoiler').check();
+    await page.locator('#chapter-form button').click();
+    assert.equal(await page.locator('.mt-journal-list details').count(),1);
+    assert.equal(await page.locator('.mt-journal-list details').getAttribute('open'),null);
+    await page.locator('.mt-journal-list summary').click();
+    assert.equal(await page.locator('.mt-journal-list p').innerText(),'Неожиданный поворот <script>');
+    await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.render();});
+    assert.equal(await page.locator('.mt-goal-count').innerText(),'1 / 10');
+    await page.reload();
+    await page.waitForSelector('[data-tab="journey"]');
+    await page.locator('[data-tab="journey"]').click();
+    assert.equal(await page.locator('.mt-goal-count').innerText(),'1 / 10','goal survives reload');
+    assert.equal(await page.evaluate(() => e2e.state.manhwas.reduce((n,m)=>n+(m.journal||[]).length,0)),1,'journal survives reload');
+    await page.evaluate(() => {e2e.state.revealManhwaId='sample';e2e.render();});
+    await page.locator('.mt-reveal-card').waitFor({state:'visible'}); await page.screenshot({animations:'disabled',path:path.join(root,'test-results','reveal-new.png')});
+    assert.equal(await page.locator('.mt-reveal-criteria>div').count(),5);
     assert.deepEqual(errors,[]);
     console.log('PASS: reading shelf, rating comparison, 320/390/1280px layout, PNG download, monthly award preview; no page errors');
   } finally {
@@ -162,3 +196,4 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await new Promise(resolve => server.close(resolve));
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
+

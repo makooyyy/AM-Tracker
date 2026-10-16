@@ -86,8 +86,8 @@
     }));
   }
 
-  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null }); }
-  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a); }
+  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null, journey: (p && p.journey) || null }); }
+  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length))); }
 
   function isEmptyAwards(a) {
     return !a || (!Object.keys(a.w || {}).length && !Object.keys(a.c || {}).length && !Object.keys(a.e || {}).length);

@@ -176,7 +176,38 @@
     Object.keys(categories).forEach(function (c) { var rows = rank(categories[c]); categoryLeaders[c] = rows.filter(function (r) { return r.place === 1; }); });
     return {ranking:leaders, leaders:leaders.filter(function (r) { return r.place === 1; }), categories:categoryLeaders, months:months, awardCount:count};
   }
-  var api = { annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var goalOptions = [
+    {id:'finish3',name:'Три истории до финала',text:'Заверши 3 тайтла',metric:'done',target:3},
+    {id:'finish12',name:'Большое путешествие',text:'Заверши 12 тайтлов',metric:'done',target:12},
+    {id:'notes10',name:'Летописец',text:'Сделай 10 записей по главам',metric:'journal',target:10},
+    {id:'reviews5',name:'Своё мнение',text:'Напиши рецензии к 5 тайтлам',metric:'reviews',target:5},
+    {id:'genres3',name:'За пределами привычного',text:'Оцени тайтлы 3 новых для тебя жанров',metric:'genres',target:3}
+  ];
+  function journal(raw) {
+    return (Array.isArray(raw) ? raw : []).filter(function(e) { return e && typeof e.id==='string' && typeof e.text==='string' && e.text.trim() && Number.isFinite(e.ts) && Number.isFinite(e.chapter) && e.chapter>=0; }).slice(-1000).map(function(e) { return {id:e.id, text:e.text.slice(0,2000), chapter:e.chapter, ts:e.ts, spoiler:!!e.spoiler}; });
+  }
+  function goalKeys(list, metric) {
+    if(metric==='journal') return list.flatMap(function(m){ return journal(m.journal).map(function(e){return m.id+':'+e.id;}); });
+    if(metric==='genres') return Array.from(new Set(list.filter(function(m){return m.rated;}).flatMap(function(m){return m.genres||[];})));
+    return list.filter(function(m){return metric==='done' ? m.status==='done' : m.rated && String(m.notes||'').trim();}).map(function(m){return m.id;});
+  }
+  function cleanJourney(raw) {
+    raw = raw && typeof raw==='object' ? raw : {};
+    return {goals:(Array.isArray(raw.goals)?raw.goals:[]).filter(function(g){return g && goalOptions.some(function(o){return o.id===g.id;}) && Number.isFinite(g.started);}).slice(0,5).map(function(g){return {id:g.id,started:g.started,baseline:Array.isArray(g.baseline)?g.baseline.filter(function(s){return typeof s==='string';}):[],earned:Array.isArray(g.earned)?g.earned.filter(function(s){return typeof s==='string';}):[]};}),
+      duels:(Array.isArray(raw.duels)?raw.duels:[]).filter(function(d){return d && typeof d.a==='string' && typeof d.b==='string' && d.a!==d.b && (d.winner===d.a||d.winner===d.b);}).slice(-2000).map(function(d){return {a:d.a,b:d.b,winner:d.winner};})};
+  }
+  function recommendations(list, mood, genre, average) {
+    var moods={calm:['Повседневность','Романтика','Комедия'],adventure:['Фэнтези','Приключения','Экшн'],dark:['Ужасы','Триллер','Психология','Драма']}, affinity={};
+    list.filter(function(m){return m.rated;}).forEach(function(m){(m.genres||[]).forEach(function(g){affinity[g]=(affinity[g]||0)+(average(m.criteria)||0)/100;});});
+    return list.filter(function(m){return m.status==='plan' && (!genre || (m.genres||[]).includes(genre)) && (!mood || (m.genres||[]).some(function(g){return (moods[mood]||[]).includes(g);}));}).map(function(m){var best=(m.genres||[]).slice().sort(function(a,b){return (affinity[b]||0)-(affinity[a]||0);})[0];return {title:m,score:affinity[best]||0,reason:affinity[best]>0?'В твоих оценках выделяется жанр «'+best+'»':mood?'Подходит под выбранное настроение':'Из твоих планов на чтение'};}).sort(function(a,b){return b.score-a.score || String(a.title.id).localeCompare(String(b.title.id));});
+  }
+  function duelPair(list, history, genre, offset) {
+    var pool=list.filter(function(m){return m.rated && (!genre||(m.genres||[]).includes(genre));}), pairs=[];
+    for(var i=0;i<pool.length;i++) for(var j=i+1;j<pool.length;j++) {var a=pool[i],b=pool[j];if(!history.some(function(d){return (d.a===a.id&&d.b===b.id)||(d.a===b.id&&d.b===a.id);})) pairs.push([a,b]);}
+    return pairs.length ? pairs[(offset||0)%pairs.length] : null;
+  }
+
+  var api = {goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney, recommendations:recommendations, duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;
