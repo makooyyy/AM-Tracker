@@ -42,7 +42,7 @@ function harness(saved = new Map()) {
   let source = fs.readFileSync('app.js','utf8');
   source = source.slice(0, source.indexOf('  /* ---------- boot ---------- */')) + `
     idbAvailable = false;
-    window.testApi = { bridge: window.AMApp, saveProfile, loadProfile, buyShopItem, equipShopItem, activeStyle, loadShop, saveShop, logActivity, state, newManhwa, beginRerating, editableManhwa, commitRerating,
+    window.testApi = { escapeHtml, sanitizeImportedActivityLog, bridge: window.AMApp, saveProfile, loadProfile, buyShopItem, equipShopItem, activeStyle, loadShop, saveShop, logActivity, state, newManhwa, beginRerating, editableManhwa, commitRerating,
       cancelRerating, saveRatingDrafts, loadRatingDrafts, save, goBack, render,
       renderLibrary, renderProfile, aggregateCriteria, sortedManhwas, ratedScore,
       sanitizeImportedManhwa,
@@ -428,4 +428,37 @@ test('cloud roundtrip preserves bought items, equipped style and spent balance',
   assert.equal(J.coinBalance(b.api.state.totalXp,b.api.state.shop),530);
   assert.equal(b.api.activeStyle().theme,'theme-ocean');assert.equal(b.api.activeStyle().frame,'frame-frost');
   assert.equal(Object.keys(b.api.state.shop).length,2);
+});
+test('user text is safe in quoted HTML attributes',()=>{
+  const {api}=harness();
+  assert.equal(api.escapeHtml('Title "quoted" & <tag>'), 'Title &quot;quoted&quot; &amp; &lt;tag&gt;');
+});
+test('invalid dates in imported activity do not reach cloud month grouping',async()=>{
+  const {api}=harness();
+  api.state.activityLog=api.sanitizeImportedActivityLog([{ts:1e100,type:'add'},{ts:100,type:'add'}]);
+  assert.equal(api.state.activityLog.length,1);
+  const cloud=syncHarness();await cloud.engine(api).sync();
+  assert.ok(cloud.docs.has('log:1970-01'));
+});
+test('account wipe discards pending recommendations and previous reader context',()=>{
+  const {api}=harness();let aborted=false;
+  api.state.journeyUI.results=[{id:123}];
+  api.state.journeyUI.discoveryAbort={abort(){aborted=true;}};
+  api.state.journeyUI.discoveryKey='previous-user';
+  api.bridge.wipeLocal();
+  assert.equal(aborted,true);
+  assert.equal(api.state.journeyUI.results.length,0);
+  assert.equal(api.state.journeyUI.discoveryKey,undefined);
+});
+test('cloud rejects non-finite XP and invalid activity timestamps',async()=>{
+ const cloud=syncHarness(),h=harness();
+ cloud.docs.set('progress',{kind:'progress',id:'',json:'{"x":1e999,"a":{},"shop":{}}',epoch:0,updatedAt:10});
+ cloud.docs.set('log:1970-01',{kind:'log',id:'1970-01',json:JSON.stringify([{ts:1e100,type:'add'},{ts:100,type:'add'}]),epoch:0,updatedAt:10});
+ await cloud.engine(h.api).sync();
+ assert.equal(h.api.state.totalXp,0);
+ assert.equal(h.api.state.activityLog.length,1);
+});
+test('shop catalog references existing assets and unique valid items',()=>{
+ assert.equal(new Set(J.shopItems.map(x=>x.id)).size,J.shopItems.length);
+ for(const item of J.shopItems){assert.ok(item.price>0&&Number.isInteger(item.price));assert.ok(J.shopRarities[item.rarity]);if(item.image)assert.ok(fs.existsSync(item.image),item.image);}
 });

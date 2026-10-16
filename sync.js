@@ -68,7 +68,7 @@
   function canonProgress(p) { return stable({ x: (p && p.x) || 0, a: (p && p.a) || {}, shop: (p && p.shop) || {} }); }
 
   function logKey(e) { return e.ts + "|" + e.type + "|" + (e.manhwaId == null ? "" : e.manhwaId); }
-  function validLogEntry(e) { return isObj(e) && typeof e.ts === "number" && isFinite(e.ts) && typeof e.type === "string"; }
+  function validLogEntry(e) { return isObj(e) && typeof e.ts === "number" && isFinite(new Date(e.ts).getTime()) && typeof e.type === "string"; }
   function monthOf(ts) { return new Date(ts).toISOString().slice(0, 7); }
 
   function groupLog(list) {
@@ -285,7 +285,8 @@
       if (!d) return null;
       try {
         var o = JSON.parse(d.json);
-        return { x: Number(o.x) > 0 ? Number(o.x) : 0, a: isObj(o.a) ? o.a : {}, shop: host.cleanShop ? host.cleanShop(o.shop,Number(o.x)||0) : {} };
+        var xp = Number.isFinite(Number(o.x)) && Number(o.x) > 0 ? Math.floor(Number(o.x)) : 0;
+        return { x: xp, a: isObj(o.a) ? o.a : {}, shop: host.cleanShop ? host.cleanShop(o.shop,xp) : {} };
       } catch (e) { return null; }
     }
 

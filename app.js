@@ -702,7 +702,7 @@
   function escapeHtml(s) {
     var div = document.createElement("div");
     div.textContent = s == null ? "" : String(s);
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   // Scoring formula: plain average of the 5 default criteria (equal weight,
@@ -1019,7 +1019,9 @@
   // one instead of the app guessing from a single top result.
   // "type: MANGA" already covers manhwa/manhua too — AniList only splits
   // ANIME vs MANGA; manhwa/manhua are told apart by countryOfOrigin, not type.
+  var aniListRequestId = 0;
   function searchAniList(query) {
+    var requestId = ++aniListRequestId;
     state.aniListSearching = true;
     state.aniListError = null;
     state.aniListResults = null;
@@ -1043,6 +1045,7 @@
           });
       })
       .then(function (data) {
+        if(requestId !== aniListRequestId || !state.addingManhwa)return;
         if (!data) throw new Error("AniList прислал пустой/некорректный ответ");
         if (data.errors && data.errors.length) throw new Error(data.errors[0].message || "ошибка AniList");
         var page = data.data && data.data.Page;
@@ -1051,6 +1054,7 @@
         render();
       })
       .catch(function (err) {
+        if(requestId !== aniListRequestId || !state.addingManhwa)return;
         console.error("AniList search failed:", err);
         state.aniListSearching = false;
         state.aniListError = (err && err.message) ? err.message : "Не удалось найти на AniList — проверь соединение с интернетом.";
@@ -1447,7 +1451,7 @@
 
   function sanitizeImportedActivityLog(list) {
     var out = list.filter(function (e) {
-      return isPlainObject(e) && typeof e.ts === "number" && isFinite(e.ts) && typeof e.type === "string";
+      return isPlainObject(e) && typeof e.ts === "number" && isFinite(new Date(e.ts).getTime()) && typeof e.type === "string";
     });
     if (out.length > ACTIVITY_LOG_MAX) out = out.slice(out.length - ACTIVITY_LOG_MAX);
     return out;
@@ -3902,6 +3906,7 @@
     var key=JSON.stringify([selection.seeds.map(function(m){return [m.id,m.lastRatedAt,m.completedAt,m.genres];}),ui.genre,ui.mood,ui.type]);
     if(!force&&ui.discoveryKey===key)return;
     if(ui.discoveryAbort)ui.discoveryAbort.abort();
+    ui.discoveryAbort=null;
     ui.discoveryKey=key;ui.results=[];ui.pick=0;ui.discoveryError='';
     if(!selection.seeds.length||!selection.english.length){ui.discoveryLoading=false;return;}
     var controller=new AbortController();ui.discoveryAbort=controller;ui.discoveryLoading=true;
@@ -4267,6 +4272,7 @@
 
     var cancelAdd = document.getElementById("cancel-add-manhwa");
     if (cancelAdd) cancelAdd.addEventListener("click", function () {
+      aniListRequestId++;
       state.addingManhwa = false;
       state.pendingTitleDraft = "";
       state.pendingCoverDraft = "";
@@ -4326,6 +4332,9 @@
 
     var confirmAdd = document.getElementById("confirm-add-manhwa");
     var titleInput = document.getElementById("new-title-input");
+    if(titleInput)titleInput.addEventListener("input",function(){state.pendingTitleDraft=titleInput.value;});
+    var newCoverInput=document.getElementById("new-cover-input");
+    if(newCoverInput)newCoverInput.addEventListener("input",function(){state.pendingCoverDraft=newCoverInput.value;});
     var coverInputEl = document.getElementById("new-cover-input");
     function submitNewManhwa() {
       var val = titleInput ? titleInput.value.trim() : "";
@@ -4980,6 +4989,9 @@
   }
 
   function wipeLocalData() {
+    if(state.journeyUI.discoveryAbort)state.journeyUI.discoveryAbort.abort();
+    state.journeyUI.discoveryAbort=null;
+    state.journeyUI={mood:"",genre:"",type:"",duelGenre:"",pick:0,section:"discover",results:[],previousPair:[]};
     state.manhwas = [];
     state.ratingDrafts = {};
     state.recentOpened = {};
