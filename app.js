@@ -3182,7 +3182,7 @@
     return style;
   }
   function styleClasses(style){return Object.keys(style).map(function(k){return style[k]?' mt-'+style[k]:'';}).join('');}
-  function styleBadge(style){var item=Features.shopItem(style.badge);return item?'<span class="mt-shop-badge">'+item.icon+' '+escapeHtml(item.name)+'</span>':'';}
+  function styleBadge(style){var item=Features.shopItem(style.badge);return item?'<span class="mt-shop-badge">'+(item.image?'<img src="'+escapeHtml(item.image)+'" alt="" width="30" height="30" />':item.icon)+' <span>'+escapeHtml(item.name)+'</span></span>':'';}
   function buyShopItem(id){
     var item=Features.shopItem(id);if(!item||state.shop[id])return false;
     if(Features.coinBalance(state.totalXp,state.shop)<item.price){state.shopNotice='Не хватает монет. Они начисляются вместе с опытом.';return false;}
@@ -5099,4 +5099,5 @@
     });
   }
 })();
+
 

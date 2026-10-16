@@ -251,6 +251,26 @@
     {id:'badge-phoenix',kind:'badge',name:'Феникс',price:800,rarity:'legendary',icon:'♜',desc:'Каждая новая история — новое начало'},
     {id:'badge-quill',kind:'badge',name:'Перо критика',price:140,rarity:'common',icon:'✒',desc:'Для тех, кто бережёт свои впечатления'}
   );
+  shopItems.push(
+{"id":"theme-rain","kind":"theme","name":"Дождливый переулок","price":700,"rarity":"epic","icon":"☂","image":"assets/shop/theme-rain.webp","desc":"Книжный магазин, тёплые окна и ночной дождь"},
+{"id":"theme-forest","kind":"theme","name":"Лесная читальня","price":950,"rarity":"epic","icon":"❦","image":"assets/shop/theme-forest.webp","desc":"Светлячки и книги под древними деревьями"},
+{"id":"frame-tide","kind":"frame","name":"Серебряный прилив","price":650,"rarity":"epic","icon":"≈","image":"assets/shop/frame-tide.webp","desc":"Серебряные волны и бирюзовые жемчужины"},
+{"id":"frame-vine","kind":"frame","name":"Изумрудный плющ","price":550,"rarity":"epic","icon":"❧","image":"assets/shop/frame-vine.webp","desc":"Бронзовые ветви, листья и янтарный кристалл"},
+{"id":"badge-fox","kind":"badge","name":"Книжный лис","price":300,"rarity":"rare","icon":"✧","image":"assets/shop/badge-fox.webp","desc":"Маленький спутник уютных историй"},
+{"id":"badge-dragon","kind":"badge","name":"Дракон библиотеки","price":500,"rarity":"epic","icon":"✦","image":"assets/shop/badge-dragon.webp","desc":"Хранитель книг и больших приключений"},
+{"id":"theme-slate","kind":"theme","name":"Тихий графит","price":60,"rarity":"common","icon":"◈","desc":"Спокойные серые тона и тонкая фактура"},
+{"id":"theme-coffee","kind":"theme","name":"Кофейная пауза","price":80,"rarity":"common","icon":"☕","desc":"Тёплые оттенки какао и сливок"},
+{"id":"theme-lavender","kind":"theme","name":"Лавандовый вечер","price":100,"rarity":"common","icon":"❋","desc":"Мягкая дымка на фиолетовом фоне"},
+{"id":"theme-seafoam","kind":"theme","name":"Морской туман","price":120,"rarity":"common","icon":"≋","desc":"Приглушённая бирюза и прохладный свет"},
+{"id":"frame-chalk","kind":"frame","name":"Белый контур","price":40,"rarity":"common","icon":"○","desc":"Чистая светлая линия вокруг аватара"},
+{"id":"frame-copper","kind":"frame","name":"Медный обод","price":60,"rarity":"common","icon":"◎","desc":"Тёплая медь без лишних деталей"},
+{"id":"frame-denim","kind":"frame","name":"Синий штрих","price":80,"rarity":"common","icon":"◉","desc":"Глубокий синий с тонким светлым краем"},
+{"id":"frame-lilac","kind":"frame","name":"Лиловая нить","price":100,"rarity":"common","icon":"◌","desc":"Нежная двойная линия"},
+{"id":"badge-bookmark","kind":"badge","name":"Закладка","price":40,"rarity":"common","icon":"▱","desc":"Место для следующей главы"},
+{"id":"badge-tea","kind":"badge","name":"Чай и главы","price":60,"rarity":"common","icon":"☕","desc":"Самый уютный читательский ритуал"},
+{"id":"badge-spark","kind":"badge","name":"Искра интереса","price":80,"rarity":"common","icon":"✧","desc":"Каждая история начинается с любопытства"},
+{"id":"badge-compass","kind":"badge","name":"Свой маршрут","price":100,"rarity":"common","icon":"⌖","desc":"Выбирай истории в своём темпе"}
+  );
   var shopRarities={common:'Обычная',rare:'Редкая',epic:'Эпическая',legendary:'Легендарная'};
   function shopItem(id){return shopItems.find(function(i){return i.id===id;});}
   function cleanShop(raw,xp){

@@ -242,14 +242,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('#reveal-close-btn').click();
     await page.evaluate(()=>{e2e.state.selectedId=null;e2e.state.tab='profile';e2e.state.totalXp=1000;e2e.saveXp();e2e.render();});
     await page.locator('#shop-open').click();
-    assert.equal(await page.locator('.mt-shop-item').count(),24);
+    assert.equal(await page.locator('.mt-shop-item').count(),42);
     await page.locator('[data-shop-preview="theme-ocean"]').click();
     assert.equal(await page.evaluate(()=>e2e.state.profile.style?.theme||''),'');
     await page.locator('[data-shop-buy="theme-ocean"]').click();
     assert.equal(await page.locator('.mt-shop-wallet b').innerText(),'◈ 750');
     await page.locator('[data-shop-equip="theme-ocean"]').click();
     await page.locator('[data-shop-category="frame"]').click();
-    assert.equal(await page.locator('.mt-shop-item').count(),8);
+    assert.equal(await page.locator('.mt-shop-item').count(),14);
     await page.locator('[data-shop-preview="frame-frost"]').click();
     await page.locator('[data-shop-buy="frame-frost"]').click();
     await page.locator('[data-shop-equip="frame-frost"]').click();
@@ -302,6 +302,33 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('#account-settings-back').click();
     assert.equal(await page.locator('#acct-sync,#acct-signout,#acct-delete').count(),0);
     await page.evaluate(()=>{window.AMSync=undefined;});
+    await page.locator('#shop-open').click();
+    await page.locator('#shop-rarity').selectOption('all');
+    await page.locator('[data-shop-category="badge"]').click();
+    for (const id of ['badge-fox','badge-dragon']) {
+      await page.locator('[data-shop-preview="'+id+'"]').click();
+      await page.locator('[data-shop-buy="'+id+'"]').click();
+      await page.locator('[data-shop-equip="'+id+'"]').click();
+      await page.waitForFunction(()=>{const img=document.querySelector('.mt-shop-preview .mt-shop-badge img');return img&&img.complete&&img.naturalWidth>0;});
+    }
+    await page.locator('[data-shop-category="theme"]').click();
+    await page.locator('[data-shop-preview="theme-forest"]').click();
+    await page.locator('[data-shop-buy="theme-forest"]').click();
+    await page.locator('[data-shop-equip="theme-forest"]').click();
+    await page.locator('[data-shop-category="frame"]').click();
+    await page.locator('[data-shop-preview="frame-vine"]').click();
+    await page.locator('[data-shop-buy="frame-vine"]').click();
+    await page.locator('[data-shop-equip="frame-vine"]').click();
+    await page.locator('#shop-back').click();
+    await page.reload();
+    await page.locator('[data-tab="profile"]').click();
+    await page.waitForFunction(()=>{const img=document.querySelector('.mt-hero .mt-shop-badge img');return img&&img.complete&&img.naturalWidth>0;});
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:844});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'new collection overflow '+width);
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({animations:'disabled',path:path.join(root,'test-results','profile-new-collection.png')});
     assert.deepEqual(errors,[]);
     console.log('PASS: reading shelf, rating comparison, 320/390/1280px layout, PNG download, monthly award preview; no page errors');
   } finally {

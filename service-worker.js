@@ -1,4 +1,4 @@
-var CACHE_NAME = "manhwa-tracker-v98";
+var CACHE_NAME = "manhwa-tracker-v99";
 
 // The Firebase SDK files are versioned, immutable URLs, so they get their own
 // long-lived cache (surviving app updates) and are served cache-first. That lets
@@ -24,6 +24,12 @@ var CORE_ASSETS = [
 
 // Nice to have offline, but a missing icon must never block an update.
 var OPTIONAL_ASSETS = [
+  "./assets/shop/theme-rain.webp",
+  "./assets/shop/theme-forest.webp",
+  "./assets/shop/frame-tide.webp",
+  "./assets/shop/frame-vine.webp",
+  "./assets/shop/badge-fox.webp",
+  "./assets/shop/badge-dragon.webp",
   "./assets/shop/celestial-library.webp",
   "./assets/shop/celestial-frame.webp",
   "./assets/shop/lantern-garden.webp",

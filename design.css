@@ -591,3 +591,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-hero.mt-theme-celestial,.mt-shop-preview.mt-theme-celestial{background:linear-gradient(90deg,#14101ca8,#14101c99 65%,#14101c44),url('assets/shop/celestial-library.webp') center/cover!important;}
 .mt-hero.mt-theme-garden,.mt-shop-preview.mt-theme-garden{background:linear-gradient(90deg,#17101ca8,#17101c99 65%,#17101c44),url('assets/shop/lantern-garden.webp') center/cover!important;}
 .mt-hero[class*="mt-theme-"] .mt-hero-nick,.mt-shop-preview-person strong{text-shadow:0 2px 8px #0008;}
+/* Reading companions collection */
+.mt-theme-rain{background:linear-gradient(90deg,#0c1723d9,#101a23a0 65%,#101a2355),url('assets/shop/theme-rain.webp') center/cover!important;}
+.mt-theme-forest{background:linear-gradient(90deg,#0b1820d9,#0b1820a0 65%,#0b182055),url('assets/shop/theme-forest.webp') center/cover!important;}
+.mt-theme-slate{background:repeating-linear-gradient(135deg,#ffffff05 0 1px,transparent 1px 12px),linear-gradient(125deg,#343842,#1b1d25)!important;}
+.mt-theme-coffee{background:radial-gradient(at top right,#b48b6155,transparent 70%),linear-gradient(130deg,#413029,#211b20)!important;}
+.mt-theme-lavender{background:radial-gradient(ellipse at top right,#bca5df44,transparent 70%),linear-gradient(140deg,#42334f,#221e32)!important;}
+.mt-theme-seafoam{background:radial-gradient(at top right,#8ab8b944,transparent 70%),linear-gradient(135deg,#233e44,#17272f)!important;}
+.mt-frame-tide .mt-shop-avatar,.mt-frame-tide .mt-hero-avatar-ring,.mt-frame-vine .mt-shop-avatar,.mt-frame-vine .mt-hero-avatar-ring{position:relative;overflow:visible!important;background:#738e92!important;outline:0!important;box-shadow:none;}
+.mt-frame-tide .mt-shop-avatar:after,.mt-frame-tide .mt-hero-avatar-ring:after,.mt-frame-vine .mt-shop-avatar:after,.mt-frame-vine .mt-hero-avatar-ring:after{content:'';position:absolute;inset:-18%;background:url('assets/shop/frame-tide.webp') center/contain no-repeat;pointer-events:none;z-index:2;}
+.mt-frame-vine .mt-shop-avatar:after,.mt-frame-vine .mt-hero-avatar-ring:after{background-image:url('assets/shop/frame-vine.webp');}
+.mt-shop-swatch[class*="mt-frame-"] .mt-shop-art,.mt-shop-swatch[class*="mt-badge-"] .mt-shop-art{object-fit:contain;padding:10px 12px 30px;box-sizing:border-box;}
+.mt-shop-badge{align-items:center;gap:6px;max-width:100%;box-sizing:border-box;}
+.mt-shop-badge>img{width:30px;height:30px;object-fit:contain;flex-shrink:0;}
+.mt-shop-badge>span{min-width:0;overflow-wrap:anywhere;}
+.mt-frame-chalk{--frame-color:#d1d8df;}
+.mt-frame-copper{--frame-color:#c28b6c;}
+.mt-frame-denim{--frame-color:#6e94bc;}
+.mt-frame-lilac{--frame-color:#bc9ed6;}
+.mt-frame-chalk .mt-shop-avatar,.mt-frame-chalk .mt-hero-avatar-ring,
+.mt-frame-copper .mt-shop-avatar,.mt-frame-copper .mt-hero-avatar-ring,
+.mt-frame-denim .mt-shop-avatar,.mt-frame-denim .mt-hero-avatar-ring,
+.mt-frame-lilac .mt-shop-avatar,.mt-frame-lilac .mt-hero-avatar-ring{background:var(--frame-color)!important;outline:1px solid var(--frame-color);outline-offset:3px;}
+.mt-shop-swatch.mt-frame-chalk>span:first-child,.mt-shop-swatch.mt-frame-copper>span:first-child,.mt-shop-swatch.mt-frame-denim>span:first-child,.mt-shop-swatch.mt-frame-lilac>span:first-child{border-color:var(--frame-color);color:var(--frame-color);}
+.mt-badge-fox .mt-shop-badge{border-color:#b5a2e166;color:#e3d4ff;}
+.mt-badge-dragon .mt-shop-badge{border-color:#85baa266;color:#c5ead7;}
