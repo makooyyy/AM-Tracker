@@ -236,6 +236,22 @@
     {id:'badge-night',kind:'badge',name:'Ночной читатель',price:300,icon:'☾',desc:'Ещё одна глава перед сном'},
     {id:'badge-legend',kind:'badge',name:'Хранитель историй',price:500,icon:'✦',desc:'Твоя личная коллекция впечатлений'}
   ];
+  shopItems.forEach(function(item){item.rarity=item.price>=500?'legendary':item.price>=300?'epic':item.price>=180?'rare':'common';});
+  shopItems.push(
+    {id:'theme-celestial',kind:'theme',name:'Небесная библиотека',price:1200,rarity:'legendary',icon:'✦',image:'assets/shop/celestial-library.webp',desc:'Библиотека среди звёзд и золотых созвездий'},
+    {id:'theme-garden',kind:'theme',name:'Сад фонарей',price:900,rarity:'epic',icon:'✿',image:'assets/shop/lantern-garden.webp',desc:'Сакура, тихий пруд и вечерние огни'},
+    {id:'theme-aurora',kind:'theme',name:'Полярное сияние',price:650,rarity:'epic',icon:'≈',desc:'Ленты бирюзы на ночном небе'},
+    {id:'theme-ink',kind:'theme',name:'Чернильный шёлк',price:280,rarity:'rare',icon:'◈',desc:'Графитовая текстура и серебряные линии'},
+    {id:'frame-celestial',kind:'frame',name:'Лунный артефакт',price:1100,rarity:'legendary',icon:'☾',image:'assets/shop/celestial-frame.webp',desc:'Золотая филигрань и лунный аметист'},
+    {id:'frame-petals',kind:'frame',name:'Лепестки',price:450,rarity:'epic',icon:'✿',desc:'Розовое сияние и цветочный контур'},
+    {id:'frame-eclipse',kind:'frame',name:'Затмение',price:750,rarity:'legendary',icon:'◐',desc:'Тёмный обод с огненным ореолом'},
+    {id:'frame-silver',kind:'frame',name:'Серебряная нить',price:160,rarity:'common',icon:'◇',desc:'Тонкая геометрическая рамка'},
+    {id:'badge-sakura',kind:'badge',name:'Ловец мгновений',price:200,rarity:'rare',icon:'✿',desc:'Красота истории в маленьких деталях'},
+    {id:'badge-moon',kind:'badge',name:'Под луной',price:380,rarity:'epic',icon:'☽',desc:'Для тихих вечеров с любимым тайтлом'},
+    {id:'badge-phoenix',kind:'badge',name:'Феникс',price:800,rarity:'legendary',icon:'♜',desc:'Каждая новая история — новое начало'},
+    {id:'badge-quill',kind:'badge',name:'Перо критика',price:140,rarity:'common',icon:'✒',desc:'Для тех, кто бережёт свои впечатления'}
+  );
+  var shopRarities={common:'Обычная',rare:'Редкая',epic:'Эпическая',legendary:'Легендарная'};
   function shopItem(id){return shopItems.find(function(i){return i.id===id;});}
   function cleanShop(raw,xp){
     raw=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
@@ -250,7 +266,7 @@
   function coinBalance(xp,owned){return Math.max(0,Math.floor(Number.isFinite(xp)?xp:0)-Object.keys(cleanShop(owned,xp)).reduce(function(n,id){return n+shopItem(id).price;},0));}
   function cleanStyle(raw){var out={};['theme','frame','badge'].forEach(function(k){var item=raw&&shopItem(raw[k]);out[k]=item&&item.kind===k?item.id:'';});return out;}
 
-  var api = {shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

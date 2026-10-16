@@ -646,7 +646,7 @@
     awardCandidates: {},
     awardEditUsed: {},
     activityLog: [],
-    shop: {}, shopOpen: false, shopCategory: "all", shopPreview: null, shopNotice: "",
+    shop: {}, shopOpen: false, shopCategory: "all", shopRarity: "all", accountSettings: false, shopPreview: null, shopNotice: "",
     totalXp: 0,
     unlockedAchievements: {},
     achievementFilter: 'all',
@@ -3192,19 +3192,22 @@
   function renderShopEntry(){return '<button class="mt-shop-entry" id="shop-open"><span><small>МАГАЗИН ПРОФИЛЯ</small><strong>Сделай его своим <span aria-hidden="true">↗</span></strong></span><b>◈ '+Features.coinBalance(state.totalXp,state.shop)+'</b></button>'+(state.shopNotice?'<p class="mt-feature-hint" role="status">'+escapeHtml(state.shopNotice)+'</p>':'');}
   function renderShop(){
     var style=activeStyle(state.shopPreview),balance=Features.coinBalance(state.totalXp,state.shop),preview=Features.shopItem(state.shopPreview);
-    var items=Features.shopItems.filter(function(i){return state.shopCategory==='all'||i.kind===state.shopCategory;});
+    var items=Features.shopItems.filter(function(i){return (state.shopCategory==='all'||i.kind===state.shopCategory)&&(state.shopRarity==='all'||i.rarity===state.shopRarity);});
     return '<section class="mt-shop-page"><button id="shop-back" class="mt-ghost-btn">← Профиль</button><header class="mt-shop-heading"><div><span class="mt-section-eyebrow">КОЛЛЕКЦИЯ ТВОЕГО СТИЛЯ</span><h1>Истории меняют нас.<br><em>Выбери свой образ.</em></h1></div><div class="mt-shop-wallet"><small>ТВОИ МОНЕТЫ</small><b>◈ '+balance+'</b></div></header><p class="mt-shop-explain">За каждый полученный XP — 1 монета. Прошлый опыт уже учтён. Покупки не снижают опыт и ранг.</p>'+
       '<div class="mt-shop-preview'+styleClasses(style)+'"><span class="mt-section-eyebrow">'+(preview?'ПРИМЕРКА · '+escapeHtml(preview.name):'ТВОЁ ОФОРМЛЕНИЕ')+'</span><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(state.profile)+'</div><div><strong>'+escapeHtml(displayNick())+'</strong>'+styleBadge(style)+'<p>Твоя следующая история уже рядом.</p></div></div></div>'+
       '<div class="mt-shop-preview-actions">'+(preview?'<button class="mt-primary-btn" '+(state.shop[preview.id]?'data-shop-equip':'data-shop-buy')+'="'+preview.id+'"'+(!state.shop[preview.id]&&balance<preview.price?' disabled':'')+'>'+(state.shop[preview.id]?'Применить':balance<preview.price?'Не хватает '+(preview.price-balance)+' ◈':'Купить за '+preview.price+' ◈')+'</button><button class="mt-ghost-btn" id="shop-preview-clear">Закончить примерку</button>':'')+'<button class="mt-ghost-btn" id="shop-reset">Базовое оформление</button></div>'+
-      '<p class="mt-shop-notice" role="status">'+escapeHtml(state.shopNotice||'Примеряй бесплатно. Купленные вещи остаются в коллекции.')+'</p><nav class="mt-shop-filters" aria-label="Категории магазина">'+[['all','Всё'],['theme','Темы'],['frame','Рамки'],['badge','Значки']].map(function(c){return '<button data-shop-category="'+c[0]+'" aria-pressed="'+(state.shopCategory===c[0])+'">'+c[1]+'</button>';}).join('')+'</nav><div class="mt-shop-grid">'+items.map(function(item){var owned=!!state.shop[item.id],equipped=activeStyle()[item.kind]===item.id;return '<article class="mt-shop-item'+(state.shopPreview===item.id?' previewing':'')+'"><div class="mt-shop-swatch mt-'+item.id+'"><span>'+item.icon+'</span></div><div class="mt-shop-item-body"><small>'+({theme:'ТЕМА ПРОФИЛЯ',frame:'РАМКА АВАТАРА',badge:'ЗНАЧОК'})[item.kind]+'</small><h2>'+item.name+'</h2><p>'+item.desc+'</p><b>'+(equipped?'Применено ✓':owned?'В коллекции':item.price+' ◈')+'</b><button class="mt-ghost-btn" data-shop-preview="'+item.id+'">Примерить</button></div></article>';}).join('')+'</div></section>';
+      '<p class="mt-shop-notice" role="status">'+escapeHtml(state.shopNotice||'Примеряй бесплатно. Купленные вещи остаются в коллекции.')+'</p><nav class="mt-shop-filters" aria-label="Категории магазина">'+[['all','Всё'],['theme','Темы'],['frame','Рамки'],['badge','Значки']].map(function(c){return '<button data-shop-category="'+c[0]+'" aria-pressed="'+(state.shopCategory===c[0])+'">'+c[1]+'</button>';}).join('')+'</nav><label class="mt-shop-rarity-filter">Редкость<select id="shop-rarity" class="mt-input"><option value="all">Все редкости</option>'+Object.keys(Features.shopRarities).map(function(r){return '<option value="'+r+'"'+(state.shopRarity===r?' selected':'')+'>'+Features.shopRarities[r]+'</option>';}).join('')+'</select></label><div class="mt-shop-grid">'+items.map(function(item){var owned=!!state.shop[item.id],equipped=activeStyle()[item.kind]===item.id;return '<article class="mt-shop-item'+(state.shopPreview===item.id?' previewing':'')+'" data-rarity="'+item.rarity+'"><div class="mt-shop-swatch mt-'+item.id+'">'+(item.image?'<img class="mt-shop-art" src="'+item.image+'" alt="" loading="lazy" />':'<span>'+item.icon+'</span>')+'<span class="mt-rarity-tag">'+Features.shopRarities[item.rarity]+'</span></div><div class="mt-shop-item-body"><small>'+({theme:'ТЕМА ПРОФИЛЯ',frame:'РАМКА АВАТАРА',badge:'ЗНАЧОК'})[item.kind]+'</small><h2>'+item.name+'</h2><p>'+item.desc+'</p><b>'+(equipped?'Применено ✓':owned?'В коллекции':item.price+' ◈')+'</b><button class="mt-ghost-btn" data-shop-preview="'+item.id+'">Примерить</button></div></article>';}).join('')+'</div></section>';
   }
   function attachShopHandlers(){
     var app=document.getElementById('app');
     function bind(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
+    bind('account-settings-open',function(){state.accountSettings=true;render();window.scrollTo(0,0);});
+    bind('account-settings-back',function(){state.accountSettings=false;state.acct.confirmDelete=false;render();window.scrollTo(0,0);});
     bind('shop-open',function(){state.shopOpen=true;state.shopNotice='';render();window.scrollTo(0,0);});
     bind('shop-back',function(){state.shopOpen=false;state.shopPreview=null;render();window.scrollTo(0,0);});
     bind('shop-preview-clear',function(){state.shopPreview=null;render();});
     bind('shop-reset',function(){state.profile.style=Features.cleanStyle(null);saveProfile();state.shopPreview=null;state.shopNotice='Базовое оформление применено. Покупки сохранены.';render();});
+    var rarity=document.getElementById('shop-rarity');if(rarity)rarity.addEventListener('change',function(){state.shopRarity=rarity.value;render();});
     app.querySelectorAll('[data-shop-category]').forEach(function(el){el.addEventListener('click',function(){state.shopCategory=el.getAttribute('data-shop-category');render();});});
     app.querySelectorAll('[data-shop-preview]').forEach(function(el){el.addEventListener('click',function(){state.shopPreview=el.getAttribute('data-shop-preview');state.shopNotice='';render();document.querySelector('.mt-shop-preview').scrollIntoView({block:'start'});});});
     app.querySelectorAll('[data-shop-buy]').forEach(function(el){el.addEventListener('click',function(){buyShopItem(el.getAttribute('data-shop-buy'));render();});});
@@ -3212,6 +3215,7 @@
   }
 
   function renderProfile() {
+    if(state.accountSettings)return '<section class="mt-account-settings"><button class="mt-ghost-btn" id="account-settings-back">← Профиль</button><header><span class="mt-section-eyebrow">ЛИЧНОЕ ПРОСТРАНСТВО</span><h1>Настройки аккаунта</h1><p>Вход, синхронизация и управление аккаунтом.</p></header>'+renderAccountStrip()+'</section>';
     if(state.shopOpen) return renderShop();
     var rated = state.manhwas.filter(function (m) { return ratedScore(m) !== null; });
     var overallAvg = rated.length
@@ -3540,7 +3544,7 @@
     var glow = p.a && p.a.t === "img" ? rank.gradient : AVATAR_COLORS[p.a && p.a.t !== "img" ? p.a.c : seedColor(shown.n)];
     var bio = p.b
       ? '<div class="mt-hero-bio">' + escapeHtml(p.b) + "</div>"
-      : '<div class="mt-hero-bio empty">Нажми ✎, чтобы добавить ник, фото и описание</div>';
+      : '';
     var since = joinedLabel();
     return (
       '<div class="mt-hero'+styleClasses(style)+'">' +
@@ -3554,7 +3558,7 @@
       '<div class="mt-hero-nick">' + escapeHtml(displayNick()) + "</div>" + styleBadge(style) + bio + renderRankBadge() +
       (since ? '<div class="mt-hero-since">' + escapeHtml(since) + "</div>" : "") +
       "</div></div>" +
-      renderAccountStrip() +
+      '<button class="mt-account-entry" id="account-settings-open"><span>⚙</span><span>Настройки аккаунта</span><span aria-hidden="true">↗</span></button>' +
       "</div>"
     );
   }
@@ -4938,6 +4942,7 @@
   // Single "go back" action for the in-app ← buttons — closes whichever
   // "sub-page" is currently open, innermost first.
   function goBack() {
+    if(state.accountSettings && !state.selectedId){state.accountSettings=false;state.acct.confirmDelete=false;render();return;}
     if (state.shopOpen && !state.selectedId) { state.shopOpen=false; state.shopPreview=null; render(); return; }
     if (state.shareCard) { closeShareCard(); render(); return; }
     if (state.awardPreview) { state.awardPreview = null; render(); return; }
@@ -4985,7 +4990,7 @@
     state.awardCandidates = {};
     state.awardEditUsed = {};
     state.activityLog = [];
-    state.shop = {}; state.shopOpen=false; state.shopPreview=null; state.shopNotice="";
+    state.shop = {}; state.shopOpen=false; state.accountSettings=false; state.shopPreview=null; state.shopNotice="";
     state.totalXp = 0;
     state.unlockedAchievements = {};
     state.profile = emptyProfile(); // another person's nickname/avatar must not leak into a different account

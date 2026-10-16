@@ -550,3 +550,44 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-shop-swatch.mt-frame-frost>span{border-color:#a4e4ff;color:#bceaff;}.mt-shop-swatch.mt-frame-prism>span{border-color:#e6a1dc;color:#e6b7ef;}.mt-shop-swatch.mt-frame-crown>span{border-color:#ddba71;color:#e9cc91;}
 @media(max-width:700px){.mt-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}.mt-shop-heading{align-items:flex-start;}.mt-shop-wallet{padding:12px;}.mt-shop-wallet b{font-size:20px;}.mt-shop-heading h1{font-size:26px;}.mt-shop-preview{padding:20px;}.mt-shop-preview-person{gap:18px;}.mt-shop-item-body{padding:13px;}.mt-shop-filters button{padding:10px 13px;}}
 @media(prefers-reduced-motion:reduce){.mt-shop-item{transition:none;}}
+/* Clean profile and account settings */
+.mt-profile-page .mt-hero{border-radius:26px;overflow:hidden;}
+.mt-profile-page .mt-hero-main{padding:28px 24px;gap:22px;}
+.mt-profile-page .mt-hero-nick{font:700 26px/1.2 Manrope,sans-serif;letter-spacing:-.7px;}
+.mt-profile-page .mt-hero-bio{font-size:13px;line-height:1.6;color:#c6bbd2;}
+.mt-profile-page .mt-hero-since{font-size:11px;color:#b3a5bf;}
+.mt-account-entry{display:flex;align-items:center;gap:10px;width:100%;padding:16px 22px;border:0;border-top:1px solid #ffffff12;background:#100b1860;color:#bca9cc;font:500 12px Manrope,sans-serif;text-align:left;cursor:pointer;position:relative;z-index:1;}
+.mt-account-entry>span:last-child{margin-left:auto;}
+.mt-account-settings{max-width:600px;margin:auto;padding:24px 0;}
+.mt-account-settings header{padding:26px 6px 18px;}.mt-account-settings h1{font:700 28px/1.2 Manrope,sans-serif;margin:12px 0;}.mt-account-settings header p{color:#ae9cbe;font-size:13px;line-height:1.6;}
+.mt-account-settings .mt-hero-acct{margin:0;padding:24px;border:1px solid #ffffff15;border-radius:24px;background:#231c2c;}
+.mt-account-settings .mt-acct-email{font-size:14px;overflow-wrap:anywhere;margin:20px 0;}
+.mt-account-settings .mt-form-row{gap:10px;flex-wrap:wrap;margin-top:20px;}
+.mt-account-settings .mt-form-row button{min-height:46px;border-radius:12px;font-size:13px;}
+.mt-account-settings #acct-delete{display:block;margin-top:24px;border-top:1px solid #ffffff13;padding-top:18px;width:100%;text-align:left;color:#c8849b;}
+/* Collections and rarity */
+.mt-shop-item{--rarity:#afa6bc;border-color:color-mix(in srgb,var(--rarity) 25%,transparent);}
+.mt-shop-item[data-rarity=rare]{--rarity:#8bbfeb;}.mt-shop-item[data-rarity=epic]{--rarity:#c59aee;}.mt-shop-item[data-rarity=legendary]{--rarity:#e1bc75;}
+.mt-shop-swatch{height:150px;position:relative;overflow:hidden;}
+.mt-shop-swatch .mt-shop-art{width:100%;height:100%;object-fit:cover;display:block;}
+.mt-shop-swatch.mt-frame-celestial .mt-shop-art{object-fit:contain;padding:12px;box-sizing:border-box;}
+.mt-shop-swatch>.mt-rarity-tag{position:absolute;bottom:10px;left:10px;width:auto!important;height:auto!important;border:1px solid color-mix(in srgb,var(--rarity) 35%,transparent)!important;border-radius:20px!important;padding:5px 8px;background:#110d1de0;color:var(--rarity)!important;font:600 9px/1.2 Manrope,sans-serif!important;letter-spacing:.3px;}
+.mt-shop-item-body>small{color:var(--rarity);}.mt-shop-item.previewing{border-color:var(--rarity);box-shadow:0 0 24px color-mix(in srgb,var(--rarity) 10%,transparent);}
+.mt-shop-rarity-filter{display:flex;align-items:center;gap:14px;color:#bba8cb;font-size:12px;margin:0 0 22px;}.mt-shop-rarity-filter .mt-input{width:auto;min-width:170px;margin:0;font-size:12px;}
+.mt-theme-celestial{background:linear-gradient(90deg,#14101ccc,#14101c26),url('assets/shop/celestial-library.webp') center/cover!important;}
+.mt-theme-garden{background:linear-gradient(90deg,#17101dcc,#17101c22),url('assets/shop/lantern-garden.webp') center/cover!important;}
+.mt-theme-aurora{background:repeating-linear-gradient(115deg,transparent 0 20%,#64d9c123 30%,#b095ed22 40%,transparent 60%),linear-gradient(135deg,#102b32,#241a38)!important;}
+.mt-theme-ink{background:repeating-linear-gradient(135deg,#b7b4c508 0 1px,transparent 1px 13px),linear-gradient(135deg,#292b35,#16151d)!important;}
+.mt-frame-celestial .mt-shop-avatar,.mt-frame-celestial .mt-hero-avatar-ring{position:relative;background:#b49bcb!important;overflow:visible!important;outline:0!important;box-shadow:none;}
+.mt-frame-celestial .mt-shop-avatar:after,.mt-frame-celestial .mt-hero-avatar-ring:after{content:'';position:absolute;inset:-19%;background:url('assets/shop/celestial-frame.webp') center/contain no-repeat;pointer-events:none;z-index:2;}
+.mt-frame-petals .mt-shop-avatar,.mt-frame-petals .mt-hero-avatar-ring{background:conic-gradient(#ffd1e2,#af6c98,#f0b4d6,#c37ea9,#ffd1e2)!important;outline:2px dotted #f2bad4;outline-offset:4px;box-shadow:0 0 22px #f2bad433;}
+.mt-frame-eclipse .mt-shop-avatar,.mt-frame-eclipse .mt-hero-avatar-ring{background:#29202c!important;outline:2px solid #ebb97c;outline-offset:3px;box-shadow:4px 0 18px #ffb37b99,-5px 0 15px #8d75d255;}
+.mt-frame-silver .mt-shop-avatar,.mt-frame-silver .mt-hero-avatar-ring{background:linear-gradient(135deg,#e1e4ec,#798094,#e1e4ec)!important;outline:1px solid #c5cad7;outline-offset:3px;}
+.mt-shop-swatch.mt-frame-petals>span:first-child{border-color:#df9ebd;color:#f6cce1;}.mt-shop-swatch.mt-frame-eclipse>span:first-child{border-color:#e5a26e;box-shadow:0 0 22px #e59e6944;color:#e5b07a;}.mt-shop-swatch.mt-frame-silver>span:first-child{border-color:#bac4d5;color:#d5dce9;}
+.mt-badge-sakura .mt-shop-badge{color:#f4c5dc;border-color:#dd9cbd55;}.mt-badge-moon .mt-shop-badge{color:#d7c7fb;}.mt-badge-phoenix .mt-shop-badge{color:#efc48f;border-color:#e8b87c55;}.mt-badge-quill .mt-shop-badge{color:#c4d8df;}
+.mt-shop-preview-person{padding:7px 0;gap:28px;}
+@media(max-width:359px){.mt-profile-page .mt-hero-main{padding:26px 18px;gap:18px;}.mt-profile-page .mt-hero-nick{font-size:23px;}.mt-shop-swatch{height:130px;}}
+.mt-account-settings{margin:0 auto;width:100%;box-sizing:border-box;}
+.mt-hero.mt-theme-celestial,.mt-shop-preview.mt-theme-celestial{background:linear-gradient(90deg,#14101ca8,#14101c99 65%,#14101c44),url('assets/shop/celestial-library.webp') center/cover!important;}
+.mt-hero.mt-theme-garden,.mt-shop-preview.mt-theme-garden{background:linear-gradient(90deg,#17101ca8,#17101c99 65%,#17101c44),url('assets/shop/lantern-garden.webp') center/cover!important;}
+.mt-hero[class*="mt-theme-"] .mt-hero-nick,.mt-shop-preview-person strong{text-shadow:0 2px 8px #0008;}
