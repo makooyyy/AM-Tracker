@@ -241,18 +241,31 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.locator('.mt-reveal-criteria>div').count(),5);
     await page.locator('#reveal-close-btn').click();
     await page.evaluate(()=>{e2e.state.selectedId=null;e2e.state.tab='profile';e2e.state.totalXp=1000;e2e.saveXp();e2e.render();});
+    async function applyFromEditor(id) {
+      assert.equal(await page.locator('[data-shop-equip],#shop-reset').count(),0);
+      await page.locator('#shop-back').click();
+      await page.locator('#prof-edit').click();
+      await page.locator('[data-profile-style="'+id.split('-')[0]+'"]').selectOption(id);
+      await page.locator('#prof-save').click();
+      await page.locator('#shop-open').click();
+    }
     await page.locator('#shop-open').click();
+    for(const [order,first] of [['rare-first','legendary'],['common-first','common']]){
+      await page.locator('#shop-sort').selectOption(order);
+      assert.equal(await page.locator('.mt-shop-item').first().getAttribute('data-rarity'),first);
+    }
+    await page.locator('#shop-sort').selectOption('');
     assert.equal(await page.locator('.mt-shop-item').count(),42);
     await page.locator('[data-shop-preview="theme-ocean"]').click();
     assert.equal(await page.evaluate(()=>e2e.state.profile.style?.theme||''),'');
     await page.locator('[data-shop-buy="theme-ocean"]').click();
     assert.equal(await page.locator('.mt-shop-wallet b').innerText(),'◈ 750');
-    await page.locator('[data-shop-equip="theme-ocean"]').click();
+    await applyFromEditor('theme-ocean');
     await page.locator('[data-shop-category="frame"]').click();
     assert.equal(await page.locator('.mt-shop-item').count(),14);
     await page.locator('[data-shop-preview="frame-frost"]').click();
     await page.locator('[data-shop-buy="frame-frost"]').click();
-    await page.locator('[data-shop-equip="frame-frost"]').click();
+    await applyFromEditor('frame-frost');
     for(const width of [320,390,1280]){
       await page.setViewportSize({width,height:844});
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'shop overflow '+width);
@@ -267,7 +280,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.locator('.mt-shop-wallet b').innerText(),'◈ 530');
     await page.locator('[data-shop-preview="frame-crown"]').click();
     assert.equal(await page.locator('[data-shop-buy="frame-crown"]').isDisabled(),true);
-    await page.locator('#shop-reset').click();
+    await page.locator('#shop-back').click();
+    await page.locator('#prof-edit').click();
+    assert.equal(await page.locator('[data-profile-style="frame"] option[value="frame-crown"]').count(),0);
+    await page.locator('[data-profile-style="theme"]').selectOption('');
+    await page.locator('#prof-cancel').click();
+    assert.equal(await page.locator('.mt-hero.mt-theme-ocean').count(),1);
+    await page.locator('#prof-edit').click();
+    for(const kind of ['theme','frame','badge'])await page.locator('[data-profile-style="'+kind+'"]').selectOption('');
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:844});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'editor overflow '+width);
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({animations:'disabled',fullPage:true,path:path.join(root,'test-results','profile-collection-editor.png')});
+    await page.locator('#prof-save').click();
+    await page.locator('#shop-open').click();
     assert.equal(await page.evaluate(()=>Object.keys(e2e.state.shop).length),2);
     await page.locator('#shop-rarity').selectOption('legendary');
     assert.equal(await page.locator('.mt-shop-item:not([data-rarity="legendary"])').count(),0);
@@ -275,10 +303,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.evaluate(()=>{e2e.state.totalXp=10000;e2e.saveXp();e2e.render();});
     await page.locator('[data-shop-preview="theme-celestial"]').click();
     await page.locator('[data-shop-buy="theme-celestial"]').click();
-    await page.locator('[data-shop-equip="theme-celestial"]').click();
+    await applyFromEditor('theme-celestial');
     await page.locator('[data-shop-preview="frame-celestial"]').click();
     await page.locator('[data-shop-buy="frame-celestial"]').click();
-    await page.locator('[data-shop-equip="frame-celestial"]').click();
+    await applyFromEditor('frame-celestial');
     await page.locator('[data-shop-category="theme"]').click();
     await page.locator('.mt-shop-art').first().scrollIntoViewIfNeeded();
     assert.equal(await page.locator('.mt-shop-art').first().evaluate(img=>img.complete&&img.naturalWidth>0),true);
@@ -308,17 +336,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     for (const id of ['badge-fox','badge-dragon']) {
       await page.locator('[data-shop-preview="'+id+'"]').click();
       await page.locator('[data-shop-buy="'+id+'"]').click();
-      await page.locator('[data-shop-equip="'+id+'"]').click();
+      await applyFromEditor(id);
       await page.waitForFunction(()=>{const img=document.querySelector('.mt-shop-preview .mt-shop-badge img');return img&&img.complete&&img.naturalWidth>0;});
     }
     await page.locator('[data-shop-category="theme"]').click();
     await page.locator('[data-shop-preview="theme-forest"]').click();
     await page.locator('[data-shop-buy="theme-forest"]').click();
-    await page.locator('[data-shop-equip="theme-forest"]').click();
+    await applyFromEditor('theme-forest');
     await page.locator('[data-shop-category="frame"]').click();
     await page.locator('[data-shop-preview="frame-vine"]').click();
     await page.locator('[data-shop-buy="frame-vine"]').click();
-    await page.locator('[data-shop-equip="frame-vine"]').click();
+    await applyFromEditor('frame-vine');
     await page.locator('#shop-back').click();
     await page.reload();
     await page.locator('[data-tab="profile"]').click();

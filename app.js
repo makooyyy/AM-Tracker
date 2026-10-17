@@ -3190,36 +3190,68 @@
   function buyShopItem(id){
     var item=Features.shopItem(id);if(!item||state.shop[id])return false;
     if(Features.coinBalance(state.totalXp,state.shop)<item.price){state.shopNotice='Не хватает монет. Они начисляются вместе с опытом.';return false;}
-    state.shop[id]=Date.now();saveShop();state.shopNotice='Куплено: '+item.name+'. Теперь можно применить.';return true;
+    state.shop[id]=Date.now();saveShop();state.shopNotice='Куплено: '+item.name+'. Оформление доступно в редакторе профиля.';return true;
   }
   function equipShopItem(id){var item=Features.shopItem(id);if(!item||!state.shop[id])return;var style=Features.cleanStyle(state.profile.style);style[item.kind]=id;state.profile.style=style;saveProfile();state.shopNotice='Оформление применено.';}
   function renderShopEntry(){return '<button class="mt-shop-entry" id="shop-open"><span><small>МАГАЗИН ПРОФИЛЯ</small><strong>Сделай его своим <span aria-hidden="true">↗</span></strong></span><b>◈ '+Features.coinBalance(state.totalXp,state.shop)+'</b></button>'+(state.shopNotice?'<p class="mt-feature-hint" role="status">'+escapeHtml(state.shopNotice)+'</p>':'');}
   function renderShop(){
     var style=activeStyle(state.shopPreview),balance=Features.coinBalance(state.totalXp,state.shop),preview=Features.shopItem(state.shopPreview);
     var items=Features.shopItems.filter(function(i){return (state.shopCategory==='all'||i.kind===state.shopCategory)&&(state.shopRarity==='all'||i.rarity===state.shopRarity);});
+    var rarityOrder={common:0,rare:1,epic:2,legendary:3};
+    if(state.shopSort)items.sort(function(a,b){var delta=rarityOrder[a.rarity]-rarityOrder[b.rarity];return (state.shopSort==='rare-first'?-delta:delta)||a.price-b.price;});
     return '<section class="mt-shop-page"><button id="shop-back" class="mt-ghost-btn">← Профиль</button><header class="mt-shop-heading"><div><span class="mt-section-eyebrow">КОЛЛЕКЦИЯ ТВОЕГО СТИЛЯ</span><h1>Истории меняют нас.<br><em>Выбери свой образ.</em></h1></div><div class="mt-shop-wallet"><small>ТВОИ МОНЕТЫ</small><b>◈ '+balance+'</b></div></header><p class="mt-shop-explain">За каждый полученный XP — 1 монета. Прошлый опыт уже учтён. Покупки не снижают опыт и ранг.</p>'+
       '<div class="mt-shop-preview'+styleClasses(style)+'"><span class="mt-section-eyebrow">'+(preview?'ПРИМЕРКА · '+escapeHtml(preview.name):'ТВОЁ ОФОРМЛЕНИЕ')+'</span><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(state.profile)+'</div><div><strong>'+escapeHtml(displayNick())+'</strong>'+styleBadge(style)+'<p>Твоя следующая история уже рядом.</p></div></div></div>'+
-      '<div class="mt-shop-preview-actions">'+(preview?'<button class="mt-primary-btn" '+(state.shop[preview.id]?'data-shop-equip':'data-shop-buy')+'="'+preview.id+'"'+(!state.shop[preview.id]&&balance<preview.price?' disabled':'')+'>'+(state.shop[preview.id]?'Применить':balance<preview.price?'Не хватает '+(preview.price-balance)+' ◈':'Купить за '+preview.price+' ◈')+'</button><button class="mt-ghost-btn" id="shop-preview-clear">Закончить примерку</button>':'')+'<button class="mt-ghost-btn" id="shop-reset">Базовое оформление</button></div>'+
-      '<p class="mt-shop-notice" role="status">'+escapeHtml(state.shopNotice||'Примеряй бесплатно. Купленные вещи остаются в коллекции.')+'</p><nav class="mt-shop-filters" aria-label="Категории магазина">'+[['all','Всё'],['theme','Темы'],['frame','Рамки'],['badge','Значки']].map(function(c){return '<button data-shop-category="'+c[0]+'" aria-pressed="'+(state.shopCategory===c[0])+'">'+c[1]+'</button>';}).join('')+'</nav><label class="mt-shop-rarity-filter">Редкость<select id="shop-rarity" class="mt-input"><option value="all">Все редкости</option>'+Object.keys(Features.shopRarities).map(function(r){return '<option value="'+r+'"'+(state.shopRarity===r?' selected':'')+'>'+Features.shopRarities[r]+'</option>';}).join('')+'</select></label><div class="mt-shop-grid">'+items.map(function(item){var owned=!!state.shop[item.id],equipped=activeStyle()[item.kind]===item.id;return '<article class="mt-shop-item'+(state.shopPreview===item.id?' previewing':'')+'" data-rarity="'+item.rarity+'"><div class="mt-shop-swatch mt-'+item.id+'">'+(item.image?'<img class="mt-shop-art" src="'+item.image+'" alt="" loading="lazy" />':'<span>'+item.icon+'</span>')+'<span class="mt-rarity-tag">'+Features.shopRarities[item.rarity]+'</span></div><div class="mt-shop-item-body"><small>'+({theme:'ТЕМА ПРОФИЛЯ',frame:'РАМКА АВАТАРА',badge:'ЗНАЧОК'})[item.kind]+'</small><h2>'+item.name+'</h2><p>'+item.desc+'</p><b>'+(equipped?'Применено ✓':owned?'В коллекции':item.price+' ◈')+'</b><button class="mt-ghost-btn" data-shop-preview="'+item.id+'">Примерить</button></div></article>';}).join('')+'</div></section>';
+      '<div class="mt-shop-preview-actions">'+(preview?(state.shop[preview.id]?'<span class="mt-feature-hint">В коллекции · Выбери в редакторе профиля</span>':'<button class="mt-primary-btn" data-shop-buy="'+preview.id+'"'+(balance<preview.price?' disabled':'')+'>'+(balance<preview.price?'Не хватает '+(preview.price-balance)+' ◈':'Купить за '+preview.price+' ◈')+'</button>')+'<button class="mt-ghost-btn" id="shop-preview-clear">Закончить примерку</button>':'')+'</div>'+
+      '<p class="mt-shop-notice" role="status">'+escapeHtml(state.shopNotice||'Примеряй бесплатно. Купленные вещи остаются в коллекции.')+'</p><nav class="mt-shop-filters" aria-label="Категории магазина">'+[['all','Всё'],['theme','Темы'],['frame','Рамки'],['badge','Значки']].map(function(c){return '<button data-shop-category="'+c[0]+'" aria-pressed="'+(state.shopCategory===c[0])+'">'+c[1]+'</button>';}).join('')+'</nav><label class="mt-shop-rarity-filter">Редкость<select id="shop-rarity" class="mt-input"><option value="all">Все редкости</option>'+Object.keys(Features.shopRarities).map(function(r){return '<option value="'+r+'"'+(state.shopRarity===r?' selected':'')+'>'+Features.shopRarities[r]+'</option>';}).join('')+'</select></label><label class="mt-shop-rarity-filter">Порядок<select id="shop-sort" class="mt-input">'+[['','По умолчанию'],['rare-first','Сначала редкие'],['common-first','Сначала обычные']].map(function(o){return '<option value="'+o[0]+'"'+((state.shopSort||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label><div class="mt-shop-grid">'+items.map(function(item){var owned=!!state.shop[item.id],equipped=activeStyle()[item.kind]===item.id;return '<article class="mt-shop-item'+(state.shopPreview===item.id?' previewing':'')+'" data-rarity="'+item.rarity+'"><div class="mt-shop-swatch mt-'+item.id+'">'+(item.image?'<img class="mt-shop-art" src="'+item.image+'" alt="" loading="lazy" />':'<span>'+item.icon+'</span>')+'<span class="mt-rarity-tag">'+Features.shopRarities[item.rarity]+'</span></div><div class="mt-shop-item-body"><small>'+({theme:'ТЕМА ПРОФИЛЯ',frame:'РАМКА АВАТАРА',badge:'ЗНАЧОК'})[item.kind]+'</small><h2>'+item.name+'</h2><p>'+item.desc+'</p><b>'+(equipped?'Применено ✓':owned?'В коллекции':item.price+' ◈')+'</b><button class="mt-ghost-btn" data-shop-preview="'+item.id+'">Примерить</button></div></article>';}).join('')+'</div></section>';
   }
   function attachShopHandlers(){
     var app=document.getElementById('app');
     function bind(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
     bind('account-settings-open',function(){state.accountSettings=true;render();window.scrollTo(0,0);});
-    bind('account-settings-back',function(){state.accountSettings=false;state.acct.confirmDelete=false;render();window.scrollTo(0,0);});
+    bind('account-settings-back',function(){state.accountSettings=false;state.acct.confirmDelete=false;state.profileEdit=false;state.profileDraft=null;render();window.scrollTo(0,0);});
+    app.querySelectorAll('[data-ui-setting]').forEach(function(el){el.addEventListener('change',function(){uiSettings[el.getAttribute('data-ui-setting')]=el.checked;applyUiSettings();persistKey(UI_SETTINGS_KEY,uiSettings).catch(function(){});});});
     bind('shop-open',function(){state.shopOpen=true;state.shopNotice='';render();window.scrollTo(0,0);});
     bind('shop-back',function(){state.shopOpen=false;state.shopPreview=null;render();window.scrollTo(0,0);});
     bind('shop-preview-clear',function(){state.shopPreview=null;render();});
-    bind('shop-reset',function(){state.profile.style=Features.cleanStyle(null);saveProfile();state.shopPreview=null;state.shopNotice='Базовое оформление применено. Покупки сохранены.';render();});
+    var sort=document.getElementById('shop-sort');if(sort)sort.addEventListener('change',function(){state.shopSort=sort.value;render();});
     var rarity=document.getElementById('shop-rarity');if(rarity)rarity.addEventListener('change',function(){state.shopRarity=rarity.value;render();});
     app.querySelectorAll('[data-shop-category]').forEach(function(el){el.addEventListener('click',function(){state.shopCategory=el.getAttribute('data-shop-category');render();});});
     app.querySelectorAll('[data-shop-preview]').forEach(function(el){el.addEventListener('click',function(){state.shopPreview=el.getAttribute('data-shop-preview');state.shopNotice='';render();document.querySelector('.mt-shop-preview').scrollIntoView({block:'start'});});});
     app.querySelectorAll('[data-shop-buy]').forEach(function(el){el.addEventListener('click',function(){buyShopItem(el.getAttribute('data-shop-buy'));render();});});
-    app.querySelectorAll('[data-shop-equip]').forEach(function(el){el.addEventListener('click',function(){equipShopItem(el.getAttribute('data-shop-equip'));render();});});
+  }
+
+
+  var UI_SETTINGS_KEY='manhwa-tracker:ui-settings:v1';
+  var uiSettings={reduceMotion:false,largeText:false};
+  function applyUiSettings(){
+    if(document.documentElement){
+      document.documentElement.classList.toggle('mt-reduce-motion',uiSettings.reduceMotion);
+      document.documentElement.classList.toggle('mt-large-text',uiSettings.largeText);
+    }
+  }
+  function loadUiSettings(){return readKey(UI_SETTINGS_KEY).then(function(raw){uiSettings={reduceMotion:!!(raw&&raw.reduceMotion),largeText:!!(raw&&raw.largeText)};applyUiSettings();});}
+  function renderBackupSettings(){
+    return '<div class="mt-paper mt-profile-backup"><div class="mt-panel-title">Резервная копия</div>' +
+      '<div class="mt-backup-text">Сохрани файл с оценками себе на телефон — так данные ' +
+      'не потеряются при очистке браузера, и их можно перенести на другое устройство.</div>' +
+      '<div class="mt-form-row">' +
+      '<button class="mt-ghost-btn" id="export-btn" style="flex:1">⭳ Сохранить в файл</button>' +
+      '<button class="mt-ghost-btn" id="import-btn" style="flex:1">⭱ Загрузить из файла</button>' +
+      "</div>" +
+      '<input type="file" id="import-file-input" accept="application/json" style="display:none" />' +
+      "</div>";
+  }
+  function renderSettings(){
+    return '<section class="mt-account-settings mt-settings-page"><button class="mt-ghost-btn" id="account-settings-back">← Профиль</button><header><span class="mt-section-eyebrow">ПОД ТЕБЯ</span><h1>Настройки</h1><p>Твой профиль, удобный интерфейс и сохранность коллекции.</p></header>'+
+      (state.profileEdit?renderProfileEditor():'<section class="mt-settings-card"><h2>Профиль и оформление</h2><p>Ник, фото, описание и купленные темы, рамки и значки.</p><button class="mt-primary-btn" id="prof-edit">Редактировать профиль</button></section>')+
+      '<section class="mt-settings-card"><h2>Интерфейс</h2><p>Эти настройки сохраняются на этом устройстве.</p>'+
+      [['reduceMotion','Меньше анимаций','Спокойные переходы без движения.'],['largeText','Крупнее текст','Увеличенные подписи, описания и поля ввода.']].map(function(o){return '<label class="mt-setting-toggle"><span><strong>'+o[1]+'</strong><small>'+o[2]+'</small></span><input type="checkbox" data-ui-setting="'+o[0]+'"'+(uiSettings[o[0]]?' checked':'')+' /></label>';}).join('')+'</section>'+
+      '<section class="mt-settings-card mt-settings-account"><h2>Аккаунт</h2>'+(renderAccountStrip()||'<p>Подключение аккаунта сейчас недоступно. Локальные данные остаются на устройстве.</p>')+'</section>'+
+      renderErrorBanner()+renderBackupSettings()+'</section>';
   }
 
   function renderProfile() {
-    if(state.accountSettings)return '<section class="mt-account-settings"><button class="mt-ghost-btn" id="account-settings-back">← Профиль</button><header><span class="mt-section-eyebrow">ЛИЧНОЕ ПРОСТРАНСТВО</span><h1>Настройки аккаунта</h1><p>Вход, синхронизация и управление аккаунтом.</p></header>'+renderAccountStrip()+'</section>';
+    if(state.accountSettings)return renderSettings();
     if(state.shopOpen) return renderShop();
     var rated = state.manhwas.filter(function (m) { return ratedScore(m) !== null; });
     var overallAvg = rated.length
@@ -3227,8 +3259,9 @@
       : null;
 
     var html =
-      '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderShopEntry() + renderErrorBanner() +
+      '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
+      renderShopEntry() +
       renderRankPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
@@ -3320,16 +3353,7 @@
         '<div class="mt-paper mt-empty"><div class="mt-empty-text">Статистика появится, как только добавишь и оценишь первую манхву.</div></div>';
     }
 
-    html +=
-      '<div class="mt-paper mt-profile-backup"><div class="mt-panel-title">Сохрани свою историю</div>' +
-      '<div class="mt-backup-text">Сохрани файл с оценками себе на телефон — так данные ' +
-      'не потеряются при очистке браузера, и их можно перенести на другое устройство.</div>' +
-      '<div class="mt-form-row">' +
-      '<button class="mt-ghost-btn" id="export-btn" style="flex:1">⭳ Сохранить в файл</button>' +
-      '<button class="mt-ghost-btn" id="import-btn" style="flex:1">⭱ Загрузить из файла</button>' +
-      "</div>" +
-      '<input type="file" id="import-file-input" accept="application/json" style="display:none" />' +
-      "</div>";
+    html += '<button class="mt-paper mt-settings-entry" id="account-settings-open"><span>⚙</span><span><strong>Настройки</strong><small>Профиль, интерфейс, аккаунт и резервная копия</small></span><span aria-hidden="true">→</span></button>';
 
     html += "</div></section>";
     return html;
@@ -3562,9 +3586,18 @@
       '<div class="mt-hero-nick">' + escapeHtml(displayNick()) + "</div>" + styleBadge(style) + bio + renderRankBadge() +
       (since ? '<div class="mt-hero-since">' + escapeHtml(since) + "</div>" : "") +
       "</div></div>" +
-      '<button class="mt-account-entry" id="account-settings-open"><span>⚙</span><span>Настройки аккаунта</span><span aria-hidden="true">↗</span></button>' +
       "</div>"
     );
+  }
+
+  function renderOwnedStyles(d) {
+    var style=Features.cleanStyle(d.style);
+    return '<section class="mt-owned-styles"><div class="mt-editor-label">МОЯ КОЛЛЕКЦИЯ</div><p class="mt-feature-hint">Выбери купленное оформление. Оно применится после сохранения профиля.</p>'+
+      '<div class="mt-shop-preview'+styleClasses(style)+'"><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(d)+'</div><div><strong>'+escapeHtml(d.n||displayNick())+'</strong>'+styleBadge(style)+'</div></div></div>'+
+      [['theme','Тема'],['frame','Рамка'],['badge','Значок']].map(function(pair){
+        var owned=Features.shopItems.filter(function(i){return i.kind===pair[0]&&state.shop[i.id];});
+        return '<label class="mt-owned-field">'+pair[1]+'<select class="mt-input" data-profile-style="'+pair[0]+'"><option value="">Базовое оформление</option>'+owned.map(function(i){return '<option value="'+i.id+'"'+(style[pair[0]]===i.id?' selected':'')+'>'+escapeHtml(i.name)+' · '+Features.shopRarities[i.rarity]+'</option>';}).join('')+'</select></label>';
+      }).join('')+'</section>';
   }
 
   function renderProfileEditor() {
@@ -3596,6 +3629,7 @@
       '<input class="mt-input" id="prof-nick" maxlength="' + NICK_MAX + '" placeholder="Как тебя называть?" value="' + attrEsc(d.n) + '" autocomplete="nickname" />' +
       '<div class="mt-editor-label">О себе</div>' +
       '<input class="mt-input" id="prof-bio" maxlength="' + BIO_MAX + '" placeholder="Например: читаю всё, что с драконами" value="' + attrEsc(d.b) + '" />' +
+      renderOwnedStyles(d) +
       '<div class="mt-acct-msg err" id="prof-msg"></div>' +
       '<div class="mt-form-row">' +
       '<button class="mt-ghost-btn" id="prof-cancel" style="flex:1">Отмена</button>' +
@@ -3814,6 +3848,11 @@
       if (n) d.n = n.value;
       if (b) d.b = b.value;
     };
+    appEl.querySelectorAll('[data-profile-style]').forEach(function(el){el.addEventListener('change',function(){
+      readText();var kind=el.getAttribute('data-profile-style'),item=Features.shopItem(el.value);
+      if(el.value&&(!item||item.kind!==kind||!state.shop[item.id]))return;
+      d.style=Features.cleanStyle(d.style);d.style[kind]=el.value;render();
+    });});
     var refreshPreview = function () {
       var el = $("prof-preview");
       if (el) el.innerHTML = avatarHtml(d);
@@ -5086,7 +5125,7 @@
   };
 
   /* ---------- boot ---------- */
-  load().then(loadProfile).then(loadShop).then(loadRatingDrafts).then(loadRecentOpened).then(render).catch(function () { render(); }).then(function () {
+  load().then(loadUiSettings).then(loadProfile).then(loadShop).then(loadRatingDrafts).then(loadRecentOpened).then(render).catch(function () { render(); }).then(function () {
     if (!window.AMSync) return;
     // Repaint only the status line when the sync state changes (so a form the
     // user is typing into is never wiped); a full render when signing in/out.

@@ -159,6 +159,34 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-genre-chip-static { display:inline-block; max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 .mt-profile-page { min-width:0; }
 .mt-profile-page .mt-list { gap:18px; }
+.mt-profile-page .mt-list > .mt-shop-entry { margin:0; box-sizing:border-box; }
+.mt-settings-entry{display:flex;align-items:center;gap:14px;text-align:left;color:var(--text-primary);width:100%;box-sizing:border-box;cursor:pointer;}
+.mt-settings-entry>span:nth-child(2){flex:1;min-width:0;}
+.mt-settings-entry strong{font-size:15px;display:block;}
+.mt-settings-entry small{display:block;color:var(--text-muted);font-size:12px;line-height:1.6;margin-top:6px;}
+.mt-settings-page.mt-account-settings{padding:24px 22px calc(112px + env(safe-area-inset-bottom));box-sizing:border-box;}
+.mt-settings-card,.mt-settings-page .mt-profile-backup{padding:22px;border:1px solid #ffffff18;border-radius:22px;background:#211c28;margin:0 0 18px;}
+.mt-settings-card h2{font-size:17px;margin:0 0 12px;}
+.mt-settings-card p{font-size:12px;color:#b6a9c2;line-height:1.7;margin:0 0 18px;}
+.mt-setting-toggle{display:flex;align-items:center;gap:16px;padding:16px 0;border-top:1px solid #ffffff10;cursor:pointer;}
+.mt-setting-toggle>span{flex:1;min-width:0;}
+.mt-setting-toggle strong{display:block;font-size:13px;}
+.mt-setting-toggle small{display:block;font-size:12px;color:#b6a9c2;line-height:1.6;margin-top:6px;}
+.mt-setting-toggle input{width:22px;height:22px;accent-color:#c4b2ed;flex-shrink:0;}
+.mt-settings-page .mt-settings-account .mt-hero-acct{padding:0;border:0;background:none;border-radius:0;}
+.mt-settings-page .mt-editor{margin-bottom:18px;border-radius:22px;}
+.mt-settings-page .mt-profile-backup .mt-form-row{flex-wrap:wrap;}
+.mt-reduce-motion *,.mt-reduce-motion *:before,.mt-reduce-motion *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}
+.mt-large-text .mt-shell p,.mt-large-text .mt-input,.mt-large-text .mt-backup-text{font-size:15px!important;line-height:1.65;}
+.mt-large-text .mt-setting-toggle strong,.mt-large-text .mt-shop-item-body h2{font-size:16px;}
+.mt-large-text .mt-setting-toggle small,.mt-large-text .mt-settings-entry small,.mt-large-text .mt-chip-label{font-size:14px;}
+@media(max-width:359px){.mt-settings-page.mt-account-settings{padding-left:16px;padding-right:16px;}.mt-settings-card,.mt-settings-page .mt-profile-backup{padding:18px;}}
+.mt-owned-styles{border-top:1px solid #ffffff18;margin-top:24px;padding-top:12px;min-width:0;}
+.mt-owned-styles .mt-shop-preview{padding:20px;margin:16px 0 22px;}
+.mt-owned-styles .mt-shop-preview-person{margin-top:0;gap:20px;}
+.mt-owned-styles .mt-shop-preview-person strong{font-size:18px;}
+.mt-owned-field{display:block;margin-top:16px;color:#c6bbd2;font-size:12px;}
+.mt-owned-field .mt-input{display:block;width:100%;min-width:0;box-sizing:border-box;margin-top:8px;text-overflow:ellipsis;}
 .mt-profile-page .mt-paper { padding:22px; background:linear-gradient(145deg,#25202c,#1c1a21 70%); border-color:#c4b2ed14; border-radius:22px; }
 .mt-profile-page .mt-panel-title { font-size:16px; font-weight:700; letter-spacing:-.3px; line-height:1.45; margin-bottom:0; }
 .mt-profile-caption { color:var(--text-muted); font-size:11px; line-height:1.6; margin:6px 0 22px; }
@@ -522,7 +550,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 /* Profile atelier */
 .mt-shop-entry {display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:20px;margin:18px 0 0;background:linear-gradient(120deg,#35283f,#211b2b);border:1px solid #d8b5ef30;border-radius:20px;color:#f0e6f7;text-align:left;cursor:pointer;}
 .mt-shop-entry small {display:block;font-size:9px;letter-spacing:1.5px;color:#bfa4d1;margin-bottom:8px;}.mt-shop-entry strong{font-size:15px;}.mt-shop-entry>b{font:600 18px Manrope,sans-serif;color:#e9cd93;white-space:nowrap;}
-.mt-shop-page {max-width:960px;margin:auto;padding:24px 0 40px;}
+.mt-shop-page {width:100%;max-width:960px;box-sizing:border-box;margin:auto;padding:24px 22px 40px;}
+@media(max-width:359px){.mt-shop-page{padding-left:16px;padding-right:16px;}}
 .mt-shop-heading {display:flex;justify-content:space-between;align-items:center;gap:20px;margin:24px 0 12px;}
 .mt-shop-heading h1 {font:500 clamp(26px,4vw,42px)/1.15 Georgia,serif;margin:12px 0;letter-spacing:-.6px;}.mt-shop-heading h1 em{color:#c5a3e3;font-weight:400;}
 .mt-shop-wallet {padding:18px;border:1px solid #ddbc7833;border-radius:20px;background:#dfbf7a0b;flex-shrink:0;text-align:center;}.mt-shop-wallet small{display:block;font-size:8px;letter-spacing:1px;color:#bfae8a;}.mt-shop-wallet b{display:block;font-size:26px;margin-top:8px;color:#e7cc94;}
