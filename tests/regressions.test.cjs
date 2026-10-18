@@ -282,8 +282,8 @@ test('achievement progress measures targets, preserves earned medals and never g
 
 test('40 new achievements use consistent metrics and award XP only once', async () => {
   const {api:a} = harness();
-  assert.equal(a.ACHIEVEMENTS.length,95);
-  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,95);
+  assert.equal(a.ACHIEVEMENTS.length,100);
+  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,100);
   const m = addRated(a); m.notes = '   '; m.coverUrl = 'https://example.com/cover.png';
   m.ratingHistory = [{ts:1700000000000,avg:70,criteria:m.criteria}];
   a.state.activityLog = [{ts:1700000000000,type:'add'},{ts:1700000001000,type:'rated'}];
@@ -480,4 +480,55 @@ test('owner eligibility requires the verified account, not nickname or imported 
  ctx.crypto={subtle:{digest:async()=>Uint8Array.from(Buffer.from('342f6208633b9708f2eec434d8f9c89eb36871c0c5f3f082bb6727754c73ca92','hex')).buffer}};
  assert.equal(await ctx.window.checkOwner({email:'owner@example.test',emailVerified:true}),true);
  assert.equal(await ctx.window.checkOwner({email:'owner@example.test',emailVerified:false}),false);
+});
+test('completed goals grant XP and coins once, including already completed goals',async()=>{
+ const h=harness(),a=h.api;
+ a.ACHIEVEMENTS.filter(x=>!x.id.startsWith('goal_reward_')).forEach(x=>a.state.unlockedAchievements[x.id]=1);
+ a.state.totalXp=1000;
+ a.state.profile.journey={goals:[{id:'finish3',started:10,baseline:[],earned:['one','two']}],duels:[]};
+ a.render();assert.equal(a.state.totalXp,1000);
+ const m=a.newManhwa('Third');m.id='three';m.status='done';a.state.manhwas=[m];a.save();
+ assert.equal(a.state.totalXp,1150);assert.equal(J.coinBalance(a.state.totalXp,a.state.shop),1150);
+ a.render();a.save();assert.equal(a.state.totalXp,1150);
+ await a.flush();
+ const b=harness(h.saved).api;b.state.totalXp=1150;
+ b.state.unlockedAchievements=JSON.parse(h.saved.get(a.keys.achievements));
+ await b.loadProfile();b.render();assert.equal(b.state.totalXp,1150);
+ b.state.profile.journey.goals=[];b.save();
+ b.state.profile.journey.goals=[{id:'finish3',started:20,baseline:[],earned:['x','y','z']}];b.render();
+ assert.equal(b.state.totalXp,1150);
+ const legacy=harness().api;
+ legacy.ACHIEVEMENTS.filter(x=>!x.id.startsWith('goal_reward_')).forEach(x=>legacy.state.unlockedAchievements[x.id]=1);
+ legacy.state.profile.journey={goals:[{id:'notes10',started:10,baseline:[],earned:Array.from({length:10},(_,i)=>'n'+i)}],duels:[]};
+ legacy.render();assert.equal(legacy.state.totalXp,200);
+ legacy.render();assert.equal(legacy.state.totalXp,200);
+});
+test('goal reward merge deduplicates same goals and preserves different offline rewards',async()=>{
+ const cloud=syncHarness(),a=harness().api,b=harness().api;
+ a.state.totalXp=1150;a.state.unlockedAchievements={goal_reward_finish3:10};
+ b.state.totalXp=1200;b.state.unlockedAchievements={goal_reward_notes10:11};
+ const ea=cloud.engine(a),eb=cloud.engine(b);
+ await ea.sync();await eb.sync();await ea.sync();
+ assert.equal(a.state.totalXp,1350);assert.equal(b.state.totalXp,1350);
+ await eb.sync();await ea.sync();assert.equal(a.state.totalXp,1350);
+ const same=harness().api;same.state.totalXp=1150;same.state.unlockedAchievements={goal_reward_finish3:12};
+ await cloud.engine(same).sync();assert.equal(same.state.totalXp,1350);
+});
+test('chapter ratings accept rating-only records and preserve legacy notes',()=>{
+ const old={id:'old',text:'Note',chapter:1,ts:100,spoiler:true};
+ assert.deepEqual(J.journal([old]),[old]);
+ const records=J.journal([{id:'score',chapter:2,ts:200,rating:9},{id:'bad',chapter:3,ts:300,rating:11},{id:'fraction',chapter:4,ts:400,rating:2.5}]);
+ assert.equal(records.length,1);assert.equal(records[0].rating,9);assert.equal(records[0].text,'');
+ const {api}=harness();const m=api.newManhwa('Chapter test');m.journal=records;
+ assert.equal(api.sanitizeImportedManhwa(m,{}).journal[0].rating,9);
+});
+test('chapter ratings survive cloud roundtrip without changing title scores',async()=>{
+ const cloud=syncHarness(),a=harness().api,m=addRated(a);
+ const score=a.ratedScore(m);m.journal=[{id:'chapter',chapter:74.5,ts:100,text:'',rating:8,spoiler:false}];
+ await cloud.engine(a).sync();const b=harness().api;await cloud.engine(b).sync();
+ assert.equal(b.state.manhwas[0].journal[0].rating,8);
+ assert.equal(b.ratedScore(b.state.manhwas[0]),score);
+ b.state.manhwas[0].journal[0].rating=10;
+ const eb=cloud.engine(b);await eb.sync();
+ const c=harness().api;await cloud.engine(c).sync();assert.equal(c.state.manhwas[0].journal[0].rating,10);
 });

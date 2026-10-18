@@ -639,6 +639,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-shop-badge{align-items:center;gap:6px;max-width:100%;box-sizing:border-box;}
 .mt-shop-badge>img{width:30px;height:30px;object-fit:contain;flex-shrink:0;}
 .mt-shop-badge>span{min-width:0;overflow-wrap:anywhere;}
+.mt-hero-id > .mt-shop-badge{margin-right:10px;margin-bottom:4px;vertical-align:middle;}
+.mt-goal-reward{margin:14px 0;padding:10px 12px;border-radius:12px;background:#d6b47112;border:1px solid #d6b47130;color:#ead09b;font-size:12px;line-height:1.6;}
+.mt-chapter-rating-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;color:#c9b9dc;font-size:12px;}
+.mt-chapter-rating-label .mt-input{width:145px;max-width:60%;margin:0;font-size:13px;color:#ead09b;}
 .mt-frame-chalk{--frame-color:#d1d8df;}
 .mt-frame-copper{--frame-color:#c28b6c;}
 .mt-frame-denim{--frame-color:#6e94bc;}

@@ -177,14 +177,20 @@
     return {ranking:leaders, leaders:leaders.filter(function (r) { return r.place === 1; }), categories:categoryLeaders, months:months, awardCount:count};
   }
   var goalOptions = [
-    {id:'finish3',name:'Три истории до финала',text:'Заверши 3 тайтла',metric:'done',target:3},
-    {id:'finish12',name:'Большое путешествие',text:'Заверши 12 тайтлов',metric:'done',target:12},
-    {id:'notes10',name:'Летописец',text:'Сделай 10 записей по главам',metric:'journal',target:10},
-    {id:'reviews5',name:'Своё мнение',text:'Напиши рецензии к 5 тайтлам',metric:'reviews',target:5},
-    {id:'genres3',name:'За пределами привычного',text:'Оцени тайтлы 3 новых для тебя жанров',metric:'genres',target:3}
+    {id:'finish3',reward:150,name:'Три истории до финала',text:'Заверши 3 тайтла',metric:'done',target:3},
+    {id:'finish12',reward:600,name:'Большое путешествие',text:'Заверши 12 тайтлов',metric:'done',target:12},
+    {id:'notes10',reward:200,name:'Летописец',text:'Сделай 10 записей по главам',metric:'journal',target:10},
+    {id:'reviews5',reward:250,name:'Своё мнение',text:'Напиши рецензии к 5 тайтлам',metric:'reviews',target:5},
+    {id:'genres3',reward:150,name:'За пределами привычного',text:'Оцени тайтлы 3 новых для тебя жанров',metric:'genres',target:3}
   ];
+  function goalRewardXp(achievements){return goalOptions.reduce(function(sum,o){return sum+(achievements&&achievements['goal_reward_'+o.id]?o.reward:0);},0);}
   function journal(raw) {
-    return (Array.isArray(raw) ? raw : []).filter(function(e) { return e && typeof e.id==='string' && typeof e.text==='string' && e.text.trim() && Number.isFinite(e.ts) && Number.isFinite(e.chapter) && e.chapter>=0; }).slice(-1000).map(function(e) { return {id:e.id, text:e.text.slice(0,2000), chapter:e.chapter, ts:e.ts, spoiler:!!e.spoiler}; });
+    return (Array.isArray(raw) ? raw : []).filter(function(e) { return e && typeof e.id==='string' && Number.isFinite(e.ts) && Number.isFinite(e.chapter) && e.chapter>=0 && e.chapter<=1000000; }).map(function(e) {
+      var rating=Number.isInteger(e.rating)&&e.rating>=1&&e.rating<=10?e.rating:null;
+      var entry={id:e.id,text:typeof e.text==='string'?e.text.slice(0,2000):'',chapter:e.chapter,ts:e.ts,spoiler:!!e.spoiler};
+      if(rating!==null)entry.rating=rating;
+      return entry;
+    }).filter(function(e){return e.text.trim()||e.rating;}).slice(-1000);
   }
   function goalKeys(list, metric) {
     if(metric==='journal') return list.flatMap(function(m){ return journal(m.journal).map(function(e){return m.id+':'+e.id;}); });
@@ -291,7 +297,7 @@
   function coinBalance(xp,owned){return Math.max(0,Math.floor(Number.isFinite(xp)?xp:0)-Object.keys(cleanShop(owned,xp)).reduce(function(n,id){return n+shopItem(id).price;},0));}
   function cleanStyle(raw){var out={};['theme','frame','badge'].forEach(function(k){var item=raw&&shopItem(raw[k]);out[k]=item&&item.kind===k?item.id:'';});return out;}
 
-  var api = {shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

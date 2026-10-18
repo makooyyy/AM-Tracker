@@ -489,6 +489,12 @@
       name:goal[3], desc:goal[4], icon:goal[5], xp:goal[6], check:function () { return achievementMetrics()[goal[0]] >= goal[1]; } });
   });
 
+  Features.goalOptions.forEach(function(o){
+    ACHIEVEMENTS.push({id:'goal_reward_'+o.id,name:o.name,desc:'Выполни выбранную цель: '+o.text,category:'Цели',icon:'🎯',xp:o.reward,check:function(){
+      return journeyData().goals.some(function(g){return g.id===o.id&&new Set(g.earned).size>=o.target;});
+    }});
+  });
+
   // Persists newly-met achievements permanently — once unlocked, never
   // re-checked or revoked even if the underlying stat later drops (e.g. a
   // title gets deleted). Called after every logged action.
@@ -3929,6 +3935,7 @@
       keys.forEach(function(k){if(!g.earned.includes(k)){g.earned.push(k);changed=true;}});
     });
     if(changed){state.profile.journey=data;saveProfile();}
+    if(data.goals.some(function(g){var o=Features.goalOptions.find(function(o){return o.id===g.id;});return new Set(g.earned).size>=o.target&&!state.unlockedAchievements['goal_reward_'+g.id];}))checkAchievements();
   }
   function journeyCover(m) {return m.coverUrl ? '<img loading="lazy" src="'+escapeHtml(m.coverUrl)+'" alt="" />' : '<span class="mt-journey-placeholder">AM</span>';}
   function discoverySelection() {
@@ -4002,12 +4009,15 @@
       html+='</section>';
     }
     if(ui.section==='goals')html+=
-      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">03 / ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
+      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">03 / ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов. Награда за каждый вид цели выдаётся один раз.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p><div class="mt-goal-reward">'+(state.unlockedAchievements['goal_reward_'+o.id]?'Награда получена ✓':'Награда: +'+o.reward+' XP · +'+o.reward+' монет')+'</div>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
     return html+'</div></div>';
+  }
+  function chapterRatingOptions(value){
+    return '<option value="">Без оценки</option>'+Array.from({length:10},function(_,i){var n=i+1;return '<option value="'+n+'"'+(value===n?' selected':'')+'>'+n+' / 10</option>';}).join('');
   }
   function renderChapterJournal(m) {
     var entries=Features.journal((findManhwa(m.id)||m).journal).slice().reverse();
-    return '<section class="mt-journey-panel mt-chapter-journal"><div class="mt-section-eyebrow">МЕЖДУ СТРОК</div><h2>Впечатления по главам</h2><p>Сохрани момент, к которому захочется вернуться.</p><form id="chapter-form"><label>Номер главы<input id="chapter-number" class="mt-input" type="number" min="0" step="0.1" max="1000000" required placeholder="Например, 74" /></label><label>Твоё впечатление<textarea id="chapter-text" class="mt-input" maxlength="2000" required placeholder="Что удивило или запомнилось?"></textarea></label><label class="mt-spoiler-check"><input id="chapter-spoiler" type="checkbox" /> Содержит спойлер</label><button class="mt-primary-btn" type="submit">Сохранить момент</button></form><div class="mt-journal-list">'+entries.map(function(e){return '<article><header><b>Глава '+e.chapter+'</b><time>'+escapeHtml(new Date(e.ts).toLocaleDateString('ru-RU'))+'</time></header>'+(e.spoiler?'<details><summary>Показать спойлер</summary><p>'+escapeHtml(e.text)+'</p></details>':'<p>'+escapeHtml(e.text)+'</p>')+'<button class="mt-ghost-btn" data-journal-delete="'+escapeHtml(e.id)+'">Удалить запись</button></article>';}).join('')+'</div></section>';
+    return '<section class="mt-journey-panel mt-chapter-journal"><div class="mt-section-eyebrow">МЕЖДУ СТРОК</div><h2>Впечатления по главам</h2><p>Оцени главу по шкале от 1 до 10 или оставь заметку. Это не меняет общую оценку тайтла.</p><form id="chapter-form"><label>Номер главы<input id="chapter-number" class="mt-input" type="number" min="0" step="0.1" max="1000000" required placeholder="Например, 74" /></label><label>Оценка главы<select id="chapter-rating" class="mt-input">'+chapterRatingOptions(null)+'</select></label><label>Твоё впечатление · необязательно<textarea id="chapter-text" class="mt-input" maxlength="2000" placeholder="Что удивило или запомнилось?"></textarea></label><label class="mt-spoiler-check"><input id="chapter-spoiler" type="checkbox" /> Содержит спойлер</label><p id="chapter-error" class="mt-feature-hint" role="alert"></p><button class="mt-primary-btn" type="submit">Сохранить</button></form><div class="mt-journal-list">'+entries.map(function(e){return '<article><header><b>Глава '+e.chapter+'</b><time>'+escapeHtml(new Date(e.ts).toLocaleDateString('ru-RU'))+'</time></header><label class="mt-chapter-rating-label">Оценка главы<select class="mt-input" data-journal-rating="'+escapeHtml(e.id)+'">'+chapterRatingOptions(e.rating)+'</select></label>'+(e.spoiler?'<details><summary>Показать спойлер</summary><p>'+escapeHtml(e.text)+'</p></details>':'<p>'+escapeHtml(e.text)+'</p>')+'<button class="mt-ghost-btn" data-journal-delete="'+escapeHtml(e.id)+'">Удалить запись</button></article>';}).join('')+'</div></section>';
   }
   function attachJourneyHandlers(selected) {
     function bind(id,event,fn){var el=document.getElementById(id);if(el)el.addEventListener(event,fn);}
@@ -4022,7 +4032,23 @@
     document.getElementById('app').querySelectorAll('[data-duel-winner]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),a=el.getAttribute('data-duel-winner'),b=el.getAttribute('data-duel-other');if(d.duels.some(function(x){return (x.a===a&&x.b===b)||(x.a===b&&x.b===a);}))return;d.duels.push({a:a,b:b,winner:a});state.profile.journey=d;nextDuel();saveProfile();render();});});
     document.getElementById('app').querySelectorAll('[data-goal-add]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),o=Features.goalOptions.find(function(o){return o.id===el.getAttribute('data-goal-add');});if(d.goals.some(function(g){return g.id===o.id;}))return;d.goals.push({id:o.id,started:Date.now(),baseline:Features.goalKeys(state.manhwas,o.metric),earned:[]});state.profile.journey=d;saveProfile();render();});});
     document.getElementById('app').querySelectorAll('[data-goal-remove]').forEach(function(el){el.addEventListener('click',function(){if(!window.confirm('Убрать цель? При повторном выборе прогресс начнётся заново.'))return;var d=journeyData();d.goals=d.goals.filter(function(g){return g.id!==el.getAttribute('data-goal-remove');});state.profile.journey=d;saveProfile();render();});});
-    bind('chapter-form','submit',function(e){e.preventDefault();var m=selected&&findManhwa(selected.id),text=document.getElementById('chapter-text').value.trim(),chapter=Number(document.getElementById('chapter-number').value);if(!m||!text||!Number.isFinite(chapter)||chapter<0||chapter>1000000)return;m.journal=Features.journal(m.journal);m.journal.push({id:uid(),ts:Date.now(),chapter:chapter,text:text.slice(0,2000),spoiler:document.getElementById('chapter-spoiler').checked});m.updatedAt=Date.now();save();render();});
+    bind('chapter-form','submit',function(e){
+      e.preventDefault();var m=selected&&findManhwa(selected.id),text=document.getElementById('chapter-text').value.trim(),rawChapter=document.getElementById('chapter-number').value,chapter=Number(rawChapter),rating=Number(document.getElementById('chapter-rating').value)||null;
+      if(!m||!rawChapter||!Number.isFinite(chapter)||chapter<0||chapter>1000000)return;
+      if(!text&&!rating){document.getElementById('chapter-error').textContent='Поставь оценку или напиши заметку.';return;}
+      if(rating!==null&&(!Number.isInteger(rating)||rating<1||rating>10))return;
+      m.journal=Features.journal(m.journal);var entry={id:uid(),ts:Date.now(),chapter:chapter,text:text.slice(0,2000),spoiler:document.getElementById('chapter-spoiler').checked};if(rating!==null)entry.rating=rating;
+      m.journal.push(entry);m.journal=Features.journal(m.journal);m.updatedAt=Date.now();save();render();
+    });
+    document.getElementById('app').querySelectorAll('[data-journal-rating]').forEach(function(el){el.addEventListener('change',function(){
+      var m=selected&&findManhwa(selected.id);if(!m)return;
+      var entries=Features.journal(m.journal),entry=entries.find(function(x){return x.id===el.getAttribute('data-journal-rating');});if(!entry)return;
+      var rating=Number(el.value)||null;
+      if(rating===null&&!entry.text.trim()){el.value=String(entry.rating);return;}
+      if(rating!==null&&(!Number.isInteger(rating)||rating<1||rating>10))return;
+      if(rating===null)delete entry.rating;else entry.rating=rating;
+      m.journal=entries;m.updatedAt=Date.now();save();render();
+    });});
     document.getElementById('app').querySelectorAll('[data-journal-delete]').forEach(function(el){el.addEventListener('click',function(){if(!window.confirm('Удалить эту запись?'))return;var m=selected&&findManhwa(selected.id);if(!m)return;m.journal=Features.journal(m.journal).filter(function(e){return e.id!==el.getAttribute('data-journal-delete');});m.updatedAt=Date.now();save();render();});});
   }
 
@@ -5067,7 +5093,7 @@
     log: function () { return state.activityLog; },
     profile: function () { return state.profile; },
     sanitizeProfile: sanitizeProfile,
-    cleanShop: Features.cleanShop, mergeShop: Features.mergeShop,
+    goalRewardXp: Features.goalRewardXp, cleanShop: Features.cleanShop, mergeShop: Features.mergeShop,
     sanitizeTitle: function (obj) { return sanitizeImportedManhwa(obj, {}); },
     loadMeta: function () { return readKey(SYNC_META_KEY); },
     saveMeta: function (meta) { return persistKey(SYNC_META_KEY, meta); },

@@ -292,6 +292,9 @@
 
     function mergeProgressInto(local, remoteP, ch) {
       var merged = { x: Math.max(local.x || 0, remoteP.x || 0), a: unionAch(local.a, remoteP.a) };
+      if(host.goalRewardXp){
+        merged.x=Math.max(0,(local.x||0)-host.goalRewardXp(local.a),(remoteP.x||0)-host.goalRewardXp(remoteP.a))+host.goalRewardXp(merged.a);
+      }
       merged.shop = host.mergeShop ? host.mergeShop(local.shop, remoteP.shop, merged.x) : {};
       var lh = hashStr(canonProgress(local));
       var mh = hashStr(canonProgress(merged));
