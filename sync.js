@@ -635,6 +635,13 @@
     return new Error((e && e.message) ? String(e.message) : "Что-то пошло не так.");
   }
 
+  // Cosmetic entitlement only; this never grants access to other users' data.
+  function verifiedOwner(user) {
+    if(!user || !user.emailVerified || !user.email)return Promise.resolve(false);
+    return crypto.subtle.digest('SHA-256',new TextEncoder().encode(user.email.trim().toLowerCase())).then(function(bytes){
+      return Array.from(new Uint8Array(bytes)).map(function(b){return b.toString(16).padStart(2,'0');}).join('')==='342f6208633b9708f2eec434d8f9c89eb36871c0c5f3f082bb6727754c73ca92';
+    }).catch(function(){return false;});
+  }
   function setupBrowserApi() {
     var cfg = root.AM_FIREBASE_CONFIG || {};
     var host = null;
@@ -643,6 +650,7 @@
     var listeners = [];
     var timer = null;
     var started = false;
+    var ownerUid = null;
 
     var status = {
       configured: !!(cfg.apiKey && cfg.projectId),
@@ -694,6 +702,14 @@
     }
 
     function attach(user) {
+      return verifiedOwner(user).then(function(owner){
+        if(!sdk.auth.currentUser || sdk.auth.currentUser.uid!==user.uid)return;
+        ownerUid=owner?user.uid:null;
+        update({owner:owner});
+        return attachAuthenticated(user);
+      });
+    }
+    function attachAuthenticated(user) {
       if (attachedUid === user.uid && engine) {
         update({ email: user.email || "", verified: !!user.emailVerified, hasPassword: hasPasswordLogin(user) });
         return Promise.resolve();
@@ -730,6 +746,8 @@
     }
 
     function detach() {
+      ownerUid=null;
+      update({owner:false});
       clearTimeout(timer);
       engine = null; remote = null; attachedUid = null;
       var save = Promise.resolve();
@@ -758,6 +776,7 @@
     var api = {
       isConfigured: function () { return status.configured; },
       isSignedIn: function () { return status.signedIn; },
+      isOwner: function () { var user=sdk&&sdk.auth.currentUser;return !!(user&&user.emailVerified&&ownerUid===user.uid); },
       getStatus: snapshot,
       onStatus: function (fn) { listeners.push(fn); },
 

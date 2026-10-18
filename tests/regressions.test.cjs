@@ -460,5 +460,24 @@ test('cloud rejects non-finite XP and invalid activity timestamps',async()=>{
 });
 test('shop catalog references existing assets and unique valid items',()=>{
  assert.equal(new Set(J.shopItems.map(x=>x.id)).size,J.shopItems.length);
- for(const item of J.shopItems){assert.ok(item.price>0&&Number.isInteger(item.price));assert.ok(J.shopRarities[item.rarity]);if(item.image)assert.ok(fs.existsSync(item.image),item.image);}
+ for(const item of J.shopItems){assert.ok((item.exclusive?item.price===0:item.price>0)&&Number.isInteger(item.price));assert.ok(J.shopRarities[item.rarity]);if(item.image)assert.ok(fs.existsSync(item.image),item.image);}
+});
+test('exclusive cosmetics cannot be bought or granted by importing purchases',()=>{
+ const {api}=harness();api.state.totalXp=100000;
+ for(const id of ['theme-freefall','frame-freefall','badge-owner']){
+   assert.equal(api.buyShopItem(id),false);
+   api.state.shop[id]=1;api.equipShopItem(id);
+ }
+ assert.equal(api.activeStyle().theme,'');
+ assert.deepEqual(J.cleanShop({'theme-freefall':1,'badge-owner':1},100000),{});
+ assert.deepEqual(J.mergeShop({'frame-freefall':1},{},100000),{});
+});
+test('owner eligibility requires the verified account, not nickname or imported profile',async()=>{
+ const ctx=vm.createContext({window:{},console,crypto:require('node:crypto').webcrypto,TextEncoder,Uint8Array});
+ vm.runInContext(fs.readFileSync('sync.js','utf8').replace('root.AMSync = setupBrowserApi();','root.checkOwner = verifiedOwner;'),ctx);
+ assert.equal(await ctx.window.checkOwner({email:'other@example.test',emailVerified:true}),false);
+ assert.equal(await ctx.window.checkOwner(null),false);
+ ctx.crypto={subtle:{digest:async()=>Uint8Array.from(Buffer.from('342f6208633b9708f2eec434d8f9c89eb36871c0c5f3f082bb6727754c73ca92','hex')).buffer}};
+ assert.equal(await ctx.window.checkOwner({email:'owner@example.test',emailVerified:true}),true);
+ assert.equal(await ctx.window.checkOwner({email:'owner@example.test',emailVerified:false}),false);
 });

@@ -271,16 +271,21 @@
 {"id":"badge-spark","kind":"badge","name":"Искра интереса","price":80,"rarity":"common","icon":"✧","desc":"Каждая история начинается с любопытства"},
 {"id":"badge-compass","kind":"badge","name":"Свой маршрут","price":100,"rarity":"common","icon":"⌖","desc":"Выбирай истории в своём темпе"}
   );
-  var shopRarities={common:'Обычная',rare:'Редкая',epic:'Эпическая',legendary:'Легендарная'};
+  shopItems.push(
+    {id:'theme-freefall',kind:'theme',name:'Свободное падение',price:0,rarity:'exclusive',exclusive:true,icon:'☁',image:'assets/shop/theme-freefall.webp',desc:'Личное небо владельца: лазурь, облака и свобода'},
+    {id:'frame-freefall',kind:'frame',name:'Облачный поток',price:0,rarity:'exclusive',exclusive:true,icon:'❧',image:'assets/shop/frame-freefall.webp',desc:'Серебряный ветер и крылья из облаков'},
+    {id:'badge-owner',kind:'badge',name:'owner',price:0,rarity:'exclusive',exclusive:true,icon:'♛',desc:'Личный знак владельца AM Tracker'}
+  );
+  var shopRarities={common:'Обычная',rare:'Редкая',epic:'Эпическая',legendary:'Легендарная',exclusive:'Эксклюзивная'};
   function shopItem(id){return shopItems.find(function(i){return i.id===id;});}
   function cleanShop(raw,xp){
     raw=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
     var budget=Number.isFinite(xp)?Math.max(0,Math.floor(xp)):0,out={};
-    Object.keys(raw).filter(function(id){return shopItem(id)&&Number.isFinite(raw[id])&&raw[id]>0;}).sort(function(a,b){return raw[a]-raw[b]||a.localeCompare(b);}).forEach(function(id){var cost=shopItem(id).price;if(cost<=budget){out[id]=raw[id];budget-=cost;}});
+    Object.keys(raw).filter(function(id){return shopItem(id)&&!shopItem(id).exclusive&&Number.isFinite(raw[id])&&raw[id]>0;}).sort(function(a,b){return raw[a]-raw[b]||a.localeCompare(b);}).forEach(function(id){var cost=shopItem(id).price;if(cost<=budget){out[id]=raw[id];budget-=cost;}});
     return out;
   }
   function mergeShop(a,b,xp){
-    var union={};[a,b].forEach(function(raw){Object.keys(raw||{}).forEach(function(id){if(!shopItem(id)||!Number.isFinite(raw[id])||raw[id]<=0)return;union[id]=union[id]?Math.min(union[id],raw[id]):raw[id];});});
+    var union={};[a,b].forEach(function(raw){Object.keys(raw||{}).forEach(function(id){if(!shopItem(id)||shopItem(id).exclusive||!Number.isFinite(raw[id])||raw[id]<=0)return;union[id]=union[id]?Math.min(union[id],raw[id]):raw[id];});});
     return cleanShop(union,xp);
   }
   function coinBalance(xp,owned){return Math.max(0,Math.floor(Number.isFinite(xp)?xp:0)-Object.keys(cleanShop(owned,xp)).reduce(function(n,id){return n+shopItem(id).price;},0));}

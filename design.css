@@ -160,6 +160,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-profile-page { min-width:0; }
 .mt-profile-page .mt-list { gap:18px; }
 .mt-profile-page .mt-list > .mt-shop-entry { margin:0; box-sizing:border-box; }
+.mt-theme-freefall{background:linear-gradient(90deg,#052a50d9,#06375b99 65%,#14364d33),url('assets/shop/theme-freefall.webp') center/cover!important;}
+.mt-frame-freefall .mt-shop-avatar,.mt-frame-freefall .mt-hero-avatar-ring{position:relative;background:#c7efff!important;overflow:visible!important;outline:0!important;box-shadow:none;}
+.mt-frame-freefall .mt-shop-avatar:after,.mt-frame-freefall .mt-hero-avatar-ring:after{content:'';position:absolute;inset:-19%;background:url('assets/shop/frame-freefall.webp') center/contain no-repeat;pointer-events:none;z-index:2;}
+.mt-badge-owner .mt-shop-badge{color:#e4faff;border:1px solid #b4eaff99;background:linear-gradient(125deg,#123c5de8,#235574d9);box-shadow:0 0 16px #91ddff22;font-weight:800;letter-spacing:1.4px;}
+.mt-shop-item[data-rarity=exclusive]{--rarity:#9de4ff;}
 .mt-settings-entry{display:flex;align-items:center;gap:14px;text-align:left;color:var(--text-primary);width:100%;box-sizing:border-box;cursor:pointer;}
 .mt-settings-entry>span:nth-child(2){flex:1;min-width:0;}
 .mt-settings-entry strong{font-size:15px;display:block;}

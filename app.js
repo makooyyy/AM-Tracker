@@ -3179,25 +3179,26 @@
   }
   function saveShop(){persistKey(SHOP_STORAGE_KEY,state.shop).catch(function(){});syncPing();}
   function loadShop(){return readKey(SHOP_STORAGE_KEY).then(function(raw){state.shop=Features.cleanShop(raw,state.totalXp);});}
+  function ownsStyle(id){var item=Features.shopItem(id);return !!item&&(item.exclusive?!!(window.AMSync&&window.AMSync.isOwner&&window.AMSync.isOwner()):!!state.shop[id]);}
   function activeStyle(preview){
     var style=Features.cleanStyle(state.profile.style);
-    Object.keys(style).forEach(function(k){if(!state.shop[style[k]])style[k]='';});
-    var item=Features.shopItem(preview);if(item)style[item.kind]=item.id;
+    Object.keys(style).forEach(function(k){if(!ownsStyle(style[k]))style[k]='';});
+    var item=Features.shopItem(preview);if(item&&(!item.exclusive||ownsStyle(item.id)))style[item.kind]=item.id;
     return style;
   }
   function styleClasses(style){return Object.keys(style).map(function(k){return style[k]?' mt-'+style[k]:'';}).join('');}
   function styleBadge(style){var item=Features.shopItem(style.badge);return item?'<span class="mt-shop-badge">'+(item.image?'<img src="'+escapeHtml(item.image)+'" alt="" width="30" height="30" />':item.icon)+' <span>'+escapeHtml(item.name)+'</span></span>':'';}
   function buyShopItem(id){
-    var item=Features.shopItem(id);if(!item||state.shop[id])return false;
+    var item=Features.shopItem(id);if(!item||item.exclusive||state.shop[id])return false;
     if(Features.coinBalance(state.totalXp,state.shop)<item.price){state.shopNotice='Не хватает монет. Они начисляются вместе с опытом.';return false;}
     state.shop[id]=Date.now();saveShop();state.shopNotice='Куплено: '+item.name+'. Оформление доступно в редакторе профиля.';return true;
   }
-  function equipShopItem(id){var item=Features.shopItem(id);if(!item||!state.shop[id])return;var style=Features.cleanStyle(state.profile.style);style[item.kind]=id;state.profile.style=style;saveProfile();state.shopNotice='Оформление применено.';}
+  function equipShopItem(id){var item=Features.shopItem(id);if(!item||!ownsStyle(id))return;var style=Features.cleanStyle(state.profile.style);style[item.kind]=id;state.profile.style=style;saveProfile();state.shopNotice='Оформление применено.';}
   function renderShopEntry(){return '<button class="mt-shop-entry" id="shop-open"><span><small>МАГАЗИН ПРОФИЛЯ</small><strong>Сделай его своим <span aria-hidden="true">↗</span></strong></span><b>◈ '+Features.coinBalance(state.totalXp,state.shop)+'</b></button>'+(state.shopNotice?'<p class="mt-feature-hint" role="status">'+escapeHtml(state.shopNotice)+'</p>':'');}
   function renderShop(){
     var style=activeStyle(state.shopPreview),balance=Features.coinBalance(state.totalXp,state.shop),preview=Features.shopItem(state.shopPreview);
-    var items=Features.shopItems.filter(function(i){return (state.shopCategory==='all'||i.kind===state.shopCategory)&&(state.shopRarity==='all'||i.rarity===state.shopRarity);});
-    var rarityOrder={common:0,rare:1,epic:2,legendary:3};
+    var items=Features.shopItems.filter(function(i){return !i.exclusive&&(state.shopCategory==='all'||i.kind===state.shopCategory)&&(state.shopRarity==='all'||i.rarity===state.shopRarity);});
+    var rarityOrder={common:0,rare:1,epic:2,legendary:3,exclusive:4};
     if(state.shopSort)items.sort(function(a,b){var delta=rarityOrder[a.rarity]-rarityOrder[b.rarity];return (state.shopSort==='rare-first'?-delta:delta)||a.price-b.price;});
     return '<section class="mt-shop-page"><button id="shop-back" class="mt-ghost-btn">← Профиль</button><header class="mt-shop-heading"><div><span class="mt-section-eyebrow">КОЛЛЕКЦИЯ ТВОЕГО СТИЛЯ</span><h1>Истории меняют нас.<br><em>Выбери свой образ.</em></h1></div><div class="mt-shop-wallet"><small>ТВОИ МОНЕТЫ</small><b>◈ '+balance+'</b></div></header><p class="mt-shop-explain">За каждый полученный XP — 1 монета. Прошлый опыт уже учтён. Покупки не снижают опыт и ранг.</p>'+
       '<div class="mt-shop-preview'+styleClasses(style)+'"><span class="mt-section-eyebrow">'+(preview?'ПРИМЕРКА · '+escapeHtml(preview.name):'ТВОЁ ОФОРМЛЕНИЕ')+'</span><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(state.profile)+'</div><div><strong>'+escapeHtml(displayNick())+'</strong>'+styleBadge(style)+'<p>Твоя следующая история уже рядом.</p></div></div></div>'+
@@ -3591,11 +3592,11 @@
   }
 
   function renderOwnedStyles(d) {
-    var style=Features.cleanStyle(d.style);
+    var style=Features.cleanStyle(d.style);Object.keys(style).forEach(function(k){if(!ownsStyle(style[k]))style[k]='';});
     return '<section class="mt-owned-styles"><div class="mt-editor-label">МОЯ КОЛЛЕКЦИЯ</div><p class="mt-feature-hint">Выбери купленное оформление. Оно применится после сохранения профиля.</p>'+
       '<div class="mt-shop-preview'+styleClasses(style)+'"><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(d)+'</div><div><strong>'+escapeHtml(d.n||displayNick())+'</strong>'+styleBadge(style)+'</div></div></div>'+
       [['theme','Тема'],['frame','Рамка'],['badge','Значок']].map(function(pair){
-        var owned=Features.shopItems.filter(function(i){return i.kind===pair[0]&&state.shop[i.id];});
+        var owned=Features.shopItems.filter(function(i){return i.kind===pair[0]&&ownsStyle(i.id);});
         return '<label class="mt-owned-field">'+pair[1]+'<select class="mt-input" data-profile-style="'+pair[0]+'"><option value="">Базовое оформление</option>'+owned.map(function(i){return '<option value="'+i.id+'"'+(style[pair[0]]===i.id?' selected':'')+'>'+escapeHtml(i.name)+' · '+Features.shopRarities[i.rarity]+'</option>';}).join('')+'</select></label>';
       }).join('')+'</section>';
   }
@@ -3850,7 +3851,7 @@
     };
     appEl.querySelectorAll('[data-profile-style]').forEach(function(el){el.addEventListener('change',function(){
       readText();var kind=el.getAttribute('data-profile-style'),item=Features.shopItem(el.value);
-      if(el.value&&(!item||item.kind!==kind||!state.shop[item.id]))return;
+      if(el.value&&(!item||item.kind!==kind||!ownsStyle(item.id)))return;
       d.style=Features.cleanStyle(d.style);d.style[kind]=el.value;render();
     });});
     var refreshPreview = function () {
@@ -5130,7 +5131,7 @@
     // Repaint only the status line when the sync state changes (so a form the
     // user is typing into is never wiped); a full render when signing in/out.
     window.AMSync.onStatus(function (st, prev) {
-      if (st.signedIn !== prev.signedIn || st.verified !== prev.verified) { render(); return; }
+      if (st.signedIn !== prev.signedIn || st.verified !== prev.verified || st.owner !== prev.owner) { render(); return; }
       patchAcctStatus(st);
     });
     window.AMSync.start(window.AMApp);

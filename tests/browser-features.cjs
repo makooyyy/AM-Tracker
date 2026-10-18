@@ -358,6 +358,28 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.setViewportSize({width:390,height:844});
     await page.screenshot({animations:'disabled',path:path.join(root,'test-results','profile-new-collection.png')});
     assert.deepEqual(errors,[]);
+    await page.locator('#prof-edit').click();
+    assert.equal(await page.locator('[data-profile-style] option[value="theme-freefall"]').count(),0);
+    await page.locator('#prof-cancel').click();
+    await page.evaluate(()=>{window.AMSync={isOwner:()=>true,isConfigured:()=>false,notifyLocalChange(){}};});
+    await page.locator('#prof-edit').click();
+    for(const [kind,id] of [['theme','theme-freefall'],['frame','frame-freefall'],['badge','badge-owner']]){
+      await page.locator('[data-profile-style="'+kind+'"]').selectOption(id);
+    }
+    await page.locator('#prof-save').click();
+    assert.equal((await page.locator('.mt-hero.mt-theme-freefall.mt-frame-freefall .mt-shop-badge').innerText()).replace(/\s+/g,' '),'♛ owner');
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:844});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({animations:'disabled',path:path.join(root,'test-results','exclusive-owner.png')});
+    await page.locator('#shop-open').click();
+    assert.equal(await page.locator('.mt-shop-item[data-rarity="exclusive"]').count(),0);
+    await page.locator('#shop-back').click();
+    await page.evaluate(()=>{window.AMSync=undefined;e2e.render();});
+    assert.equal(await page.locator('.mt-hero.mt-theme-freefall,.mt-hero .mt-shop-badge').count(),0);
+    assert.deepEqual(errors,[]);
     console.log('PASS: reading shelf, rating comparison, 320/390/1280px layout, PNG download, monthly award preview; no page errors');
   } finally {
     if (browser) await browser.close();
