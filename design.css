@@ -641,8 +641,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-shop-badge>span{min-width:0;overflow-wrap:anywhere;}
 .mt-hero-id > .mt-shop-badge{margin-right:10px;margin-bottom:4px;vertical-align:middle;}
 .mt-goal-reward{margin:14px 0;padding:10px 12px;border-radius:12px;background:#d6b47112;border:1px solid #d6b47130;color:#ead09b;font-size:12px;line-height:1.6;}
-.mt-chapter-rating-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;color:#c9b9dc;font-size:12px;}
-.mt-chapter-rating-label .mt-input{width:145px;max-width:60%;margin:0;font-size:13px;color:#ead09b;}
+.mt-chapter-slider{margin:16px 0;padding:14px;border:1px solid #c4b2ed24;border-radius:16px;background:#c4b2ed08;}
+.mt-chapter-slider-heading,.mt-chapter-slider-scale{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.mt-chapter-slider-heading{color:#c9b9dc;font-size:12px;}
+.mt-chapter-slider output{color:#ead09b;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
+.mt-chapter-slider input[type=range]{display:block;width:100%;height:36px;margin:8px 0;accent-color:#c4b2ed;cursor:pointer;}
+.mt-chapter-slider-scale{color:#a99bb8;font-size:10px;}
 .mt-frame-chalk{--frame-color:#d1d8df;}
 .mt-frame-copper{--frame-color:#c28b6c;}
 .mt-frame-denim{--frame-color:#6e94bc;}
