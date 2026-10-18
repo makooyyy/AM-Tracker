@@ -1,0 +1,72 @@
+/* Optional seasonal skin. Explicit choices remain available after the event. */
+.mt-appearance-options{display:grid;gap:10px;margin-top:20px;}
+.mt-appearance-options>button{display:flex;align-items:center;gap:14px;text-align:left;padding:12px;background:#ffffff04;border:1px solid #ffffff18;border-radius:16px;color:var(--text-primary);cursor:pointer;}
+.mt-appearance-options>button[aria-pressed=true]{border-color:var(--pink);background:#b493d515;}
+.mt-appearance-options strong,.mt-appearance-options small{display:block;}
+.mt-appearance-options strong{font-size:13px;margin-bottom:7px;}
+.mt-appearance-options small{font-size:11px;line-height:1.6;color:var(--text-muted);}
+.mt-appearance-options b{margin-left:auto;color:var(--pink);}
+.mt-appearance-art{display:grid;place-items:center;flex:0 0 52px;height:65px;border-radius:8px 18px 8px 18px;font:28px Georgia,serif;}
+.mt-appearance-art.classic{background:linear-gradient(145deg,#756087,#262131);color:#eadbff;}
+.mt-appearance-art.halloween{background:linear-gradient(#16192466,#16192433),url('assets/shop/halloween-manor.svg') 72% center/cover;color:#f2c988;}
+.mt-appearance-art.auto{background:linear-gradient(135deg,#756087 49%,#8b572c 50%,#241824);color:#e8d2b7;}
+
+html.mt-halloween-site{--bg:#12151b;--card-bg:#20212a;--input-bg:#171922;--pink:#e4ad71;--text-primary:#f1e5d1;--text-muted:#bfb4ab;--text-faint:#9b9397;--card-border:#c99d6430;--h-line:#c99d6440;background:#12151b;}
+.mt-halloween-site .mt-bg{background:linear-gradient(180deg,#10131c77,#11141bf2 720px),url('assets/shop/halloween-manor.svg') top center/max(1100px,100vw) auto no-repeat,#11141b;}
+.mt-halloween-site .mt-shell{position:relative;}
+.mt-season-header{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:20px 22px 0;border-bottom:1px solid var(--h-line);padding:0 0 16px;}
+.mt-season-header button{border:0;background:none;color:#e9c49b;cursor:pointer;}
+.mt-season-header>button:first-child{display:flex;gap:12px;align-items:center;text-align:left;padding:0;}
+.mt-season-header>button:first-child>span:first-child{font:42px/1 Georgia,serif;filter:drop-shadow(0 0 9px #efb46277);}
+.mt-season-header small{display:block;font-size:7px;letter-spacing:1.6px;color:#c3a995;margin-bottom:6px;}
+.mt-season-header strong{font:21px Georgia,serif;letter-spacing:.4px;}
+.mt-season-header>button:last-child{border:1px solid #c699643d;background:#201d24b8;border-radius:50%;width:38px;height:38px;font-size:19px;}
+.mt-halloween-site .mt-library-intro,.mt-halloween-site .mt-journey-heading{position:relative;}
+.mt-halloween-site .mt-library-intro:after{content:'✧';position:absolute;right:10px;top:32px;font:70px Georgia,serif;color:#d1a16a22;pointer-events:none;}
+.mt-halloween-site :is(.mt-page-title,.mt-library-intro h1,.mt-journey-heading h1,.mt-catalog-heading h1){color:#f0dfc5;text-shadow:0 3px 24px #e2b37515;letter-spacing:-.6px;}
+.mt-halloween-site .mt-section-eyebrow{color:#c5a282;}
+.mt-halloween-site :is(.mt-paper,.mt-settings-card,.mt-rank-panel,.mt-achievement-passport,.mt-goal-card,.mt-collection-card,.mt-catalog-detail-top,.mt-catalog-add,.mt-shop-entry){border-color:var(--h-line);background:linear-gradient(135deg,#302a2d,#1b2029);border-radius:5px 22px 5px 22px;box-shadow:inset 0 1px #ead1a40a,0 12px 30px #0002;}
+.mt-halloween-site .mt-paper{position:relative;}
+.mt-halloween-site .mt-paper:before{content:'';position:absolute;top:0;left:22px;right:22px;height:1px;background:linear-gradient(90deg,transparent,#e7b97977,transparent);pointer-events:none;}
+.mt-halloween-site .mt-month-recap{background:radial-gradient(at top right,#98724128,transparent 65%),#20222c!important;}
+.mt-halloween-site .mt-continue-card{background:linear-gradient(90deg,#211e28ed,#211e2855),url('assets/shop/halloween-harvest.svg') center/cover;border-color:#dcaa644d;border-radius:5px 24px 5px 24px;}
+.mt-halloween-site .mt-primary-btn{background:linear-gradient(135deg,#efc18a,#d6985a);color:#302017;border:1px solid #f1c89077;border-radius:8px 16px 8px 16px;box-shadow:0 4px 18px #d58e3820;}
+.mt-halloween-site .mt-add-btn{background:linear-gradient(135deg,#efc18a,#d6985a);border-color:#e7bd8355;color:#302017;border-radius:5px 14px;}
+.mt-halloween-site .mt-empty-art{background:#3a2e29;border-color:#dfb47755;box-shadow:7px 6px 0 #d0a16a12;}
+.mt-halloween-site .mt-brand-mark{filter:sepia(.6) saturate(.7);}
+.mt-halloween-site .mt-setting-toggle input{accent-color:#e2ac70;}
+.mt-halloween-site .mt-profile-page .mt-paper,.mt-halloween-site .mt-profile-page .mt-chip{background:linear-gradient(135deg,#302a2d,#1b2029);border-color:var(--h-line);border-radius:5px 22px 5px 22px;}
+.mt-halloween-site .mt-primary-btn:hover,.mt-halloween-site .mt-add-btn:hover{background:#f1c994;}
+.mt-halloween-site .mt-ghost-btn{border-color:#d2ab7438;color:#d9c1a9;background:#b98c4b08;border-radius:8px 14px 8px 14px;}
+.mt-halloween-site .mt-input{background:#141921;border-color:#b88f6433;color:#eee0ce;border-radius:10px;}
+.mt-halloween-site .mt-input:focus{border-color:#e4b77c;box-shadow:0 0 0 3px #e4b77c10;}
+.mt-halloween-site .mt-tabbar-inner{background:linear-gradient(135deg,#30282cf5,#171e28f5);border-color:#d6a76a59;border-radius:10px 24px 10px 24px;box-shadow:0 -4px 35px #0004,inset 0 1px #e6bb7d22;}
+.mt-halloween-site .mt-tab-v2{border-radius:7px 14px 7px 14px;color:#b6a8a5;}
+.mt-halloween-site .mt-tab-v2.active{background:linear-gradient(135deg,#97633640,#d1a36b12);color:#efbf85;box-shadow:inset 0 -2px #dfac6d;}
+.mt-halloween-site .mt-tab-v2.active .mt-tab-icon-wrap{filter:drop-shadow(0 0 6px #e8a65566);}
+.mt-halloween-site .mt-journey-nav{background:#161b24b8;border-color:#d5a46530;border-radius:8px 20px 8px 20px;}
+.mt-halloween-site .mt-journey-nav button{color:#bca99f;border-radius:6px 13px;}
+.mt-halloween-site .mt-journey-nav button[aria-pressed=true]{background:linear-gradient(110deg,#e9bb84,#c69360);color:#332116;}
+.mt-halloween-site .mt-journey-page .mt-journey-panel{border-radius:8px 26px 8px 26px;border-color:#d1a46d3b;background:radial-gradient(at 100% 0,#a2794322,transparent 65%),#1d222b;}
+.mt-halloween-site .mt-discovery-card{background:linear-gradient(140deg,#3b3032,#222834);border-color:#ce9f6644;}
+.mt-halloween-site .mt-discovery-intro h2 em,.mt-halloween-site .mt-journey-heading em{color:#e9b97b;}
+.mt-halloween-site .mt-catalog-controls{border-top:1px solid #bd915935;padding-top:14px;}
+.mt-halloween-site .mt-catalog-search,.mt-halloween-site .mt-catalog-sort-label{background:#1b2029;border-color:#d3a66d33;}
+.mt-halloween-site .mt-catalog-filter-toggle{background:#69492e55;color:#f1c78f;border-color:#d5a26b55;}
+.mt-halloween-site .mt-catalog-filter-toggle[aria-expanded=true]{background:#e2ac70;color:#342319;}
+.mt-halloween-site #catalog-filter-panel{background:linear-gradient(130deg,#30262b,#19212b);border-color:#c6935c44;}
+.mt-halloween-site .mt-catalog-filter-toggle b{background:#efc084;color:#342319;}
+.mt-halloween-site .mt-catalog-chips button{background:#c1955715;border-color:#d4a56a44;color:#e7bf8e;}
+.mt-halloween-site .mt-catalog-cover{border-radius:4px 15px 4px 15px;outline:1px solid #e1b47730;box-shadow:0 7px 18px #0006;}
+.mt-halloween-site .mt-catalog-card>strong{color:#e9d9c6;}
+.mt-halloween-site :is(.mt-achievement-card,.mt-shop-item){background:linear-gradient(150deg,#2d2931,#1b222a);border-radius:6px 18px 6px 18px;}
+.mt-halloween-site .mt-achievement-medal{filter:drop-shadow(0 0 9px #f0b46425);}
+.mt-halloween-site .mt-achievement-filters button[aria-pressed=true],.mt-halloween-site .mt-achievement-categories button[aria-pressed=true]{color:#efbd84;border-color:#c9935655;background:#bd8a401b;}
+.mt-halloween-site .mt-shop-heading em{color:#e6b47c;}
+.mt-halloween-site .mt-shop-collections{background:#25212b;border-color:#bf935c44;border-radius:5px 20px;}
+.mt-halloween-site .mt-hero:not([class*="mt-theme-"]){background:linear-gradient(90deg,#1c202aec,#1c202a66),url('assets/shop/halloween-manor.svg') center/cover;border-color:#d2a06444;}
+.mt-halloween-site .mt-shop-preview:not([class*="mt-theme-"]){background:linear-gradient(90deg,#1b202aee,#1b202a77),url('assets/shop/halloween-harvest.svg') center/cover;border-color:#d2a06444;}
+.mt-halloween-site .mt-appearance-options>button[aria-pressed=true]{background:#bd8a401b;}
+.mt-halloween-site .mt-annual-hero{border-color:#e2b47b44;background:radial-gradient(at 80% 15%,#aa7a3533,transparent),#20222d;}
+@media(min-width:850px){.mt-halloween-site .mt-tabbar{background:linear-gradient(180deg,#241e29,#141a24);border-right:1px solid #c7975c44;}.mt-halloween-site .mt-tabbar-inner{background:none;border:0;box-shadow:none;}.mt-halloween-site .mt-nav-note{color:#a98a70;}.mt-season-header{margin-left:0;margin-right:0;}.mt-halloween-site .mt-nav-brand img{filter:sepia(.7) saturate(.7);}}
+@media(max-width:359px){.mt-season-header{margin-left:16px;margin-right:16px;}.mt-season-header small{font-size:6px;}.mt-appearance-art{flex-basis:40px;height:58px;}.mt-appearance-options>button{gap:10px;}}

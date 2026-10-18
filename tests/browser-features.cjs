@@ -127,7 +127,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.locator('.mt-annual-await').count(),1);
     await page.locator('.mt-annual-await [data-awards-view="month"]').click();
     for (const tab of ['awards','achievements','profile']) {
-      await page.locator(`[data-tab="${tab}"]`).click();
+      await page.locator(`[data-tab="${tab === 'achievements' ? 'journey' : tab}"]`).click();
+      if(tab === 'achievements') await page.locator('[data-journey-section="achievements"]').click();
       if (tab === 'achievements') {
         await page.evaluate(() => { e2e.state.unlockedAchievements = {first_add:Date.now(),first_rated:Date.now()-1000,genres_5:Date.now()-2000}; e2e.render(); });
         await page.locator('[data-achievement-filter="earned"]').click();
@@ -163,6 +164,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       }
     }
     await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.state.manhwas.forEach(m=>m.genres=['Фэнтези']);e2e.render();});
+    await page.locator('[data-journey-section="discover"]').click();
     await page.locator('#discovery-add').waitFor();
     assert.equal(await page.locator('.mt-discovery-card h3').innerText(),'A New Adventure');
     assert.equal(await page.locator('.mt-discovery-card').innerText().then(t=>t.includes('Already saved')),false);
@@ -401,10 +403,41 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.evaluate(()=>{window.AMSync=undefined;e2e.render();});
     assert.equal(await page.locator('.mt-hero.mt-theme-freefall,.mt-hero .mt-shop-badge').count(),0);
     assert.deepEqual(errors,[]);
-    console.log('PASS: reading shelf, rating comparison, 320/390/1280px layout, PNG download, monthly award preview; no page errors');
+    await page.locator('#recap-month').fill('2020-01');
+    await page.locator('#recap-month').dispatchEvent('change');
+    assert.equal(await page.evaluate(()=>e2e.state.recapMonth),'2020-01');
+    const recapDownload=page.waitForEvent('download');await page.locator('#recap-download').click();
+    const recapFile=await recapDownload;assert.equal(recapFile.suggestedFilename(),'AM-Tracker-2020-01.png');
+    await recapFile.saveAs(path.join(root,'test-results','monthly-recap.png'));
+    const png=fs.readFileSync(path.join(root,'test-results','monthly-recap.png'));
+    assert.equal(png.readUInt32BE(16),1080);assert.equal(png.readUInt32BE(20),1350);
+    await page.locator('#prof-edit').click();
+    await page.locator('[data-profile-style="theme"]').selectOption('theme-forest');
+    await page.locator('#outfit-name').fill('Лесная история');await page.locator('#outfit-save').click();
+    await page.locator('#prof-cancel').click();assert.equal(await page.evaluate(()=>(e2e.state.profile.outfits||[]).length),0);
+    await page.locator('#prof-edit').click();
+    await page.locator('[data-profile-style="theme"]').selectOption('theme-forest');
+    await page.locator('#outfit-name').fill('Лесная история');await page.locator('#outfit-save').click();
+    await page.locator('#prof-save').click();await page.reload();await page.locator('[data-tab="profile"]').click();
+    await page.locator('#prof-edit').click();assert.equal(await page.locator('[data-outfit-use]').count(),1);
+    await page.locator('[data-profile-style="theme"]').selectOption('');await page.locator('[data-outfit-use]').click();
+    assert.equal(await page.locator('[data-profile-style="theme"]').inputValue(),'theme-forest');
+    await page.screenshot({animations:'disabled',path:path.join(root,'test-results','saved-outfits.png')});
+    await page.locator('#prof-save').click();
+    const beforeSet=await page.evaluate(()=>JSON.stringify([e2e.state.profile.style,e2e.state.shop,e2e.state.totalXp]));
+    await page.locator('#shop-open').click();await page.locator('.mt-shop-collections summary').click();
+    await page.locator('[data-set-preview="celestial"]').click();
+    assert.equal(await page.locator('.mt-shop-preview.mt-theme-celestial.mt-frame-celestial').count(),1);
+    assert.equal(await page.evaluate(()=>JSON.stringify([e2e.state.profile.style,e2e.state.shop,e2e.state.totalXp])),beforeSet);
+    await page.locator('.mt-shop-collections summary').click();
+    for(const width of [320,390,1280]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'collections width '+width);}
+    await page.setViewportSize({width:390,height:844});await page.screenshot({animations:'disabled',path:path.join(root,'test-results','shop-collections.png')});
+    assert.deepEqual(errors,[]);
+    console.log('PASS: reading, awards, shop, saved outfits, monthly PNG and responsive collections; no page errors');
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
 

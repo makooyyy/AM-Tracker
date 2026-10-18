@@ -33,8 +33,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     for(const width of [320,390,768,1280]){
       await page.setViewportSize({width,height:844});
       for(const tab of ['library','journey','awards','achievements','profile']){
-        await page.locator('[data-tab="'+tab+'"]').click();
-        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'empty '+tab+' '+width);
+        await page.locator('[data-tab="'+(tab==='achievements'?'journey':tab)+'"]').click();
+        if(tab==='achievements') await page.locator('[data-journey-section="achievements"]').click();
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'empty '+tab+' '+width+' '+JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>[e.className,e.getBoundingClientRect().width]).slice(0,12))));
       }
     }
     await page.locator('[data-tab="library"]').click();
@@ -115,7 +116,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await offline.setOffline(true);
     await p.reload();
     await p.waitForSelector('[data-tab="library"]');
-    for(const tab of ['journey','awards','achievements','profile'])await p.locator('[data-tab="'+tab+'"]').click();
+    for(const tab of ['journey','awards','profile'])await p.locator('[data-tab="'+tab+'"]').click();
     assert.ok(await p.locator('#shop-open').count());
     await offline.close();
     console.log('PASS audit: empty tabs at four widths, quoted titles, create/reload, backup roundtrip, malformed import, stale discovery, offline PWA');

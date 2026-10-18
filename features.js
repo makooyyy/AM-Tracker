@@ -183,7 +183,30 @@
     {id:'reviews5',reward:250,name:'Своё мнение',text:'Напиши рецензии к 5 тайтлам',metric:'reviews',target:5},
     {id:'genres3',reward:150,name:'За пределами привычного',text:'Оцени тайтлы 3 новых для тебя жанров',metric:'genres',target:3}
   ];
-  function goalRewardXp(achievements){return goalOptions.reduce(function(sum,o){return sum+(achievements&&achievements['goal_reward_'+o.id]?o.reward:0);},0);}
+  function goalRewardXp(achievements){return goalOptions.reduce(function(sum,o){return sum+(achievements&&achievements['goal_reward_'+o.id]?o.reward:0);},0)+halloweenQuests.reduce(function(sum,q){return sum+(achievements&&achievements[q.id]?q.xp:0);},0);}
+  var halloweenQuests=[
+    {id:'h26_lantern',name:'Зажги первый фонарь',text:'Оставь впечатления о 3 разных главах.',metric:'notes',target:3,xp:60,reward:'badge-h26-pumpkin',icon:'🎃'},
+    {id:'h26_ink',name:'Чернила полуночи',text:'Оцени 5 разных глав.',metric:'ratings',target:5,xp:80,reward:'frame-h26-thorns',icon:'✒'},
+    {id:'h26_stories',name:'Две истории у костра',text:'Поставь оценку 2 разным тайтлам.',metric:'titles',target:2,xp:100,reward:'theme-h26-harvest',icon:'📖'},
+    {id:'h26_shadows',name:'Загляни в тени',text:'Оцени тайтл с жанром «Ужасы», «Мистика», «Триллер» или «Сверхъестественное».',metric:'dark',target:1,xp:100,reward:'badge-h26-bat',icon:'🦇'},
+    {id:'h26_visits',name:'Огонёк не гаснет',text:'Читай и отмечай впечатления в 3 разных дня. Дни не обязательно подряд.',metric:'days',target:3,xp:120,reward:'theme-h26-manor',icon:'🕯'},
+    {id:'h26_final',name:'Последняя страница',text:'Заверши один тайтл во время события.',metric:'finished',target:1,xp:140,reward:'frame-h26-spectral',icon:'👻'},
+    {id:'h26_crown',name:'Хранитель Ночи историй',text:'Выполни все 6 заданий события.',metric:'complete',target:6,xp:200,reward:'badge-h26-keeper',icon:'♛'}
+  ];
+  function halloweenWindow(now){var start=new Date(2026,9,18).getTime(),end=new Date(2026,10,3).getTime();return {start:start,end:end,active:now>=start&&now<end,upcoming:now<start};}
+  function halloweenProgress(list,log,earned,now){
+    var w=halloweenWindow(now),notes=new Set(),ratingsSet=new Set(),titles=new Set(),dark=new Set(),days=new Set(),finished=new Set();
+    function inside(ts){return Number.isFinite(ts)&&ts>=w.start&&ts<w.end&&ts<=now;}
+    function day(ts){var d=new Date(ts);days.add(d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate());}
+    list.forEach(function(m){
+      journal(m.journal).forEach(function(e){if(!inside(e.ts))return;var key=JSON.stringify([m.id,e.chapter]);if(e.text.trim())notes.add(key);if(e.rating)ratingsSet.add(key);day(e.ts);});
+      var dates=(m.ratingHistory||[]).map(function(r){return r.ts;}).concat(m.rated?[m.lastRatedAt]:[]).filter(inside);
+      if(dates.length){titles.add(m.id);dates.forEach(day);if((m.genres||[]).some(function(g){return ['Ужасы','Мистика','Триллер','Сверхъестественное','Horror','Mystery','Thriller','Supernatural'].includes(g);}))dark.add(m.id);}
+      if(inside(m.completedAt)){finished.add(m.id);day(m.completedAt);}
+    });
+    (log||[]).forEach(function(e){if(e.type==='status'&&e.extra&&e.extra.status==='done'&&e.manhwaId&&inside(e.ts)){finished.add(e.manhwaId);day(e.ts);}});
+    return {notes:notes.size,ratings:ratingsSet.size,titles:titles.size,dark:dark.size,days:days.size,finished:finished.size,complete:halloweenQuests.slice(0,6).filter(function(q){return !!earned[q.id];}).length};
+  }
   function journal(raw) {
     return (Array.isArray(raw) ? raw : []).filter(function(e) { return e && typeof e.id==='string' && Number.isFinite(e.ts) && Number.isFinite(e.chapter) && e.chapter>=0 && e.chapter<=1000000; }).map(function(e) {
       var rating=Number.isInteger(e.rating)&&e.rating>=1&&e.rating<=10?e.rating:null;
@@ -283,21 +306,65 @@
     {id:'badge-owner',kind:'badge',name:'owner',price:0,rarity:'exclusive',exclusive:true,icon:'♛',desc:'Личный знак владельца AM Tracker'}
   );
   var shopRarities={common:'Обычная',rare:'Редкая',epic:'Эпическая',legendary:'Легендарная',exclusive:'Эксклюзивная'};
+  halloweenQuests.forEach(function(q){var kind=q.reward.split('-')[0],names={'badge-h26-pumpkin':'Искра Хэллоуина','frame-h26-thorns':'Терновый фонарь','theme-h26-harvest':'Тыквенная долина','badge-h26-bat':'Друг теней','theme-h26-manor':'Особняк лунных историй','frame-h26-spectral':'Призрачный ореол','badge-h26-keeper':'Хранитель Ночи'};shopItems.push({id:q.reward,kind:kind,name:names[q.reward],price:0,rarity:'exclusive',eventOnly:q.id,icon:q.icon,image:kind==='badge'?'assets/shop/halloween-'+q.reward.split('-').pop()+'.svg':undefined,desc:'Награда события «Ночь историй · 2026». Остаётся навсегда.'});});
   function shopItem(id){return shopItems.find(function(i){return i.id===id;});}
   function cleanShop(raw,xp){
     raw=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
     var budget=Number.isFinite(xp)?Math.max(0,Math.floor(xp)):0,out={};
-    Object.keys(raw).filter(function(id){return shopItem(id)&&!shopItem(id).exclusive&&Number.isFinite(raw[id])&&raw[id]>0;}).sort(function(a,b){return raw[a]-raw[b]||a.localeCompare(b);}).forEach(function(id){var cost=shopItem(id).price;if(cost<=budget){out[id]=raw[id];budget-=cost;}});
+    Object.keys(raw).filter(function(id){return shopItem(id)&&!shopItem(id).exclusive&&!shopItem(id).eventOnly&&Number.isFinite(raw[id])&&raw[id]>0;}).sort(function(a,b){return raw[a]-raw[b]||a.localeCompare(b);}).forEach(function(id){var cost=shopItem(id).price;if(cost<=budget){out[id]=raw[id];budget-=cost;}});
     return out;
   }
   function mergeShop(a,b,xp){
-    var union={};[a,b].forEach(function(raw){Object.keys(raw||{}).forEach(function(id){if(!shopItem(id)||shopItem(id).exclusive||!Number.isFinite(raw[id])||raw[id]<=0)return;union[id]=union[id]?Math.min(union[id],raw[id]):raw[id];});});
+    var union={};[a,b].forEach(function(raw){Object.keys(raw||{}).forEach(function(id){if(!shopItem(id)||shopItem(id).exclusive||shopItem(id).eventOnly||!Number.isFinite(raw[id])||raw[id]<=0)return;union[id]=union[id]?Math.min(union[id],raw[id]):raw[id];});});
     return cleanShop(union,xp);
   }
   function coinBalance(xp,owned){return Math.max(0,Math.floor(Number.isFinite(xp)?xp:0)-Object.keys(cleanShop(owned,xp)).reduce(function(n,id){return n+shopItem(id).price;},0));}
   function cleanStyle(raw){var out={};['theme','frame','badge'].forEach(function(k){var item=raw&&shopItem(raw[k]);out[k]=item&&item.kind===k?item.id:'';});return out;}
 
-  var api = {goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+
+  var shopCollections=[
+    {id:'celestial',name:'Лунная библиотека',text:'Золото созвездий и лунный свет',items:['theme-celestial','frame-celestial','badge-moon']},
+    {id:'forest',name:'Хранители леса',text:'Изумрудные листья и маленький дракон',items:['theme-forest','frame-vine','badge-dragon']},
+    {id:'tide',name:'Морская история',text:'Прохладная глубина и серебряные волны',items:['theme-ocean','frame-tide','badge-explorer']},
+    {id:'sakura',name:'Весенние страницы',text:'Цветущая сакура и нежные лепестки',items:['theme-garden','frame-petals','badge-sakura']},
+    {id:'cozy',name:'Тихий вечер',text:'Кофейные оттенки, медь и чай',items:['theme-coffee','frame-copper','badge-tea']}
+  ];
+  function monthlyRecap(key,list,log,achievements,definitions,xpValues,score){
+    var entries=[],best=[];
+    list.forEach(function(m){
+      journal(m.journal).filter(function(e){return month(e.ts)===key;}).forEach(function(e){entries.push({title:title(m),titleId:m.id,chapter:e.chapter,rating:e.rating,ts:e.ts});});
+      var rating=ratingInMonth(m,key,score);if(rating)best.push({title:title(m),score:score(rating.criteria),id:m.id});
+    });
+    best.sort(function(a,b){return b.score-a.score||a.title.localeCompare(b.title);});
+    var chapterBest=entries.filter(function(e){return e.rating;}).sort(function(a,b){return b.rating-a.rating||b.ts-a.ts;})[0]||null;
+    var events=log.filter(function(e){return Number.isFinite(e.ts)&&month(e.ts)===key;});
+    var unlocked=definitions.filter(function(a){return achievements[a.id]&&month(achievements[a.id])===key;});
+    var xp=events.reduce(function(n,e){return n+(Number.isFinite(e.xp)?Math.max(0,e.xp):(xpValues[e.type]||0));},0)+unlocked.reduce(function(n,a){return n+(a.xp||0);},0);
+    var done=new Set(list.filter(function(m){return m.completedAt&&month(m.completedAt)===key;}).map(function(m){return m.id;}));
+    events.filter(function(e){return e.type==='status'&&e.extra&&e.extra.status==='done';}).forEach(function(e){done.add(e.manhwaId);});
+    return {key:key,chapters:new Set(entries.map(function(e){return JSON.stringify([e.titleId,e.chapter]);})).size,notes:entries.length,finished:done.size,goals:unlocked.filter(function(a){return a.id.indexOf('goal_reward_')===0;}).length,xp:xp,best:best[0]||null,chapterBest:chapterBest};
+  }
+  function createMonthlyCard(data,nick,label){
+    var canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;var g=canvas.getContext('2d');
+    if(!g)return Promise.reject(new Error('Canvas unavailable'));
+    var bg=g.createLinearGradient(0,0,1080,1350);bg.addColorStop(0,'#30223f');bg.addColorStop(1,'#111824');g.fillStyle=bg;g.fillRect(0,0,1080,1350);
+    g.fillStyle='#c4b2ed';g.font='700 25px sans-serif';g.fillText('AM TRACKER / МОЙ МЕСЯЦ',64,88);
+    g.fillStyle='#f2ecdf';g.font='54px serif';drawText(g,label,64,180,952,64,2);
+    g.fillStyle='#b9aec6';g.font='26px sans-serif';drawText(g,nick,64,280,952,34,1);
+    [[data.chapters,'глав в дневнике'],[data.finished,'завершено тайтлов'],[data.goals,'целей выполнено'],[data.xp,'XP и столько же монет']].forEach(function(pair,i){
+      var x=64+(i%2)*490,y=345+Math.floor(i/2)*200;g.fillStyle='#ffffff0c';g.fillRect(x,y,462,170);
+      g.fillStyle='#ead09b';g.font='700 60px sans-serif';g.fillText(String(pair[0]),x+28,y+78);
+      g.fillStyle='#d2c6de';g.font='23px sans-serif';drawText(g,pair[1],x+28,y+125,410,28,1);
+    });
+    g.fillStyle='#c4b2ed';g.font='700 23px sans-serif';g.fillText('ТАЙТЛ МЕСЯЦА',64,810);
+    g.fillStyle='#f2ecdf';g.font='38px serif';drawText(g,data.best?data.best.title+' · '+Math.round(data.best.score)+'/100':'Пока нет оценённых тайтлов',64,870,952,47,2);
+    g.fillStyle='#c4b2ed';g.font='700 23px sans-serif';g.fillText('ЛЮБИМАЯ ГЛАВА',64,1030);
+    g.fillStyle='#f2ecdf';g.font='32px serif';drawText(g,data.chapterBest?data.chapterBest.title+' · глава '+data.chapterBest.chapter+' · '+data.chapterBest.rating+'/10':'Пока нет оценок глав',64,1086,952,42,2);
+    g.fillStyle='#a89cb7';g.font='21px sans-serif';drawText(g,'По сохранённой истории. Главы учитываются по записям дневника.',64,1260,952,28,2);
+    return new Promise(function(resolve,reject){canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('PNG unavailable'));},'image/png');});
+  }
+
+  var api = {halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

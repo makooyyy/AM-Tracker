@@ -282,8 +282,8 @@ test('achievement progress measures targets, preserves earned medals and never g
 
 test('40 new achievements use consistent metrics and award XP only once', async () => {
   const {api:a} = harness();
-  assert.equal(a.ACHIEVEMENTS.length,100);
-  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,100);
+  assert.equal(a.ACHIEVEMENTS.length,107);
+  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,107);
   const m = addRated(a); m.notes = '   '; m.coverUrl = 'https://example.com/cover.png';
   m.ratingHistory = [{ts:1700000000000,avg:70,criteria:m.criteria}];
   a.state.activityLog = [{ts:1700000000000,type:'add'},{ts:1700000001000,type:'rated'}];
@@ -305,6 +305,55 @@ test('40 new achievements use consistent metrics and award XP only once', async 
 });
 
 const J = require('../features.js');
+test('Halloween uses event dates and unique chapters, excludes future and old activity',()=>{
+ const now=new Date(2026,9,22,12).getTime(),ts=new Date(2026,9,20,12).getTime();
+ const m={id:'a',rated:true,lastRatedAt:ts,genres:['Ужасы'],completedAt:ts,journal:[{id:'a',chapter:1,ts,text:'Note',rating:8},{id:'b',chapter:1,ts,text:'Again',rating:9},{id:'c',chapter:2,ts:new Date(2026,9,1).getTime(),text:'Old'},{id:'d',chapter:3,ts:now+1000,text:'Future'}]};
+ const p=J.halloweenProgress([m],[],{},now);
+ assert.equal(p.notes,1);assert.equal(p.ratings,1);assert.equal(p.dark,1);assert.equal(p.finished,1);assert.equal(p.days,1);
+ assert.equal(J.halloweenWindow(new Date(2026,10,2,23,59).getTime()).active,true);
+ assert.equal(J.halloweenWindow(new Date(2026,10,3).getTime()).active,false);
+ assert.equal(J.halloweenWindow(new Date(2026,9,17).getTime()).upcoming,true);
+});
+test('Halloween cosmetics require earned quests and cannot be bought or imported as purchases',()=>{
+ const a=harness().api,id='theme-h26-harvest';a.state.totalXp=10000;
+ assert.equal(a.buyShopItem(id),false);assert.deepEqual(J.cleanShop({[id]:123},10000),{});
+ a.state.profile.style={theme:id};assert.equal(a.activeStyle().theme,'');
+ a.state.unlockedAchievements.h26_stories=123;assert.equal(a.activeStyle().theme,id);
+});
+test('different offline Halloween rewards merge once and preserve cosmetics',async()=>{
+ const cloud=syncHarness(),a=harness().api,b=harness().api;
+ a.state.totalXp=1060;a.state.unlockedAchievements={h26_lantern:12};
+ b.state.totalXp=1100;b.state.unlockedAchievements={h26_stories:13};
+ await cloud.engine(a).sync();await cloud.engine(b).sync();await cloud.engine(a).sync();
+ assert.equal(a.state.totalXp,1160);assert.ok(a.state.unlockedAchievements.h26_stories);
+ const c=harness().api;await cloud.engine(c).sync();assert.equal(c.state.totalXp,1160);
+ assert.equal(J.goalRewardXp(Object.fromEntries(J.halloweenQuests.map(q=>[q.id,1]))),800);
+});
+test('monthly recap counts saved activity only within selected month',()=>{
+ const ts=new Date(2026,8,15).getTime(),later=new Date(2026,9,1).getTime();
+ const m={id:'a',title:'History',rated:true,criteria:[{score:40}],lastRatedAt:later,completedAt:ts,
+ ratingHistory:[{ts,criteria:[{score:90}]}],journal:[{id:'1',chapter:1,ts,rating:8},{id:'2',chapter:1,ts:ts+1,text:'Note'},{id:'3',chapter:2,ts:later,rating:10}]};
+ const data=J.monthlyRecap('2026-09',[m],[{ts,type:'rate',xp:20},{ts,type:'note'},{ts:later,type:'rate',xp:100},{ts,type:'status',manhwaId:'a',extra:{status:'done'}}],{goal_reward_test:ts,other:later},[{id:'goal_reward_test',xp:150},{id:'other',xp:500}],{note:5},c=>c[0].score);
+ assert.equal(data.chapters,1);assert.equal(data.finished,1);assert.equal(data.goals,1);assert.equal(data.xp,175);
+ assert.equal(data.best.score,90);assert.equal(data.chapterBest.rating,8);
+ const empty=J.monthlyRecap('2025-01',[m],[],{},[],{},c=>c[0].score);
+ assert.equal(empty.xp,0);assert.equal(empty.best,null);assert.equal(empty.chapterBest,null);
+});
+test('shop collections contain valid public theme frame and badge',()=>{
+ for(const set of J.shopCollections){
+  const items=set.items.map(J.shopItem);assert.ok(items.every(i=>i&&!i.exclusive));
+  assert.deepEqual(items.map(i=>i.kind).sort(),['badge','frame','theme']);
+ }
+});
+test('profile outfits sanitize duplicates and survive cloud roundtrip',async()=>{
+ const a=harness().api,cloud=syncHarness();
+ const outfit={id:'night',name:'Night',a:{t:'letter',c:1},style:{theme:'theme-forest'}};
+ a.state.profile=a.bridge.sanitizeProfile({outfits:[outfit,outfit,{id:'',name:'Bad'}]});
+ assert.equal(a.state.profile.outfits.length,1);
+ await cloud.engine(a).sync();const b=harness().api;await cloud.engine(b).sync();
+ assert.equal(b.state.profile.outfits[0].name,'Night');assert.equal(b.state.profile.outfits[0].style.theme,'theme-forest');
+ assert.equal(b.state.profile.outfits[0].a.t,'letter');
+});
 test('duels avoid repeats in either direction, filter by genre and handle exhausted pools',()=>{
   const list=[{id:'a',rated:true,genres:['Драма']},{id:'b',rated:true,genres:['Драма']},{id:'c',rated:false}];
   assert.equal(J.duelPair(list,[],'Драма',0).length,2);
@@ -460,7 +509,7 @@ test('cloud rejects non-finite XP and invalid activity timestamps',async()=>{
 });
 test('shop catalog references existing assets and unique valid items',()=>{
  assert.equal(new Set(J.shopItems.map(x=>x.id)).size,J.shopItems.length);
- for(const item of J.shopItems){assert.ok((item.exclusive?item.price===0:item.price>0)&&Number.isInteger(item.price));assert.ok(J.shopRarities[item.rarity]);if(item.image)assert.ok(fs.existsSync(item.image),item.image);}
+ for(const item of J.shopItems){assert.ok(((item.exclusive||item.eventOnly)?item.price===0:item.price>0)&&Number.isInteger(item.price));assert.ok(J.shopRarities[item.rarity]);if(item.image)assert.ok(fs.existsSync(item.image),item.image);}
 });
 test('exclusive cosmetics cannot be bought or granted by importing purchases',()=>{
  const {api}=harness();api.state.totalXp=100000;
