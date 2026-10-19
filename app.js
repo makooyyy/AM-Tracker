@@ -4019,7 +4019,7 @@
     var controller=new AbortController();ui.discoveryAbort=controller;ui.discoveryLoading=true;
     var timer=setTimeout(function(){controller.abort();},15000);
     var query='query ($genres: [String], $country: CountryCode) { Page(page: 1, perPage: 50) { media(type: MANGA, countryOfOrigin: $country, genre_in: $genres, isAdult: false, sort: POPULARITY_DESC) { id title { romaji english native } synonyms coverImage { large } genres countryOfOrigin averageScore } } }';
-    fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},signal:controller.signal,body:JSON.stringify({query:query,variables:{genres:selection.english,country:({manhwa:'KR',manhua:'CN',manga:'JP'})[ui.type]||null}})})
+    fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},signal:controller.signal,body:JSON.stringify({query:query,variables:Features.aniListVariables({genres:selection.english,country:({manhwa:'KR',manhua:'CN',manga:'JP'})[ui.type]||null})})})
       .then(function(r){if(!r.ok)throw new Error(r.status===429?'Каталог занят. Попробуй чуть позже.':'Не удалось связаться с каталогом.');return r.json();})
       .then(function(r){if(r.errors||!r.data||!r.data.Page||!Array.isArray(r.data.Page.media))throw new Error('Каталог не вернул подборку.');if(ui.discoveryAbort!==controller)return;
         ui.results=r.data.Page.media.filter(function(m){return m&&Number.isInteger(m.id)&&m.title;}).map(function(m){var translated=(m.genres||[]).map(translateAniListGenre);return Object.assign({},m,{localGenres:translated});});
@@ -4150,7 +4150,7 @@
     if(Date.now()<catalog.cooldown){catalog.loading=false;catalog.error='AniList просит подождать. Повтори поиск примерно через минуту.';return;}
     catalog.loading=true;var page=catalog.page+1;
     var timer=setTimeout(function(){controller.abort();},18000);
-    fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},signal:controller.signal,body:JSON.stringify({query:CATALOG_QUERY,variables:Object.assign({page:page},catalog.query)})})
+    fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},signal:controller.signal,body:JSON.stringify({query:CATALOG_QUERY,variables:Features.aniListVariables(Object.assign({page:page},catalog.query))})})
       .then(function(r){if(r.status===429){catalog.cooldown=Date.now()+Math.max(60,Number(r.headers.get('Retry-After'))||60)*1000;throw new Error('Слишком много запросов к AniList. Подожди минуту и повтори.');}if(!r.ok)throw new Error('AniList временно недоступен. Попробуй ещё раз.');return r.json();})
       .then(function(r){if(catalog.controller!==controller)return;if(r.errors||!r.data||!r.data.Page||!Array.isArray(r.data.Page.media))throw new Error('Не удалось получить каталог. Попробуй ещё раз.');
         var seen=new Set(catalog.items.map(function(m){return m.id;}));

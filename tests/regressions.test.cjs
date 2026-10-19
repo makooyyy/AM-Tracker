@@ -305,6 +305,12 @@ test('40 new achievements use consistent metrics and award XP only once', async 
 });
 
 const J = require('../features.js');
+test('AniList requests omit inactive filters rather than sending null',()=>{
+ const raw={page:1,search:null,country:null,genre:'',status:undefined,sort:['POPULARITY_DESC','ID']};
+ assert.deepEqual(J.aniListVariables(raw),{page:1,sort:['POPULARITY_DESC','ID']});
+ assert.deepEqual(J.aniListVariables({...raw,search:'Solo Leveling',country:'KR'}),{page:1,search:'Solo Leveling',country:'KR',sort:['POPULARITY_DESC','ID']});
+ assert.equal(raw.country,null);
+});
 test('Halloween uses event dates and unique chapters, excludes future and old activity',()=>{
  const now=new Date(2026,9,22,12).getTime(),ts=new Date(2026,9,20,12).getTime();
  const m={id:'a',rated:true,lastRatedAt:ts,genres:['Ужасы'],completedAt:ts,journal:[{id:'a',chapter:1,ts,text:'Note',rating:8},{id:'b',chapter:1,ts,text:'Again',rating:9},{id:'c',chapter:2,ts:new Date(2026,9,1).getTime(),text:'Old'},{id:'d',chapter:3,ts:now+1000,text:'Future'}]};

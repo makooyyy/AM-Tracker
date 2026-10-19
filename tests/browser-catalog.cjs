@@ -32,7 +32,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.route('https://graphql.anilist.co',async route=>{
       const data=route.request().postDataJSON();calls.push(data.variables);
       if(failure)return route.fulfill({status:429,headers:{'Retry-After':'60'},body:'{}'});
-      const v=data.variables;
+      const v=data.variables; assert.ok(Object.values(v).every(value=>value!==null), "Empty AniList filters must be omitted");
       if(v.search==='slow')await new Promise(r=>setTimeout(r,500));
       const items=v.search==='empty'?[]:v.search?[media(v.search==='slow'?999:800,v.search)]:v.page===1?Array.from({length:24},(_,i)=>media(i+1)):[media(24),media(25)];
       await route.fulfill({contentType:'application/json',body:JSON.stringify({data:{Page:{pageInfo:{hasNextPage:!v.search&&v.page===1},media:items}}})});
@@ -79,7 +79,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.locator('#catalog-filter-panel').isVisible(),false);
     await page.locator('[data-catalog-clear="country"]').click();
     await page.waitForSelector('[data-catalog-detail="1"]');
-    assert.equal(calls.at(-1).country,null);
+    assert.equal(calls.at(-1).country,undefined);
     await page.locator('#catalog-filter-toggle').click();
     await page.locator('#catalog-reset').click();
     await page.waitForSelector('[data-catalog-detail="1"]');
