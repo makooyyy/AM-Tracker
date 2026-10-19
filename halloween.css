@@ -20,7 +20,9 @@ html.mt-halloween-site{--bg:#12151b;--card-bg:#20212a;--input-bg:#171922;--pink:
 .mt-season-header>button:first-child>span:first-child{font:42px/1 Georgia,serif;filter:drop-shadow(0 0 9px #efb46277);}
 .mt-season-header small{display:block;font-size:7px;letter-spacing:1.6px;color:#c3a995;margin-bottom:6px;}
 .mt-season-header strong{font:21px Georgia,serif;letter-spacing:.4px;}
-.mt-season-header>button:last-child{border:1px solid #c699643d;background:#201d24b8;border-radius:50%;width:38px;height:38px;font-size:19px;}
+.mt-season-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.mt-season-actions>button{position:relative;display:grid;place-items:center;padding:8px;border:1px solid #c699643d;background:#201d24b8;border-radius:50%;width:38px;height:38px;font-size:19px;}
+.mt-season-actions svg{width:20px;height:20px;}
 .mt-halloween-site .mt-library-intro,.mt-halloween-site .mt-journey-heading{position:relative;}
 .mt-halloween-site .mt-library-intro:after{content:'✧';position:absolute;right:10px;top:32px;font:70px Georgia,serif;color:#d1a16a22;pointer-events:none;}
 .mt-halloween-site :is(.mt-page-title,.mt-library-intro h1,.mt-journey-heading h1,.mt-catalog-heading h1){color:#f0dfc5;text-shadow:0 3px 24px #e2b37515;letter-spacing:-.6px;}

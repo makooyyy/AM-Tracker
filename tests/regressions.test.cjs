@@ -305,6 +305,14 @@ test('40 new achievements use consistent metrics and award XP only once', async 
 });
 
 const J = require('../features.js');
+test('annual personal recap spans months and appears only for completed years, never in profile',()=>{
+ const a=harness().api,y=new Date().getFullYear()-1,m=a.newManhwa('Year test');
+ m.createdAt=new Date(y,0,1).getTime();m.journal=[{id:'a',chapter:1,text:'one',ts:new Date(y,0,5).getTime()},{id:'b',chapter:1,text:'again',ts:new Date(y,8,5).getTime()},{id:'c',chapter:2,rating:9,ts:new Date(y,11,31,23).getTime()},{id:'d',chapter:3,rating:10,ts:new Date(y+1,0,1).getTime()}];
+ a.state.manhwas=[m];a.state.awardsYear=y;
+ const d=J.monthlyRecap(String(y),[m],[],{},[],{},()=>0);assert.equal(d.chapters,2);assert.equal(d.chapterBest.rating,9);
+ assert.match(a.renderYearSummary(),/recap-download/);assert.doesNotMatch(a.renderProfile(),/recap-download|recap-month/);
+ m.createdAt=Date.now();a.state.awardsYear=y+1;assert.doesNotMatch(a.renderYearSummary(),/recap-download/);
+});
 test('AniList requests omit inactive filters rather than sending null',()=>{
  const raw={page:1,search:null,country:null,genre:'',status:undefined,sort:['POPULARITY_DESC','ID']};
  assert.deepEqual(J.aniListVariables(raw),{page:1,sort:['POPULARITY_DESC','ID']});

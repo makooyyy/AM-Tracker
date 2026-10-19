@@ -30,6 +30,23 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://**/*',r=>r.abort());
     await page.goto('http://127.0.0.1:'+server.address().port);
     await page.waitForSelector('html.mt-halloween-site');
+    assert.equal(await page.locator('.mt-header .mt-brand').count(),0);
+    assert.equal(await page.locator('#open-changelog').count(),1);
+    assert.equal(await page.locator('.mt-season-actions #open-changelog').count(),1);
+    for(const tab of ['library','catalog','journey','awards','profile']){
+      await page.locator('[data-tab="'+tab+'"]').click();
+      await page.locator('#season-settings-open').click();
+      await page.locator('#season-settings-open').click();
+      await page.locator('#account-settings-back').click();
+      assert.equal(await page.evaluate(()=>e2e.state.tab),tab);
+    }
+    await page.locator('[data-tab="library"]').click();
+    await page.locator('#season-settings-open').click();
+    await page.locator('#open-changelog').click();
+    await page.locator('#changelog-back-btn').click();
+    assert.equal(await page.locator('#account-settings-back').count(),1);
+    await page.locator('#account-settings-back').click();
+    assert.equal(await page.evaluate(()=>e2e.state.tab),'library');
     for(const width of [320,390,768,1280]){
       await page.setViewportSize({width,height:844});
       for(const tab of ['library','catalog','journey','awards','profile']){

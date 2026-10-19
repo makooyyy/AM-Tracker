@@ -2006,7 +2006,7 @@
       var key = year + '-' + pad2(i+1), record = data.months[key], open = key < monthKeyOf(Date.now());
       html += '<button class="mt-annual-month' + (record ? ' awarded' : '') + '" data-year-month="' + key + '"' + (open ? '' : ' disabled') + '><span>' + monthNames[i] + '</span><strong>' + (record ? record.count + ' ' + winWord(record.count) : (open ? 'Без наград' : 'Впереди')) + '</strong>' + (record && record.overall ? '<small>' + escapeHtml(displayTitle(record.overall)) + '</small>' : '') + '</button>';
     }
-    return html + '</div><details class="mt-annual-rules"><summary>Как определяется победитель</summary><p>Каждая победа в номинации месяца даёт один балл. Антипремия не учитывается. При равенстве баллов тайтлы разделяют место. Учитываются только завершённые месяцы выбранного года.</p><p>Результаты строятся по сохранённым премиям: переоценка или удаление тайтла не меняет его прошлые награды. Годовые итоги пересчитываются при изменении архива. Для старых премий используются восстановленные данные.</p></details></section>';
+    return html + '</div>' + (!ongoing?renderAnnualRecap(year):'') + '<details class="mt-annual-rules"><summary>Как определяется победитель</summary><p>Каждая победа в номинации месяца даёт один балл. Антипремия не учитывается. При равенстве баллов тайтлы разделяют место. Учитываются только завершённые месяцы выбранного года.</p><p>Результаты строятся по сохранённым премиям: переоценка или удаление тайтла не меняет его прошлые награды. Годовые итоги пересчитываются при изменении архива. Для старых премий используются восстановленные данные.</p></details></section>';
   }
   function winWord(n) {
     var mod10 = n % 10, mod100 = n % 100;
@@ -2336,11 +2336,11 @@
 
     return (
       '<div class="mt-header">' +
-      '<div class="mt-title-row">' +
+      (halloweenAppearance() ? '' : '<div class="mt-title-row">' +
       '<div class="mt-brand"><img class="mt-brand-mark" src="icons/mark.svg" alt="" /><div><div class="mt-title">AM TRACKER</div><div class="mt-brand-caption">Твой дневник историй</div></div></div>' +
       '<button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL +
       (hasUnseen ? '<span class="mt-notify-dot"></span>' : "") + "</button>" +
-      "</div>" +
+      "</div>") +
       '<div class="mt-library-intro"><div class="mt-section-eyebrow">ЛИЧНАЯ КОЛЛЕКЦИЯ</div><h1>Истории, которые<br><em>остаются с тобой.</em></h1>' +
       '<div class="mt-library-stats"><span><strong>' + state.manhwas.length + '</strong> в коллекции</span><span><strong>' +
       state.manhwas.filter(function (m) { return m.status === "reading"; }).length + '</strong> читаю</span><span><strong>' +
@@ -3229,20 +3229,19 @@
   function attachShopHandlers(){
     var app=document.getElementById('app');
     function bind(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
-    bind('account-settings-open',function(){state.accountSettings=true;render();window.scrollTo(0,0);});
-    bind('account-settings-back',function(){state.accountSettings=false;state.acct.confirmDelete=false;state.profileEdit=false;state.profileDraft=null;render();window.scrollTo(0,0);});
+    bind('account-settings-open',openAccountSettings);
+    bind('account-settings-back',closeAccountSettings);
     app.querySelectorAll('[data-ui-setting]').forEach(function(el){el.addEventListener('change',function(){uiSettings[el.getAttribute('data-ui-setting')]=el.checked;applyUiSettings();persistKey(UI_SETTINGS_KEY,uiSettings).catch(function(){});});});
     app.querySelectorAll('[data-appearance]').forEach(function(el){el.addEventListener('click',function(){uiSettings.appearance=el.getAttribute('data-appearance');applyUiSettings();persistKey(UI_SETTINGS_KEY,uiSettings).catch(function(){});render();});});
     bind('season-event-open',function(){state.tab='journey';state.journeyUI.section='halloween';render();window.scrollTo(0,0);});
-    bind('season-settings-open',function(){state.tab='profile';state.accountSettings=true;state.profileEdit=false;state.shopOpen=false;render();window.scrollTo(0,0);});
+    bind('season-settings-open',openAccountSettings);
     bind('shop-open',function(){state.shopOpen=true;state.shopNotice='';render();window.scrollTo(0,0);});
     bind('shop-back',function(){state.shopOpen=false;state.shopPreview=null;state.shopSet=null;render();window.scrollTo(0,0);});
     bind('shop-set-clear',function(){state.shopSet=null;render();});
     app.querySelectorAll('[data-set-preview]').forEach(function(el){el.addEventListener('click',function(){state.shopSet=el.getAttribute('data-set-preview');state.shopPreview=null;render();document.querySelector('.mt-shop-preview').scrollIntoView({block:'start'});});});
-    var recapMonth=document.getElementById('recap-month');if(recapMonth)recapMonth.addEventListener('change',function(){if(/^\d{4}-(0[1-9]|1[0-2])$/.test(recapMonth.value)&&recapMonth.value<=monthKeyOf(Date.now())){state.recapMonth=recapMonth.value;render();}});
     bind('recap-download',function(){
-      var btn=document.getElementById('recap-download'),key=state.recapMonth||monthKeyOf(Date.now());btn.disabled=true;btn.textContent='Готовим карточку…';
-      Features.createMonthlyCard(recapData(key),displayNick(),MONTH_NAMES_NOMINATIVE[Number(key.slice(5))-1]+" "+key.slice(0,4)).then(function(blob){var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='AM-Tracker-'+key+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);btn.textContent='Сохранить итог в PNG';}).catch(function(){btn.textContent='Не удалось создать PNG — повторить';}).finally(function(){btn.disabled=false;});
+      var btn=document.getElementById('recap-download'),key=String(state.awardsYear);if(!/^\d{4}$/.test(key)||Number(key)>=new Date().getFullYear())return;btn.disabled=true;btn.textContent='Готовим карточку…';
+      Features.createMonthlyCard(recapData(key),displayNick(),key+' · Итоги года').then(function(blob){var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='AM-Tracker-'+key+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);btn.textContent='Сохранить итог в PNG';}).catch(function(){btn.textContent='Не удалось создать PNG — повторить';}).finally(function(){btn.disabled=false;});
     });
     bind('shop-preview-clear',function(){state.shopPreview=null;render();});
     var sort=document.getElementById('shop-sort');if(sort)sort.addEventListener('change',function(){state.shopSort=sort.value;render();});
@@ -3254,6 +3253,16 @@
 
 
   var UI_SETTINGS_KEY='manhwa-tracker:ui-settings:v1';
+  function openAccountSettings(){
+    if(state.accountSettings)return;
+    state.settingsReturn={tab:state.tab,scroll:window.scrollY||0};
+    state.tab='profile';state.accountSettings=true;state.profileEdit=false;state.profileDraft=null;state.shopOpen=false;render();window.scrollTo(0,0);
+  }
+  function closeAccountSettings(){
+    var previous=state.settingsReturn||{tab:'profile',scroll:0};
+    state.accountSettings=false;state.settingsReturn=null;state.acct.confirmDelete=false;state.profileEdit=false;state.profileDraft=null;
+    state.tab=previous.tab;render();window.scrollTo(0,previous.scroll);
+  }
   var uiSettings={reduceMotion:false,largeText:false,appearance:'auto'};
   function halloweenAppearance(){return uiSettings.appearance==='halloween'||(uiSettings.appearance==='auto'&&Features.halloweenWindow(Date.now()).active);}
   function applyUiSettings(){
@@ -3277,7 +3286,7 @@
       "</div>";
   }
   function renderSettings(){
-    return '<section class="mt-account-settings mt-settings-page"><button class="mt-ghost-btn" id="account-settings-back">← Профиль</button><header><span class="mt-section-eyebrow">ПОД ТЕБЯ</span><h1>Настройки</h1><p>Твой профиль, удобный интерфейс и сохранность коллекции.</p></header>'+
+    return '<section class="mt-account-settings mt-settings-page"><button class="mt-ghost-btn" id="account-settings-back">← Назад</button><header><span class="mt-section-eyebrow">ПОД ТЕБЯ</span><h1>Настройки</h1><p>Твой профиль, удобный интерфейс и сохранность коллекции.</p></header>'+
       (state.profileEdit?renderProfileEditor():'<section class="mt-settings-card"><h2>Профиль и оформление</h2><p>Ник, фото, описание и купленные темы, рамки и значки.</p><button class="mt-primary-btn" id="prof-edit">Редактировать профиль</button></section>')+
       renderAppearanceSettings()+'<section class="mt-settings-card"><h2>Интерфейс</h2><p>Эти настройки сохраняются на этом устройстве.</p>'+
       [['reduceMotion','Меньше анимаций','Спокойные переходы без движения.'],['largeText','Крупнее текст','Увеличенные подписи, описания и поля ввода.']].map(function(o){return '<label class="mt-setting-toggle"><span><strong>'+o[1]+'</strong><small>'+o[2]+'</small></span><input type="checkbox" data-ui-setting="'+o[0]+'"'+(uiSettings[o[0]]?' checked':'')+' /></label>';}).join('')+'</section>'+
@@ -3287,9 +3296,9 @@
 
 
   function recapData(key){return Features.monthlyRecap(key,state.manhwas,state.activityLog,state.unlockedAchievements,ACHIEVEMENTS,XP_VALUES,average);}
-  function renderMonthlyRecap(){
-    var key=state.recapMonth||monthKeyOf(Date.now()),d=recapData(key);
-    return '<section class="mt-paper mt-month-recap"><span class="mt-section-eyebrow">ТВОЯ ИСТОРИЯ / ПО МЕСЯЦАМ</span><h2>Месяц в историях</h2><label class="mt-recap-month">Месяц<input class="mt-input" id="recap-month" type="month" value="'+key+'" max="'+monthKeyOf(Date.now())+'" /></label><div class="mt-recap-stats">'+[[d.chapters,'глав в дневнике'],[d.finished,'завершено тайтлов'],[d.goals,'выполнено целей'],[d.xp,'XP и монет заработано']].map(function(x){return '<div><strong>'+x[0]+'</strong><span>'+x[1]+'</span></div>';}).join('')+'</div><div class="mt-recap-highlight"><small>ТАЙТЛ МЕСЯЦА</small><strong>'+escapeHtml(d.best?d.best.title:'Пока нет оценённых тайтлов')+'</strong>'+(d.best?'<span>'+Math.round(d.best.score)+' / 100</span>':'')+'</div><div class="mt-recap-highlight"><small>ЛЮБИМАЯ ГЛАВА</small><strong>'+escapeHtml(d.chapterBest?d.chapterBest.title:'Пока нет оценок глав')+'</strong>'+(d.chapterBest?'<span>Глава '+d.chapterBest.chapter+' · '+d.chapterBest.rating+' / 10</span>':'')+'</div><p class="mt-feature-hint">По сохранённой истории: главы учитываются по записям дневника. Старые удалённые записи могут не попасть в итог. При равных оценках показан один из лидеров.</p><button class="mt-primary-btn" id="recap-download">Сохранить итог в PNG</button></section>';
+  function renderAnnualRecap(year){
+    if(year>=new Date().getFullYear())return '';var key=String(year),d=recapData(key);
+    return '<section class="mt-paper mt-month-recap"><span class="mt-section-eyebrow">ТВОЯ ИСТОРИЯ / ИТОГИ ГОДА</span><h2>Твой '+year+' год в историях</h2><div class="mt-recap-stats">'+[[d.chapters,'глав в дневнике'],[d.finished,'завершено тайтлов'],[d.goals,'выполнено целей'],[d.xp,'XP и монет заработано']].map(function(x){return '<div><strong>'+x[0]+'</strong><span>'+x[1]+'</span></div>';}).join('')+'</div><div class="mt-recap-highlight"><small>ВЫСШАЯ ОЦЕНКА ГОДА</small><strong>'+escapeHtml(d.best?d.best.title:'Пока нет оценённых тайтлов')+'</strong>'+(d.best?'<span>'+Math.round(d.best.score)+' / 100</span>':'')+'</div><div class="mt-recap-highlight"><small>ЛЮБИМАЯ ГЛАВА</small><strong>'+escapeHtml(d.chapterBest?d.chapterBest.title:'Пока нет оценок глав')+'</strong>'+(d.chapterBest?'<span>Глава '+d.chapterBest.chapter+' · '+d.chapterBest.rating+' / 10</span>':'')+'</div><p class="mt-feature-hint">По сохранённой истории: главы учитываются по записям дневника. Старые удалённые записи могут не попасть в итог. При равных оценках показан один из лидеров.</p><button class="mt-primary-btn" id="recap-download">Сохранить итог в PNG</button></section>';
   }
   function renderProfile() {
     if(state.accountSettings)return renderSettings();
@@ -3303,7 +3312,7 @@
       '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
       renderShopEntry() +
-      renderRankPanel() + renderMonthlyRecap() +
+      renderRankPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
       '<div class="mt-chip"><div class="mt-chip-value" style="color:#C9BFA8">' +
@@ -4264,7 +4273,7 @@
 
     var showTabs = !selected && !state.showChangelog;
     var revealManhwa = state.revealManhwaId ? findManhwa(state.revealManhwaId) : null;
-    var seasonHeader=showTabs&&halloweenAppearance()?'<aside class="mt-season-header"><button id="season-event-open"><span aria-hidden="true">☾</span><span><small>AM TRACKER · ОСОБЫЙ ОБЛИК</small><strong>Ночь историй</strong></span></button><button id="season-settings-open" aria-label="Настройки оформления" title="Изменить оформление">⚙</button></aside>':'';
+    var seasonHeader=showTabs&&halloweenAppearance()?'<aside class="mt-season-header"><button id="season-event-open"><span aria-hidden="true">☾</span><span><small>AM TRACKER · ОСОБЫЙ ОБЛИК</small><strong>Ночь историй</strong></span></button><div class="mt-season-actions"><button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL + (CHANGELOG.length&&CHANGELOG[0].version!==state.changelogSeenVersion?'<span class="mt-notify-dot"></span>':'') + '</button><button id="season-settings-open" aria-label="Настройки оформления" title="Изменить оформление">⚙</button></div></aside>':'';
     app.innerHTML = '<div class="mt-shell' + (showTabs ? ' mt-shell-tabs' : ' mt-shell-detail') + '"><div id="storage-notice"></div>' + seasonHeader + body + "</div>" + (showTabs ? renderTabbar() : "") +
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard();
     patchStorageNotice();
@@ -5179,7 +5188,7 @@
   // "sub-page" is currently open, innermost first.
   function goBack() {
     if(state.tab==='catalog'&&catalog.detail&&!state.selectedId){catalog.detail=null;render();window.scrollTo(0,catalog.scroll);return;}
-    if(state.accountSettings && !state.selectedId){state.accountSettings=false;state.acct.confirmDelete=false;render();return;}
+    if(state.accountSettings && !state.selectedId && !state.showChangelog){closeAccountSettings();return;}
     if (state.shopOpen && !state.selectedId) { state.shopOpen=false; state.shopPreview=null; state.shopSet=null; render(); return; }
     if (state.shareCard) { closeShareCard(); render(); return; }
     if (state.awardPreview) { state.awardPreview = null; render(); return; }

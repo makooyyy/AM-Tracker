@@ -35,7 +35,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     ]}}})}));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForSelector('[data-tab="library"]');
-    assert.equal(await page.locator('.mt-brand-mark').evaluate(img => img.complete && img.naturalWidth > 0),true);
+    assert.equal(await page.locator('.mt-season-header,.mt-header .mt-brand').count(),1);
     fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
     await page.screenshot({animations:'disabled',path:path.join(root,'test-results','design-empty.png'),fullPage:true});
     await page.evaluate(() => {
@@ -403,14 +403,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.evaluate(()=>{window.AMSync=undefined;e2e.render();});
     assert.equal(await page.locator('.mt-hero.mt-theme-freefall,.mt-hero .mt-shop-badge').count(),0);
     assert.deepEqual(errors,[]);
-    await page.locator('#recap-month').fill('2020-01');
-    await page.locator('#recap-month').dispatchEvent('change');
-    assert.equal(await page.evaluate(()=>e2e.state.recapMonth),'2020-01');
+    assert.equal(await page.locator('#recap-download').count(),0);
+    await page.evaluate(()=>{e2e.state.manhwas[0].createdAt=new Date(2020,0,1).getTime();e2e.state.tab='awards';e2e.state.awardsView='year';e2e.state.awardsYear=2020;e2e.render();});
     const recapDownload=page.waitForEvent('download');await page.locator('#recap-download').click();
-    const recapFile=await recapDownload;assert.equal(recapFile.suggestedFilename(),'AM-Tracker-2020-01.png');
+    const recapFile=await recapDownload;assert.equal(recapFile.suggestedFilename(),'AM-Tracker-2020.png');
     await recapFile.saveAs(path.join(root,'test-results','monthly-recap.png'));
     const png=fs.readFileSync(path.join(root,'test-results','monthly-recap.png'));
     assert.equal(png.readUInt32BE(16),1080);assert.equal(png.readUInt32BE(20),1350);
+    await page.locator('[data-tab="profile"]').click();
     await page.locator('#prof-edit').click();
     await page.locator('[data-profile-style="theme"]').selectOption('theme-forest');
     await page.locator('#outfit-name').fill('Лесная история');await page.locator('#outfit-save').click();
@@ -439,5 +439,4 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await new Promise(resolve => server.close(resolve));
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
-
 

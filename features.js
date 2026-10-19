@@ -332,17 +332,18 @@
     {id:'cozy',name:'Тихий вечер',text:'Кофейные оттенки, медь и чай',items:['theme-coffee','frame-copper','badge-tea']}
   ];
   function monthlyRecap(key,list,log,achievements,definitions,xpValues,score){
+    function inPeriod(ts){return Number.isFinite(ts)&&month(ts).slice(0,key.length)===key;}
     var entries=[],best=[];
     list.forEach(function(m){
-      journal(m.journal).filter(function(e){return month(e.ts)===key;}).forEach(function(e){entries.push({title:title(m),titleId:m.id,chapter:e.chapter,rating:e.rating,ts:e.ts});});
-      var rating=ratingInMonth(m,key,score);if(rating)best.push({title:title(m),score:score(rating.criteria),id:m.id});
+      journal(m.journal).filter(function(e){return inPeriod(e.ts);}).forEach(function(e){entries.push({title:title(m),titleId:m.id,chapter:e.chapter,rating:e.rating,ts:e.ts});});
+      var rating=key.length===4?(m.rated?ratings(m,score).filter(function(r){return inPeriod(r.ts);}).sort(function(a,b){return b.ts-a.ts;})[0]:null):ratingInMonth(m,key,score);if(rating)best.push({title:title(m),score:score(rating.criteria),id:m.id});
     });
     best.sort(function(a,b){return b.score-a.score||a.title.localeCompare(b.title);});
     var chapterBest=entries.filter(function(e){return e.rating;}).sort(function(a,b){return b.rating-a.rating||b.ts-a.ts;})[0]||null;
-    var events=log.filter(function(e){return Number.isFinite(e.ts)&&month(e.ts)===key;});
-    var unlocked=definitions.filter(function(a){return achievements[a.id]&&month(achievements[a.id])===key;});
+    var events=log.filter(function(e){return inPeriod(e.ts);});
+    var unlocked=definitions.filter(function(a){return inPeriod(achievements[a.id]);});
     var xp=events.reduce(function(n,e){return n+(Number.isFinite(e.xp)?Math.max(0,e.xp):(xpValues[e.type]||0));},0)+unlocked.reduce(function(n,a){return n+(a.xp||0);},0);
-    var done=new Set(list.filter(function(m){return m.completedAt&&month(m.completedAt)===key;}).map(function(m){return m.id;}));
+    var done=new Set(list.filter(function(m){return inPeriod(m.completedAt);}).map(function(m){return m.id;}));
     events.filter(function(e){return e.type==='status'&&e.extra&&e.extra.status==='done';}).forEach(function(e){done.add(e.manhwaId);});
     return {key:key,chapters:new Set(entries.map(function(e){return JSON.stringify([e.titleId,e.chapter]);})).size,notes:entries.length,finished:done.size,goals:unlocked.filter(function(a){return a.id.indexOf('goal_reward_')===0;}).length,xp:xp,best:best[0]||null,chapterBest:chapterBest};
   }
@@ -350,7 +351,7 @@
     var canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;var g=canvas.getContext('2d');
     if(!g)return Promise.reject(new Error('Canvas unavailable'));
     var bg=g.createLinearGradient(0,0,1080,1350);bg.addColorStop(0,'#30223f');bg.addColorStop(1,'#111824');g.fillStyle=bg;g.fillRect(0,0,1080,1350);
-    g.fillStyle='#c4b2ed';g.font='700 25px sans-serif';g.fillText('AM TRACKER / МОЙ МЕСЯЦ',64,88);
+    g.fillStyle='#c4b2ed';g.font='700 25px sans-serif';g.fillText(data.key.length===4?'AM TRACKER / МОЙ ГОД':'AM TRACKER / МОЙ МЕСЯЦ',64,88);
     g.fillStyle='#f2ecdf';g.font='54px serif';drawText(g,label,64,180,952,64,2);
     g.fillStyle='#b9aec6';g.font='26px sans-serif';drawText(g,nick,64,280,952,34,1);
     [[data.chapters,'глав в дневнике'],[data.finished,'завершено тайтлов'],[data.goals,'целей выполнено'],[data.xp,'XP и столько же монет']].forEach(function(pair,i){
@@ -358,7 +359,7 @@
       g.fillStyle='#ead09b';g.font='700 60px sans-serif';g.fillText(String(pair[0]),x+28,y+78);
       g.fillStyle='#d2c6de';g.font='23px sans-serif';drawText(g,pair[1],x+28,y+125,410,28,1);
     });
-    g.fillStyle='#c4b2ed';g.font='700 23px sans-serif';g.fillText('ТАЙТЛ МЕСЯЦА',64,810);
+    g.fillStyle='#c4b2ed';g.font='700 23px sans-serif';g.fillText(data.key.length===4?'ВЫСШАЯ ОЦЕНКА ГОДА':'ТАЙТЛ МЕСЯЦА',64,810);
     g.fillStyle='#f2ecdf';g.font='38px serif';drawText(g,data.best?data.best.title+' · '+Math.round(data.best.score)+'/100':'Пока нет оценённых тайтлов',64,870,952,47,2);
     g.fillStyle='#c4b2ed';g.font='700 23px sans-serif';g.fillText('ЛЮБИМАЯ ГЛАВА',64,1030);
     g.fillStyle='#f2ecdf';g.font='32px serif';drawText(g,data.chapterBest?data.chapterBest.title+' · глава '+data.chapterBest.chapter+' · '+data.chapterBest.rating+'/10':'Пока нет оценок глав',64,1086,952,42,2);
