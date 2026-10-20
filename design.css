@@ -845,3 +845,39 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @media(max-width:359px){.mt-catalog-page{padding-left:14px;padding-right:14px;}.mt-catalog-grid{gap:17px 8px;}.mt-catalog-cover-meta{left:3px;right:3px;gap:2px;}.mt-catalog-cover-meta>span,.mt-catalog-cover-meta .mt-catalog-score{font-size:8px;padding:4px 3px;}.mt-catalog-detail-top{padding:14px;grid-template-columns:74px minmax(0,1fr);}.mt-catalog-detail h1{font-size:22px;}}
 @media(prefers-reduced-motion:reduce){.mt-catalog-skeleton{animation:none;}.mt-catalog-card,.mt-catalog-cover>img{transition:none;}}
 .mt-reduce-motion .mt-catalog-skeleton{animation:none;}
+
+/* Chapter impressions */
+.mt-chapter-journal{--chapter-accent:#c6b2ee;--chapter-soft:#c6b2ee14;}
+.mt-halloween-site .mt-chapter-journal{--chapter-accent:#e9bc7e;--chapter-soft:#e9bc7e14;}
+.mt-chapter-journal #chapter-form{padding:18px;border:1px solid #ffffff12;border-radius:20px;background:#ffffff03;}
+.mt-chapter-journal #chapter-form>label{font-size:12px;line-height:1.5;}
+.mt-chapter-slider{padding:20px 16px;background:radial-gradient(ellipse at top right,var(--chapter-soft),transparent 80%),#ffffff03;border-color:#ffffff12;border-radius:18px;}
+.mt-chapter-slider-heading{gap:12px;color:#d5ccdE;font-size:12px;}
+.mt-chapter-slider output{font-size:26px;line-height:1.2;letter-spacing:-1px;color:var(--chapter-accent);}
+.mt-chapter-slider input[type=range]{appearance:none;-webkit-appearance:none;height:8px;margin:25px 0 20px;border-radius:20px;background:linear-gradient(to right,var(--chapter-accent) var(--chapter-fill,0%),#ffffff16 var(--chapter-fill,0%));}
+.mt-chapter-slider input[type=range]::-webkit-slider-thumb{appearance:none;width:25px;height:25px;border-radius:50%;background:var(--chapter-accent);border:5px solid #25212e;box-shadow:0 0 0 1px var(--chapter-accent),0 3px 12px #0005;}
+.mt-chapter-slider input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--chapter-accent);border:5px solid #25212e;box-shadow:0 0 0 1px var(--chapter-accent);}
+.mt-chapter-slider input:focus-visible{outline:2px solid var(--chapter-accent);outline-offset:9px;}
+.mt-chapter-slider .mt-chapter-mood{font-size:13px;margin:0 0 14px;color:var(--chapter-accent);line-height:1.5;}
+.mt-chapter-slider-scale{font-size:10px;letter-spacing:.2px;}
+.mt-journal-list{display:grid;gap:14px;margin-top:24px;}
+.mt-journal-list article{min-width:0;margin:0;padding:18px;border:1px solid #ffffff12;border-radius:20px;background:linear-gradient(135deg,var(--chapter-soft),#ffffff02 75%);}
+.mt-journal-list header{align-items:center;padding-bottom:14px;border-bottom:1px solid #ffffff0c;}
+.mt-journal-list header b{font-size:14px;font-weight:600;}
+.mt-journal-list time{font-size:10px;white-space:nowrap;}
+.mt-saved-chapter-rating{display:flex;align-items:center;gap:16px;margin:18px 0;}
+.mt-chapter-score-ring{flex:0 0 76px;width:76px;height:76px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(var(--chapter-accent) calc(var(--chapter-score)*10%),#ffffff0d 0);position:relative;}
+.mt-chapter-score-ring:before{content:"";position:absolute;inset:3px;border-radius:50%;background:#201d28;}
+.mt-chapter-score-ring strong{position:relative;font-size:18px;letter-spacing:-.5px;color:var(--chapter-accent);font-variant-numeric:tabular-nums;}
+.mt-chapter-score-copy{flex:1;min-width:0;display:grid;gap:7px;}
+.mt-chapter-score-copy>span{font-size:8px;letter-spacing:1.6px;color:#a99bb8;}
+.mt-chapter-score-copy>b{font-size:13px;line-height:1.45;font-weight:600;}
+.mt-chapter-score-copy>small{font-size:9px;line-height:1.5;color:#a99bb8;}
+.mt-chapter-score-bars{display:flex;gap:3px;margin:2px 0;}
+.mt-chapter-score-bars i{flex:1;height:4px;border-radius:3px;background:#ffffff0d;}
+.mt-chapter-score-bars .is-filled{background:var(--chapter-accent);}
+.mt-journal-list p{font-size:13px;line-height:1.7;}
+.mt-journal-list p:empty{display:none;}
+.mt-journal-list [data-journal-delete]{display:block;margin:14px 0 0 auto;padding:6px 0;font-size:10px;min-height:36px;opacity:.65;}
+.mt-journal-list [data-journal-delete]:hover{opacity:1;color:#f2a8ac;}
+@media(max-width:359px){.mt-chapter-journal #chapter-form,.mt-journal-list article{padding:13px;}.mt-saved-chapter-rating{gap:10px;}.mt-chapter-score-ring{flex-basis:64px;width:64px;height:64px;}.mt-chapter-score-ring strong{font-size:16px;}}

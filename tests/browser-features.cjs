@@ -250,6 +250,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.evaluate(()=>e2e.openTitle('sample'));
     assert.equal(await page.locator('.mt-saved-chapter-rating strong').first().innerText(),'9 / 10');
     assert.equal(await page.locator('.mt-saved-chapter-rating strong').nth(1).innerText(),'8 / 10');
+    for(const width of [320,390]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'chapter ratings width '+width);}
+    await page.locator('.mt-journal-list').screenshot({path:path.join(root,'test-results','chapter-ratings.png')});
+    await page.locator('#chapter-form').screenshot({path:path.join(root,'test-results','chapter-rating-form.png')});
     await page.evaluate(() => {e2e.state.selectedId=null;e2e.state.tab='journey';e2e.state.journeyUI.section='goals';e2e.render();});
     assert.equal(await page.locator('.mt-goal-count').innerText(),'2 / 10');
     await page.reload();
