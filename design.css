@@ -887,7 +887,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-reading-card .mt-continue-card {width:100%;border:0;border-radius:0;box-sizing:border-box;}
 .mt-reading-actions,.mt-reading-panel-actions {display:flex;flex-wrap:wrap;gap:8px;}
 .mt-reading-actions {padding:0 14px 14px;}
-.mt-reading-panel {margin:20px 0;padding:20px;border:1px solid #ffffff18;border-radius:20px;background:linear-gradient(135deg,#a68ac516,#ffffff03);}
+.mt-reading-panel {margin:0;min-width:0;padding:20px;border:1px solid #ffffff18;border-radius:20px;background:linear-gradient(135deg,#a68ac516,#ffffff03);}
 .mt-reading-panel h3 {margin:8px 0;font-size:20px;}
 .mt-reading-panel>div:first-child {display:grid;gap:7px;margin-bottom:14px;}
 .mt-reading-panel>div:first-child strong {font-size:22px;}
@@ -927,3 +927,33 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-journey-page .mt-journey-nav button {flex:0 0 auto;white-space:nowrap;padding:12px;font-size:12px;min-height:44px;}
 .mt-journey-page .mt-journey-nav small {display:none;}
 @media(min-width:700px) {.mt-reading-card {flex-basis:65%;}.mt-journey-page .mt-journey-nav button {flex:1;}}
+
+/* Shared page gutters; nested sections inherit the page's content edges. */
+.mt-shell {--page-gutter:22px;min-width:0;}
+.mt-shell .mt-header,
+.mt-shell .mt-featured-slot,
+.mt-shell .mt-library-controls,
+.mt-shell .mt-list,
+.mt-shell .mt-detail-head,
+.mt-shell .mt-detail-status,
+.mt-shell .mt-detail-body,
+.mt-shell .mt-journey-page,
+.mt-shell .mt-catalog-page,
+.mt-shell .mt-shop-page,
+.mt-shell .mt-settings-page.mt-account-settings {
+  padding-left:var(--page-gutter);
+  padding-right:var(--page-gutter);
+  min-width:0;
+}
+.mt-shell .mt-journey-page,
+.mt-shell .mt-catalog-page,
+.mt-shell .mt-shop-page,
+.mt-shell .mt-settings-page.mt-account-settings {width:100%;max-width:none;box-sizing:border-box;}
+.mt-shell .mt-profile-page .mt-hero,
+.mt-shell .mt-season-header {margin-left:var(--page-gutter);margin-right:var(--page-gutter);}
+.mt-shell .mt-journey-page .mt-achievement-page .mt-header,
+.mt-shell .mt-journey-page .mt-achievement-page .mt-list,
+.mt-shell .mt-journey-page .mt-halloween {padding-left:0;padding-right:0;}
+.mt-journey-stage,.mt-detail-body>* {min-width:0;}
+.mt-shell .mt-journey-page .mt-journey-heading {padding-left:0;padding-right:0;}
+@media(max-width:359px) {.mt-shell {--page-gutter:16px;}}

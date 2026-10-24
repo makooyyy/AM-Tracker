@@ -2865,8 +2865,8 @@
       "</div>" +
       (state.statusPickerOpen ? renderStatusPicker(m) : "") +
       renderErrorBanner() +
-      renderReadingPanel(m) +
-      '<div class="mt-detail-body">';
+      '<div class="mt-detail-body">' +
+      renderReadingPanel(m);
 
     var wins = awardsForManhwa(m);
     var hasGoldWin = positiveAwardsForManhwa(m).length > 0;
@@ -4117,6 +4117,7 @@
     return '<div class="mt-saved-chapter-rating" style="--chapter-score:'+n+'"><div class="mt-chapter-score-ring"><strong>'+(n?n+' / 10':'—')+'</strong></div><div class="mt-chapter-score-copy"><span>ТВОЯ ОЦЕНКА</span><b>'+ (n?chapterRatingMood(n):'Только впечатление')+'</b><div class="mt-chapter-score-bars" aria-hidden="true">'+Array.from({length:10},function(_,i){return '<i'+(i<n?' class="is-filled"':'')+'></i>';}).join('')+'</div><small>'+(n?'Сохранена · без редактирования':'Без оценки')+'</small></div></div>';
   }
   var journalView={};
+  var chapterDrafts=Object.create(null);
   function journalSettings(m){return journalView[m.id]||(journalView[m.id]={query:'',sort:'recent'});}
   function journalEntriesHtml(m){
     var v=journalSettings(m),all=Features.journal(m.journal),list=all.filter(function(e){return v.query===''||e.chapter===Number(v.query);});
@@ -4138,6 +4139,18 @@
   }
   function attachJourneyHandlers(selected) {
     function bind(id,event,fn){var el=document.getElementById(id);if(el)el.addEventListener(event,fn);}
+    var chapterForm=document.getElementById('chapter-form');
+    if(chapterForm&&selected){
+      var draft=chapterDrafts[selected.id];
+      ['chapter-number','chapter-text','chapter-rating','chapter-spoiler'].forEach(function(id){
+        var el=document.getElementById(id);if(!el)return;
+        if(draft&&Object.prototype.hasOwnProperty.call(draft,id)){if(el.type==='checkbox')el.checked=draft[id];else el.value=draft[id];}
+        function remember(){var d=chapterDrafts[selected.id]||(chapterDrafts[selected.id]={});d[id]=el.type==='checkbox'?el.checked:el.value;}
+        el.addEventListener('input',remember);el.addEventListener('change',remember);
+      });
+      var rating=document.getElementById('chapter-rating'),slider=rating&&rating.closest('.mt-chapter-slider');
+      if(slider){var caption=Number(rating.value)?rating.value+' / 10':'Без оценки';slider.querySelector('output').textContent=caption;rating.setAttribute('aria-valuetext',caption);slider.style.setProperty('--chapter-fill',(Number(rating.value)*10)+'%');slider.querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(rating.value));}
+    }
     var journeyNav=document.getElementById('app').querySelector('.mt-journey-nav'),activeJourney=journeyNav&&journeyNav.querySelector('[aria-pressed="true"]');
     if(activeJourney)journeyNav.scrollLeft=Math.max(0,activeJourney.offsetLeft-journeyNav.offsetLeft-12);
     function jumpJournal(id){
@@ -4185,6 +4198,7 @@
       m.journal=Features.journal(m.journal);var entry={id:uid(),ts:Date.now(),chapter:chapter,text:text.slice(0,2000),spoiler:document.getElementById('chapter-spoiler').checked};if(rating!==null)entry.rating=rating;
       var progress=Features.readingProgress(m);progress.chapter=Math.max(progress.chapter,chapter);progress.updatedAt=Date.now();m.reading=progress;
       journalSettings(m).query='';
+      delete chapterDrafts[m.id];
       m.journal.push(entry);m.journal=Features.journal(m.journal);m.updatedAt=Date.now();save();render();
     });
 
@@ -5282,6 +5296,7 @@
   }
 
   function wipeLocalData() {
+    chapterDrafts=Object.create(null);journalView={};
     if(state.journeyUI.discoveryAbort)state.journeyUI.discoveryAbort.abort();
     state.journeyUI.discoveryAbort=null;
     state.journeyUI={mood:"",genre:"",type:"",duelGenre:"",pick:0,section:"discover",results:[],previousPair:[]};

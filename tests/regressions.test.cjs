@@ -11,7 +11,7 @@ function harness(saved = new Map()) {
       addEventListener(name, fn) { this.handlers[name] = fn; },
       getAttribute(name) { return this.attrs[name]; },
       hasAttribute(name) { return name in this.attrs; },
-      querySelectorAll() { return []; }, querySelector() { return null; }, focus() {}, scrollIntoView() {},
+      querySelectorAll() { return []; }, querySelector() { return null; }, closest() { return null; }, focus() {}, scrollIntoView() {},
       set innerHTML(html) {
         this.html = html;
         if (this === app) elements.clear();
@@ -313,6 +313,13 @@ test('first rating requires confirmation and never grants XP on accidental save'
  assert.match(h.elements.get('rating-confirm-error').textContent,/подтверди/);
  h.elements.get('rating-confirm').checked=true;h.elements.get('finish-rating-btn').handlers.click();
  assert.equal(m.rated,true);await a.flush();
+});
+test('chapter draft survives render but is cleared with account data',async()=>{
+ const h=harness(),a=h.api,m=addRated(a);a.state.selectedId=m.id;a.render();
+ const input=h.elements.get('chapter-text');input.value='Private chapter draft';input.handlers.input();
+ a.render();assert.equal(h.elements.get('chapter-text').value,'Private chapter draft');
+ await a.bridge.wipeLocal();a.state.manhwas=[m];a.state.selectedId=m.id;a.render();
+ assert.equal(h.elements.get('chapter-text').value,'');
 });
 test('reading links are safe and legacy chapter scores remain intact',()=>{
  assert.equal(J.readingUrl('javascript:alert(1)'),'');
