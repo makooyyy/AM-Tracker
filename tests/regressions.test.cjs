@@ -11,7 +11,7 @@ function harness(saved = new Map()) {
       addEventListener(name, fn) { this.handlers[name] = fn; },
       getAttribute(name) { return this.attrs[name]; },
       hasAttribute(name) { return name in this.attrs; },
-      querySelectorAll() { return []; }, querySelector() { return null; }, focus() {},
+      querySelectorAll() { return []; }, querySelector() { return null; }, focus() {}, scrollIntoView() {},
       set innerHTML(html) {
         this.html = html;
         if (this === app) elements.clear();
@@ -26,7 +26,7 @@ function harness(saved = new Map()) {
   const app = element();
   const fail = new Set();
   const context = vm.createContext({
-    console, setTimeout() {}, clearTimeout() {}, navigator: {},
+    console, URL, setTimeout() {}, clearTimeout() {}, navigator: {},
     document: {
       getElementById(id) { return id === 'app' ? app : elements.get(id) || null; }, activeElement: null,
       createElement() { return { textContent: '', get innerHTML() {
@@ -95,7 +95,7 @@ test('Save rerating button commits exactly one previous rating and clears draft'
   h.elements.get('rerate-btn').handlers.click();
   a.editableManhwa(m.id).criteria[0].score = 3;
   a.render();
-  h.elements.get('finish-rating-btn').handlers.click();
+  h.elements.get('rating-confirm').checked = true; h.elements.get('finish-rating-btn').handlers.click();
   await a.flush();
   assert.equal(m.criteria[0].score, 3);
   assert.equal(m.ratingHistory.length, 1);
@@ -186,7 +186,7 @@ test('rerating captures review and reason, and compares added and removed criter
   a.beginRerating(m.id); const d = a.editableManhwa(m.id);
   d.notes = 'New review'; d.ratingReason = 'New chapters';
   d.criteria[0].score = 10; d.criteria.pop(); d.criteria.push({id:'extra',name:'Translation',score:9});
-  a.state.selectedId = m.id; a.render(); h.elements.get('finish-rating-btn').handlers.click();
+  a.state.selectedId = m.id; a.render(); h.elements.get('rating-confirm').checked = true; h.elements.get('finish-rating-btn').handlers.click();
   assert.equal(m.ratingHistory[0].notes, 'Original review');
   assert.equal(m.ratingHistory[0].reason, 'Original reason');
   assert.equal(m.ratingReason, 'New chapters');
@@ -305,6 +305,34 @@ test('40 new achievements use consistent metrics and award XP only once', async 
 });
 
 const J = require('../features.js');
+test('first rating requires confirmation and never grants XP on accidental save',async()=>{
+ const h=harness(),a=h.api,m=a.newManhwa('Unrated');a.state.manhwas=[m];a.state.selectedId=m.id;a.render();
+ const xp=a.state.totalXp;
+ h.elements.get('finish-rating-btn').handlers.click();
+ assert.equal(m.rated,false);assert.equal(a.state.totalXp,xp);
+ assert.match(h.elements.get('rating-confirm-error').textContent,/подтверди/);
+ h.elements.get('rating-confirm').checked=true;h.elements.get('finish-rating-btn').handlers.click();
+ assert.equal(m.rated,true);await a.flush();
+});
+test('reading links are safe and legacy chapter scores remain intact',()=>{
+ assert.equal(J.readingUrl('javascript:alert(1)'),'');
+ assert.equal(J.readingUrl('https://user:password@example.com'),'');
+ assert.equal(J.readingUrl('https://senkuro.com/manga/test'),'https://senkuro.com/manga/test');
+ const entries=[{id:'later',chapter:12,ts:200,rating:1},{id:'first',chapter:12,ts:100,rating:10},{id:'next',chapter:14,ts:300,text:'note'}];
+ assert.equal(J.hasChapterRating(entries,12),true);assert.equal(J.hasChapterRating(entries,14),false);
+ assert.deepEqual(J.chapterScores(entries).map(x=>x.id),['first']);assert.equal(entries.length,3);
+ assert.equal(J.readingProgress({journal:entries}).chapter,14);
+ assert.equal(J.readingProgress({journal:entries,reading:{chapter:5}}).chapter,5);
+});
+test('reading progress and recommendation feedback survive backup normalization and cloud roundtrip',async()=>{
+ const a=harness().api,m=addRated(a);m.reading={chapter:42.5,url:'https://senkuro.com/manga/test',updatedAt:100};
+ a.state.profile.journey={feedback:[{id:102,action:'like',ts:100,genres:['Фэнтези']}],goals:[],duels:[]};
+ assert.deepEqual(JSON.parse(JSON.stringify(a.sanitizeImportedManhwa(m,{}).reading)),m.reading);
+ const cloud=syncHarness();await cloud.engine(a).sync();const b=harness().api;await cloud.engine(b).sync();
+ assert.deepEqual(JSON.parse(JSON.stringify(b.state.manhwas[0].reading)),m.reading);
+ assert.equal(b.state.profile.journey.feedback[0].action,'like');
+ assert.equal(J.cleanFeedback([{id:1,action:'hide',ts:1},{id:1,action:'read',ts:2},{id:2,action:'invalid',ts:3}]).length,1);
+});
 test('annual personal recap spans months and appears only for completed years, never in profile',()=>{
  const a=harness().api,y=new Date().getFullYear()-1,m=a.newManhwa('Year test');
  m.createdAt=new Date(y,0,1).getTime();m.journal=[{id:'a',chapter:1,text:'one',ts:new Date(y,0,5).getTime()},{id:'b',chapter:1,text:'again',ts:new Date(y,8,5).getTime()},{id:'c',chapter:2,rating:9,ts:new Date(y,11,31,23).getTime()},{id:'d',chapter:3,rating:10,ts:new Date(y+1,0,1).getTime()}];
@@ -380,7 +408,7 @@ test('journal validation and goal snapshots exclude existing results and duplica
   assert.deepEqual(J.goalKeys(list,'done'),['a']);
   assert.deepEqual(J.goalKeys(list,'genres'),['Драма']);
   assert.deepEqual(J.goalKeys(list,'journal'),['a:n']);
-  assert.deepEqual(J.cleanJourney({goals:[{id:'bad',started:1}],duels:[{a:'a',b:'a',winner:'a'}]}),{goals:[],duels:[]});
+  assert.deepEqual(J.cleanJourney({goals:[{id:'bad',started:1}],duels:[{a:'a',b:'a',winner:'a'}]}),{feedback:[],goals:[],duels:[]});
 });
 
 test('chosen goals count only new results, persist progress and survive backup sanitization', async()=>{

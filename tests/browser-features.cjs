@@ -56,7 +56,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       state.awardWinners = {'2026-08':{overall:AMFeatures.awardSnapshot(m,'2026-08','overall',average,false)}};
       render();
     });
-    assert.equal(await page.locator('.mt-continue-card').count(),1);
+    assert.equal(await page.locator('.mt-continue-card').count(),6);
     for (const width of [320,390,1280]) {
       await page.setViewportSize({width,height:844});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,`library overflow at ${width}px`);
@@ -73,7 +73,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('#new-title-input').fill('Проверка формы добавления');
     await page.locator('#cancel-add-manhwa').click();
     assert.equal(await page.locator('.mt-grid-card').count(),6);
-    await page.locator('.mt-continue-card').click();
+    await page.locator('.mt-continue-card[data-open-id="sample"]').click();
     await page.waitForSelector('#compare-from');
     await page.screenshot({animations:'disabled',path:path.join(root,'test-results','design-detail.png'),fullPage:true});
     assert.match(await page.locator('.mt-comparison-score').innerText(),/\+20/);

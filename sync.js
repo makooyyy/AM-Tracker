@@ -87,7 +87,7 @@
   }
 
   function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null, journey: (p && p.journey) || null, style: (p && p.style) || null, outfits: (p && p.outfits) || [] }); }
-  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.outfits && p.outfits.length) && !(p.style && (p.style.theme || p.style.frame || p.style.badge)) && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length))); }
+  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.outfits && p.outfits.length) && !(p.style && (p.style.theme || p.style.frame || p.style.badge)) && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length || (p.journey.feedback || []).length))); }
 
   function isEmptyAwards(a) {
     return !a || (!Object.keys(a.w || {}).length && !Object.keys(a.c || {}).length && !Object.keys(a.e || {}).length);

@@ -33,8 +33,24 @@
     }) };
   }
   function continueReading(titles, opened) {
-    return titles.filter(function (m) { return m.status === "reading" && opened[m.id] > 0; })
-      .sort(function (a, b) { return opened[b.id] - opened[a.id]; }).slice(0, 8);
+    function time(m){return Math.max(opened[m.id]||0,readingProgress(m).updatedAt||0,m.createdAt||0);}
+    return titles.filter(function (m) { return m.status === "reading"; })
+      .sort(function (a, b) { return time(b)-time(a); }).slice(0, 8);
+  }
+  function readingProgress(m){
+    var r=m&&m.reading||{},chapters=journal(m&&m.journal).map(function(e){return e.chapter;});
+    return {chapter:Number.isFinite(r.chapter)&&r.chapter>=0&&r.chapter<=1000000?r.chapter:(chapters.length?Math.max.apply(null,chapters):0),url:readingUrl(r.url),updatedAt:Number.isFinite(r.updatedAt)?r.updatedAt:0};
+  }
+  function readingUrl(raw){
+    if(typeof raw!=='string'||raw.length>2000)return '';
+    try{var u=new URL(raw.trim());return /^https?:$/.test(u.protocol)&&!u.username&&!u.password?u.href:'';}catch(e){return '';}
+  }
+  function chapterScores(raw){
+    var seen=new Set();return journal(raw).filter(function(e){return e.rating;}).sort(function(a,b){return a.ts-b.ts||a.id.localeCompare(b.id);}).filter(function(e){if(seen.has(e.chapter))return false;seen.add(e.chapter);return true;}).sort(function(a,b){return a.chapter-b.chapter;});
+  }
+  function hasChapterRating(raw,chapter){return journal(raw).some(function(e){return e.chapter===chapter&&!!e.rating;});}
+  function cleanFeedback(raw){
+    var byId=new Map();(Array.isArray(raw)?raw:[]).forEach(function(f){if(!f||!Number.isInteger(f.id)||f.id<=0||!['hide','read','like'].includes(f.action)||!Number.isFinite(f.ts))return;var old=byId.get(f.id);if(!old||old.ts<=f.ts)byId.set(f.id,{id:f.id,action:f.action,ts:f.ts,genres:Array.isArray(f.genres)?f.genres.filter(function(g){return typeof g==='string'&&g.length<80;}).slice(0,20):[]});});return Array.from(byId.values()).sort(function(a,b){return a.ts-b.ts;}).slice(-500);
   }
   function awardSnapshot(m, key, category, score, legacy) {
     return { awardSnapshot: 1, id: String(m.id), title: title(m), altTitles: {}, type: m.type || "manhwa",
@@ -187,7 +203,7 @@
   ];
   function goalRewardXp(achievements){return goalOptions.reduce(function(sum,o){return sum+(achievements&&achievements['goal_reward_'+o.id]?o.reward:0);},0)+halloweenQuests.reduce(function(sum,q){return sum+(achievements&&achievements[q.id]?q.xp:0);},0);}
   var halloweenQuests=[
-    {id:'h26_lantern',name:'Зажги первый фонарь',text:'Оставь впечатления о 3 разных главах.',metric:'notes',target:3,xp:60,reward:'badge-h26-pumpkin',icon:'🎃'},
+    {id:'h26_lantern',name:'Зажги первый фонарь',text:'Напиши текстовые заметки к 3 разным главам.',metric:'notes',target:3,xp:60,reward:'badge-h26-pumpkin',icon:'🎃'},
     {id:'h26_ink',name:'Чернила полуночи',text:'Оцени 5 разных глав.',metric:'ratings',target:5,xp:80,reward:'frame-h26-thorns',icon:'✒'},
     {id:'h26_stories',name:'Две истории у костра',text:'Поставь оценку 2 разным тайтлам.',metric:'titles',target:2,xp:100,reward:'theme-h26-harvest',icon:'📖'},
     {id:'h26_shadows',name:'Загляни в тени',text:'Оцени тайтл с жанром «Ужасы», «Мистика», «Триллер» или «Сверхъестественное».',metric:'dark',target:1,xp:100,reward:'badge-h26-bat',icon:'🦇'},
@@ -224,7 +240,7 @@
   }
   function cleanJourney(raw) {
     raw = raw && typeof raw==='object' ? raw : {};
-    return {goals:(Array.isArray(raw.goals)?raw.goals:[]).filter(function(g){return g && goalOptions.some(function(o){return o.id===g.id;}) && Number.isFinite(g.started);}).slice(0,5).map(function(g){return {id:g.id,started:g.started,baseline:Array.isArray(g.baseline)?g.baseline.filter(function(s){return typeof s==='string';}):[],earned:Array.isArray(g.earned)?g.earned.filter(function(s){return typeof s==='string';}):[]};}),
+    return {feedback:cleanFeedback(raw.feedback),goals:(Array.isArray(raw.goals)?raw.goals:[]).filter(function(g){return g && goalOptions.some(function(o){return o.id===g.id;}) && Number.isFinite(g.started);}).slice(0,5).map(function(g){return {id:g.id,started:g.started,baseline:Array.isArray(g.baseline)?g.baseline.filter(function(s){return typeof s==='string';}):[],earned:Array.isArray(g.earned)?g.earned.filter(function(s){return typeof s==='string';}):[]};}),
       duels:(Array.isArray(raw.duels)?raw.duels:[]).filter(function(d){return d && typeof d.a==='string' && typeof d.b==='string' && d.a!==d.b && (d.winner===d.a||d.winner===d.b);}).slice(-2000).map(function(d){return {a:d.a,b:d.b,winner:d.winner};})};
   }
   function duelPair(list, history, genre, previous, random) {
@@ -243,8 +259,8 @@
     return rng()<.5?chosen:chosen.slice().reverse();
   }
   function recentReading(list) {
-    function time(m){return Math.max(m.completedAt||0,m.lastRatedAt||0,...journal(m.journal).map(function(e){return e.ts;}));}
-    return list.filter(function(m){return m.status!=='plan'&&m.status!=='dropped'&&(m.rated||m.status==='done'||journal(m.journal).length);}).slice().sort(function(a,b){return time(b)-time(a);}).slice(0,5);
+    function time(m){return Math.max(m.completedAt||0,m.lastRatedAt||0,readingProgress(m).updatedAt,...journal(m.journal).map(function(e){return e.ts;}));}
+    return list.filter(function(m){return m.status!=='plan'&&m.status!=='dropped'&&(m.rated||m.status==='done'||readingProgress(m).updatedAt||journal(m.journal).length);}).slice().sort(function(a,b){return time(b)-time(a);}).slice(0,5);
   }
   function titleKey(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');}
   function unseenMedia(media,list){
@@ -367,7 +383,7 @@
     return new Promise(function(resolve,reject){canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('PNG unavailable'));},'image/png');});
   }
 
-  var api = {aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

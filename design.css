@@ -881,3 +881,49 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-journal-list [data-journal-delete]{display:block;margin:14px 0 0 auto;padding:6px 0;font-size:10px;min-height:36px;opacity:.65;}
 .mt-journal-list [data-journal-delete]:hover{opacity:1;color:#f2a8ac;}
 @media(max-width:359px){.mt-chapter-journal #chapter-form,.mt-journal-list article{padding:13px;}.mt-saved-chapter-rating{gap:10px;}.mt-chapter-score-ring{flex-basis:64px;width:64px;height:64px;}.mt-chapter-score-ring strong{font-size:16px;}}
+/* Reading workspace: compact navigation and a connected chapter diary. */
+.mt-reading-card {flex:0 0 94%;min-width:0;overflow:hidden;border:1px solid #c4b2ed26;border-radius:20px;background:#232029;}
+.mt-reading-card:only-child {flex-basis:100%;}
+.mt-reading-card .mt-continue-card {width:100%;border:0;border-radius:0;box-sizing:border-box;}
+.mt-reading-actions,.mt-reading-panel-actions {display:flex;flex-wrap:wrap;gap:8px;}
+.mt-reading-actions {padding:0 14px 14px;}
+.mt-reading-panel {margin:20px 0;padding:20px;border:1px solid #ffffff18;border-radius:20px;background:linear-gradient(135deg,#a68ac516,#ffffff03);}
+.mt-reading-panel h3 {margin:8px 0;font-size:20px;}
+.mt-reading-panel>div:first-child {display:grid;gap:7px;margin-bottom:14px;}
+.mt-reading-panel>div:first-child strong {font-size:22px;}
+.mt-reading-panel>div:first-child small {color:#aaa2b7;font-size:12px;}
+.mt-reading-panel .mt-reading-actions {padding:0;}
+.mt-reading-panel p,.mt-chapter-chart p {color:#aaa2b7;font-size:12px;line-height:1.6;}
+.mt-reading-panel details {margin-top:16px;}
+.mt-reading-panel summary,.mt-chapter-chart summary {cursor:pointer;font-size:12px;padding:8px 0;}
+#reading-form {display:grid;gap:12px;margin-top:12px;}
+#reading-form label,.mt-journal-toolbar label {display:grid;gap:7px;font-size:12px;min-width:0;}
+.mt-journal-toolbar {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:24px 0 16px;}
+.mt-journal-toolbar .mt-input {width:100%;box-sizing:border-box;min-width:0;}
+.mt-chapter-chart {margin:22px 0;padding:16px;border:1px solid #ffffff15;border-radius:18px;background:#ffffff03;}
+.mt-chapter-chart h3 {font-size:15px;margin:0;}
+.mt-chart-scroll svg {display:block;width:100%;height:auto;}
+.mt-chart-scroll text {fill:#aca4ba;font:10px sans-serif;}
+.mt-chart-grid {stroke:#ffffff14;stroke-dasharray:3 4;}
+.mt-chart-line {stroke:#c4b2ed;stroke-width:2;fill:none;}
+.mt-chart-dot {fill:#dfd2fa;stroke:#30263c;stroke-width:2;}
+.mt-chart-scroll a:hover .mt-chart-dot,.mt-chart-scroll a:focus .mt-chart-dot {stroke:#fff;stroke-width:3;}
+.mt-chart-points {display:flex;flex-wrap:wrap;gap:8px;max-height:240px;overflow:auto;padding:8px 0;}
+.mt-journal-list article {scroll-margin-top:24px;}
+.mt-journal-list article:focus {outline:2px solid #c4b2ed;outline-offset:3px;}
+.mt-rating-confirm {display:flex;align-items:flex-start;gap:10px;padding:14px;margin:16px 0;border:1px solid #c4b2ed44;border-radius:12px;font-size:13px;line-height:1.6;}
+.mt-rating-confirm input {margin-top:4px;accent-color:#c4b2ed;width:18px;height:18px;flex-shrink:0;}
+#rating-confirm-error,#chapter-error,#reading-error {font-size:12px;color:#efb3b3;}
+.mt-discovery-feedback {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px;}
+.mt-discovery-feedback button {flex:1 1 110px;font-size:12px;}
+.mt-feedback-notice {padding:12px;margin:12px 0;font-size:12px;line-height:1.6;border-radius:12px;background:#ffffff06;color:#bcb3c8;}
+.mt-feedback-notice button {display:block;margin-top:8px;}
+.mt-journey-page .mt-journey-heading {padding:12px 4px 18px;}
+.mt-journey-page .mt-journey-heading h1 {font-size:32px;line-height:1.2;letter-spacing:-.8px;margin:8px 0;}
+.mt-journey-heading h1 span {display:inline;font:inherit;color:#c4b2ed;}
+.mt-journey-page .mt-journey-heading p {margin:6px 0;font-size:12px;}
+.mt-journey-page .mt-journey-orbit {display:none;}
+.mt-journey-page .mt-journey-nav {display:flex;overflow-x:auto;gap:4px;border-radius:16px;scrollbar-width:thin;}
+.mt-journey-page .mt-journey-nav button {flex:0 0 auto;white-space:nowrap;padding:12px;font-size:12px;min-height:44px;}
+.mt-journey-page .mt-journey-nav small {display:none;}
+@media(min-width:700px) {.mt-reading-card {flex-basis:65%;}.mt-journey-page .mt-journey-nav button {flex:1;}}
