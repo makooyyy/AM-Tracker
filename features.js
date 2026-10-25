@@ -230,6 +230,7 @@
       var rating=Number.isInteger(e.rating)&&e.rating>=1&&e.rating<=10?e.rating:null;
       var entry={id:e.id,text:typeof e.text==='string'?e.text.slice(0,2000):'',chapter:e.chapter,ts:e.ts,spoiler:!!e.spoiler};
       if(rating!==null)entry.rating=rating;
+      if(Number.isInteger(e.run)&&e.run>1&&e.run<=10000)entry.run=e.run;
       return entry;
     }).filter(function(e){return e.text.trim()||e.rating;}).slice(-1000);
   }

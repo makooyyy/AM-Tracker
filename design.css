@@ -957,3 +957,56 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-journey-stage,.mt-detail-body>* {min-width:0;}
 .mt-shell .mt-journey-page .mt-journey-heading {padding-left:0;padding-right:0;}
 @media(max-width:359px) {.mt-shell {--page-gutter:16px;}}
+
+/* Personal shelves, reading passes and showcase. */
+.mt-library-tools {display:grid;gap:14px;padding:16px;border:1px solid #c4b2ed24;border-radius:20px;background:linear-gradient(135deg,#c4b2ed0c,#ffffff02);}
+.mt-tools-row {display:flex;flex-wrap:wrap;align-items:end;gap:8px;}
+.mt-tools-row>label {flex:1 1 140px;min-width:0;}
+.mt-tools-row>input {flex:1 1 140px;width:0;min-width:100px;}
+.mt-library-tools label,.mt-compare-pickers label,.mt-showcase-editor label {display:grid;gap:7px;font-size:12px;color:var(--text-muted);min-width:0;}
+.mt-library-tools .mt-input,.mt-compare-page .mt-input,.mt-showcase-editor .mt-input {width:100%;min-width:0;margin:0;}
+.mt-library-tools summary,.mt-title-tools summary,.mt-showcase-editor summary {cursor:pointer;font-size:13px;line-height:1.5;padding:5px 0;}
+.mt-library-tools details>form {margin:12px 0;}
+.mt-collection-manage {display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;margin:10px 0;}
+.mt-collection-manage button {font-size:11px;padding:9px;}
+.mt-bulk-panel {display:grid;gap:10px;border:1px solid #c4b2ed40;background:#c4b2ed0b;border-radius:14px;padding:14px;}
+.mt-grid-card .mt-select-title {width:100%;min-height:36px;border-radius:9px;margin-bottom:8px;border:1px solid #c4b2ed50;color:var(--text-primary);background:#25212d;font:600 10px Manrope,sans-serif;cursor:pointer;}
+.mt-grid-card .mt-select-title[aria-pressed=true] {background:#c4b2ed;color:#21162d;}
+.mt-trash article {border-top:1px solid #ffffff15;padding:14px 0;display:grid;gap:9px;}
+.mt-trash strong {font-size:13px;overflow-wrap:anywhere;}
+.mt-trash small {color:var(--text-muted);font-size:10px;}
+.mt-extras-undo {margin:12px var(--page-gutter);padding:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid #c4b2ed55;border-radius:14px;background:#292133;font-size:12px;}
+.mt-extras-undo span {flex:1;min-width:120px;}
+.mt-title-collections {display:grid;gap:12px;margin:16px 0;}
+.mt-title-collections label {font-size:13px;overflow-wrap:anywhere;}
+.mt-title-collections input {accent-color:#c4b2ed;}
+.mt-title-tools p,.mt-reading-history p {font-size:12px;line-height:1.7;color:var(--text-muted);}
+.mt-reading-history {margin-top:22px;}
+.mt-reading-history h3 {font-size:15px;}
+.mt-reading-history>details {padding:12px 0;border-top:1px solid #ffffff15;}
+.mt-reading-history article {padding:12px;margin:10px 0;border-radius:12px;background:#ffffff05;font-size:12px;overflow-wrap:anywhere;}
+.mt-compare-page {padding:24px var(--page-gutter) 120px;min-width:0;}
+.mt-compare-page h1 {font:32px/1.2 Georgia,serif;}
+.mt-compare-pickers,.mt-compare-covers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:24px 0;}
+.mt-compare-covers article {min-width:0;padding:12px;border:1px solid #c4b2ed25;border-radius:16px;background:#ffffff04;}
+.mt-compare-covers img,.mt-compare-covers .mt-journey-placeholder {width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px;display:grid;place-items:center;}
+.mt-compare-covers h2 {font-size:14px;overflow-wrap:anywhere;line-height:1.5;}
+.mt-compare-covers strong {font-size:16px;color:#d3c2ef;}
+.mt-compare-covers p {font-size:10px;line-height:1.7;color:var(--text-muted);overflow-wrap:anywhere;}
+.mt-compare-table {border:1px solid #ffffff18;border-radius:14px;overflow:hidden;}
+.mt-compare-row {display:grid;grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,1fr));gap:8px;padding:14px 10px;font-size:11px;align-items:center;border-bottom:1px solid #ffffff0d;overflow-wrap:anywhere;}
+.mt-compare-row>:not(:first-child) {text-align:center;}
+.mt-compare-row:first-child {background:#c4b2ed12;color:#c4b2ed;}
+.mt-showcase h2 {font:25px/1.2 Georgia,serif;margin:12px 0 20px;}
+.mt-showcase p {font-size:12px;line-height:1.7;color:var(--text-muted);}
+.mt-showcase-books {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.mt-showcase-books button {min-width:0;background:none;border:0;color:var(--text-primary);padding:0;text-align:left;cursor:pointer;}
+.mt-showcase-books img,.mt-showcase-books .mt-journey-placeholder {width:100%;aspect-ratio:2/3;display:grid;place-items:center;object-fit:cover;border-radius:5px 12px 12px 5px;}
+.mt-showcase-books strong {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:10px;line-height:1.5;margin-top:9px;overflow-wrap:anywhere;}
+.mt-showcase-treasures {display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:16px;}
+.mt-showcase-treasures article {border:1px solid #d7c2ed25;padding:14px;border-radius:14px;background:linear-gradient(145deg,#c4b2ed10,transparent);display:grid;gap:10px;}
+.mt-showcase-treasures small {font-size:8px;color:var(--text-muted);letter-spacing:1px;}
+.mt-showcase-treasures strong {font-size:12px;overflow-wrap:anywhere;}
+.mt-showcase-treasures img {width:56px;height:56px;object-fit:contain;}
+.mt-showcase-editor {margin:20px 0;padding:16px;border:1px solid #c4b2ed30;border-radius:16px;}
+.mt-showcase-editor label {margin:14px 0;}

@@ -86,8 +86,8 @@
     }));
   }
 
-  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null, journey: (p && p.journey) || null, style: (p && p.style) || null, outfits: (p && p.outfits) || [] }); }
-  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.outfits && p.outfits.length) && !(p.style && (p.style.theme || p.style.frame || p.style.badge)) && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length || (p.journey.feedback || []).length))); }
+  function canonProfile(p) { return stable({ n: (p && p.n) || "", b: (p && p.b) || "", a: (p && p.a) || null, journey: (p && p.journey) || null, style: (p && p.style) || null, outfits: (p && p.outfits) || [], library: (p && p.library) || null }); }
+  function isEmptyProfile(p) { return !p || (!p.n && !p.b && !p.a && !(p.library && ((p.library.collections || []).length || (p.library.trash || []).length || (p.library.showcase && ((p.library.showcase.titles || []).length || p.library.showcase.achievement || p.library.showcase.item)))) && !(p.outfits && p.outfits.length) && !(p.style && (p.style.theme || p.style.frame || p.style.badge)) && !(p.journey && ((p.journey.goals || []).length || (p.journey.duels || []).length || (p.journey.feedback || []).length))); }
 
   function isEmptyAwards(a) {
     return !a || (!Object.keys(a.w || {}).length && !Object.keys(a.c || {}).length && !Object.keys(a.e || {}).length);
@@ -364,6 +364,7 @@
         if (!isObj(o)) return null;
         var p = { n: typeof o.n === "string" ? o.n : "", b: typeof o.b === "string" ? o.b : "", a: isObj(o.a) ? o.a : null };
         if (isObj(o.journey)) p.journey = o.journey;
+        if (isObj(o.library)) p.library = o.library;
         if (isObj(o.style)) p.style = o.style;
         if (Array.isArray(o.outfits)) p.outfits = o.outfits;
         return host.sanitizeProfile ? host.sanitizeProfile(p) : p;

@@ -630,3 +630,34 @@ test('chapter ratings survive cloud roundtrip without changing title scores',asy
  const eb=cloud.engine(b);await eb.sync();
  const c=harness().api;await cloud.engine(c).sync();assert.equal(c.state.manhwas[0].journal[0].rating,10);
 });
+
+test('collections, showcase, trash and rereading survive cloud and backup roundtrips',async()=>{
+ const cloud=syncHarness(),a=harness().api,m=addRated(a);
+ m.collectionIds=['shelf'];m.readingRun=2;m.readingRuns=[{run:1,ended:200,chapter:40,score:80}];
+ m.reading={chapter:4,url:'https://senkuro.com/manga/test',updatedAt:300};
+ m.journal=[{id:'first',chapter:1,ts:100,text:'first',rating:8},{id:'second',run:2,chapter:1,ts:300,text:'second',rating:10}];
+ const deleted=a.newManhwa('In trash');deleted.collectionIds=['shelf'];
+ a.state.profile.library={collections:[{id:'shelf',name:'Перечитать'}],trash:[{ts:400,title:deleted}],showcase:{titles:[m.id],achievement:'first_add',item:'frame-white'}};
+ await cloud.engine(a).sync();const b=harness().api;await cloud.engine(b).sync();
+ assert.equal(b.state.profile.library.collections[0].name,'Перечитать');
+ assert.equal(b.state.profile.library.trash[0].title.title,'In trash');
+ assert.equal(b.state.profile.library.showcase.titles[0],m.id);
+ assert.equal(b.state.manhwas[0].readingRun,2);
+ assert.equal(b.state.manhwas[0].journal[0].run,undefined);
+ assert.equal(b.state.manhwas[0].journal[1].run,2);
+ assert.equal(b.state.manhwas[0].readingRuns[0].score,80);
+ assert.equal(b.sanitizeImportedManhwa(JSON.parse(JSON.stringify(m)),{}).collectionIds[0],'shelf');
+ const profile=b.bridge.sanitizeProfile(JSON.parse(JSON.stringify(b.state.profile)));
+ assert.equal(profile.library.trash[0].title.id,deleted.id);
+});
+test('invalid library metadata is bounded and legacy chapter entries keep pass one implicit',()=>{
+ const a=harness().api;
+ const profile=a.bridge.sanitizeProfile({library:{collections:[{id:'a',name:'First'},{id:'a',name:'Duplicate'},{id:'b',name:''}],trash:[{ts:1,title:null}],showcase:{titles:['x','x','y','z','w']}}});
+ assert.equal(profile.library.collections.length,1);
+ assert.equal(profile.library.trash.length,0);
+ assert.equal(profile.library.showcase.titles.length,3);
+ const journal=J.journal([{id:'a',chapter:1,ts:1,rating:8,run:-3},{id:'b',chapter:1,ts:2,rating:9,run:2}]);
+ assert.equal(journal[0].run,undefined);assert.equal(journal[1].run,2);
+ const m=a.newManhwa('Legacy');delete m.readingRun;
+ assert.equal(a.sanitizeImportedManhwa(m,{}).readingRun,1);
+});
