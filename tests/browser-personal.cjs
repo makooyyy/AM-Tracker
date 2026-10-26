@@ -38,22 +38,24 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
 
     page.on('dialog',d=>d.accept());
+    async function expand(selector){const el=page.locator(selector);if(await el.getAttribute('open')===null)await el.locator(':scope > summary').click();}
+    async function collections(){await expand('.mt-library-menu');await expand('.mt-collection-tools');}
     await page.evaluate(()=>{
       e2e.state.manhwas=['Первый тайтл','Вторая история'].map((name,i)=>{
         const m=e2e.newManhwa(name);m.id='p'+i;m.rated=true;m.genres=['Фэнтези'];m.lastRatedAt=Date.now();m.criteria.forEach(c=>c.score=8-i);
         m.journal=[{id:'old'+i,chapter:12,ts:Date.now(),rating:9,text:'Скрытый поворот',spoiler:true}];return m;
       });e2e.render();
     });
-    await page.locator('.mt-library-tools>details').first().locator('summary').click();
+    await collections();
     await page.locator('#collection-name').fill('Любимое');
     await page.locator('#collection-create button').click();
     const collection=await page.locator('#collection-filter option').nth(1).getAttribute('value');
-    await page.locator('.mt-library-tools>details').first().locator('summary').click();
+    await collections();
     await page.locator('[data-collection-name]').fill('Любимые истории');
     await page.locator('[data-collection-rename]').click();
     assert.equal(await page.locator('#collection-filter option').nth(1).innerText(),'Любимые истории');
     await page.locator('#bulk-toggle').click();
-    await page.locator('#bulk-all').click();
+    await expand('.mt-bulk-dock>details');await page.locator('#bulk-all').click();
     await page.locator('#bulk-collection').selectOption(collection);
     await page.locator('#bulk-collection-add').click();
     await page.locator('#bulk-genre').fill('Приключения');
@@ -70,7 +72,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.setViewportSize({width:390,height:844});
     await page.screenshot({path:path.join(root,'test-results','personal-compare.png'),fullPage:true,animations:'disabled'});
     await page.locator('#compare-close').click();await page.locator('#bulk-toggle').click();
-    await page.locator('#collection-filter').selectOption(collection);
+    await page.locator('[data-shelf="'+collection+'"]').click();
     assert.equal(await page.locator('.mt-grid-card').count(),2);
     await page.evaluate(()=>e2e.openTitle('p0'));
     await page.locator('.mt-title-tools>details>summary').click();
@@ -101,13 +103,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('[data-delete-id="p0"]').click();await page.locator('[data-delete-id="p0"]').click();
     assert.equal(await page.evaluate(()=>e2e.state.manhwas.length),1);
     await page.locator('#extras-undo').click();assert.equal(await page.evaluate(()=>e2e.state.manhwas.length),2);
-    await page.locator('#bulk-toggle').click();await page.locator('#bulk-all').click();await page.locator('#bulk-trash').click();
+    await page.locator('#bulk-toggle').click();await expand('.mt-bulk-dock>details');await page.locator('#bulk-all').click();await page.locator('#bulk-trash').click();
     assert.equal(await page.evaluate(()=>e2e.state.manhwas.length),0);
     await page.reload();await page.waitForSelector('[data-tab="library"]');
-    await page.locator('.mt-trash>summary').click();
+    await expand('.mt-library-menu');await expand('.mt-trash');
     assert.equal(await page.locator('[data-trash-restore]').count(),2);
     await page.locator('[data-trash-restore="p0"]').click();
-    await page.locator('.mt-trash>summary').click();await page.locator('[data-trash-restore="p1"]').click();
+    await expand('.mt-library-menu');await expand('.mt-trash');await page.locator('[data-trash-restore="p1"]').click();
     await page.locator('[data-tab="profile"]').click();await page.locator('#showcase-edit').click();
     await page.locator('.mt-showcase-editor>summary').click();
     await page.locator('[data-showcase-title="0"]').selectOption('p0');await page.locator('[data-showcase-title="1"]').selectOption('p1');
@@ -118,7 +120,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.locator('.mt-showcase-books button').count(),2);
     await page.locator('.mt-showcase').screenshot({path:path.join(root,'test-results','personal-showcase.png')});
     await page.locator('[data-tab="library"]').click();
-    await page.locator('.mt-library-tools>details').first().locator('summary').click();
+    await collections();
     await page.locator('[data-collection-delete]').click();
     assert.equal(await page.evaluate(()=>e2e.state.manhwas.length),2);
     assert.ok(await page.evaluate(()=>e2e.state.manhwas.every(m=>!m.collectionIds.length)));

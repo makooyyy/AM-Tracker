@@ -43,7 +43,7 @@ function harness(saved = new Map()) {
   source = source.slice(0, source.indexOf('  /* ---------- boot ---------- */')) + `
     idbAvailable = false;
     window.testApi = { escapeHtml, sanitizeImportedActivityLog, bridge: window.AMApp, saveProfile, loadProfile, buyShopItem, equipShopItem, activeStyle, loadShop, saveShop, logActivity, state, newManhwa, beginRerating, editableManhwa, commitRerating,
-      cancelRerating, saveRatingDrafts, loadRatingDrafts, save, goBack, render,
+      cancelRerating, saveRatingDrafts, loadRatingDrafts, loadChapterDrafts, save, goBack, render,
       renderLibrary, renderProfile, aggregateCriteria, sortedManhwas, ratedScore,
       sanitizeImportedManhwa,
       setWinner, getWinner, normalizeWinners, purgeAwardReferences, championsForYear,
@@ -318,8 +318,18 @@ test('chapter draft survives render but is cleared with account data',async()=>{
  const h=harness(),a=h.api,m=addRated(a);a.state.selectedId=m.id;a.render();
  const input=h.elements.get('chapter-text');input.value='Private chapter draft';input.handlers.input();
  a.render();assert.equal(h.elements.get('chapter-text').value,'Private chapter draft');
+ const reopened=harness(h.saved);reopened.api.state.manhwas=[m];reopened.api.loadChapterDrafts();reopened.api.state.selectedId=m.id;reopened.api.render();
+ assert.equal(reopened.elements.get('chapter-text').value,'Private chapter draft');
  await a.bridge.wipeLocal();a.state.manhwas=[m];a.state.selectedId=m.id;a.render();
  assert.equal(h.elements.get('chapter-text').value,'');
+ const next=harness(h.saved);next.api.state.manhwas=[m];next.api.loadChapterDrafts();next.api.state.selectedId=m.id;next.api.render();
+ assert.equal(next.elements.get('chapter-text').value,'');
+});
+test('chapter drafts from a previous reading pass are not restored into the new pass',()=>{
+ const h=harness(),m=addRated(h.api);h.api.state.selectedId=m.id;h.api.render();
+ const input=h.elements.get('chapter-text');input.value='Old pass';input.handlers.input();
+ m.readingRun=2;const next=harness(h.saved);next.api.state.manhwas=[m];next.api.loadChapterDrafts();next.api.state.selectedId=m.id;next.api.render();
+ assert.equal(next.elements.get('chapter-text').value,'');
 });
 test('reading links are safe and legacy chapter scores remain intact',()=>{
  assert.equal(J.readingUrl('javascript:alert(1)'),'');
