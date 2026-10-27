@@ -37,6 +37,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.waitForSelector('[data-tab="library"]');
 
 
+    async function expand(selector){const el=page.locator(selector);if(await el.getAttribute('open')===null)await el.locator(':scope > summary').click();}
     page.on('dialog',d=>d.accept());
     await page.evaluate(()=>{
       e2e.state.manhwas=['Первый','Второй','Третий'].map((title,i)=>{
@@ -49,13 +50,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     });
     assert.equal(await page.locator('.mt-library-menu').getAttribute('open'),null);
     assert.equal(await page.locator('.mt-trash').isVisible(),false);
-    await page.locator('#bulk-toggle').click();
+    await expand('.mt-library-menu');await page.locator('#bulk-toggle').click();
     await page.locator('.mt-cover[data-open-id="v0"]').click();await page.locator('.mt-cover[data-open-id="v1"]').click();
     assert.equal(await page.evaluate(()=>e2e.state.selectedId),null);
     assert.match(await page.locator('.mt-bulk-dock summary').innerText(),/Выбрано: 2/);
     assert.equal(await page.locator('.mt-grid-card[data-bulk-selected=true]').count(),2);
     assert.equal(await page.locator('.mt-bulk-dock').evaluate(el=>getComputedStyle(el).position),'fixed');
-    await page.locator('#compare-open').click();
+    await expand('.mt-library-menu');await page.locator('#compare-open').click();
     assert.equal(await page.locator('.mt-compare-higher').count(),5);
     assert.match(await page.locator('.mt-compare-insight').innerText(),/Фэнтези/);
     assert.equal(await page.locator('.mt-compare-sticky').evaluate(el=>getComputedStyle(el).position),'sticky');
@@ -104,7 +105,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     for(const width of [320,390,1280]){
       await page.setViewportSize({width,height:844});
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'shop width '+width);
-      await page.locator('#shop-back').click();await page.locator('[data-tab="library"]').click();await page.locator('#bulk-toggle').click();
+      await page.locator('#shop-back').click();await page.locator('[data-tab="library"]').click();await expand('.mt-library-menu');await page.locator('#bulk-toggle').click();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'library width '+width);
       await page.locator('#bulk-done').click();await page.locator('[data-tab="profile"]').click();await page.locator('#shop-open').click();
     }

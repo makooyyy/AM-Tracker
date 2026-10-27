@@ -177,7 +177,7 @@ test('reading shelf remembers opened titles across reload and excludes completed
   const b = harness(h.saved).api; b.state.manhwas = [m]; await b.loadRecentOpened();
   assert.ok(b.state.recentOpened[m.id] > 0);
   m.status = 'done';
-  assert.ok(!b.renderLibrary().includes('Продолжить читать'));
+  assert.ok(!b.renderLibrary().includes('class="mt-continue-card"'));
 });
 
 test('rerating captures review and reason, and compares added and removed criteria', async () => {
@@ -670,4 +670,30 @@ test('invalid library metadata is bounded and legacy chapter entries keep pass o
  assert.equal(journal[0].run,undefined);assert.equal(journal[1].run,2);
  const m=a.newManhwa('Legacy');delete m.readingRun;
  assert.equal(a.sanitizeImportedManhwa(m,{}).readingRun,1);
+});
+
+test('profile save waits for durable storage and preserves showcase slots across reload', async () => {
+  const {api, elements, saved}=harness();
+  api.state.tab='profile';api.state.profileEdit=true;
+  api.state.profileDraft={n:'Reader',b:'',a:null,library:{showcase:{titles:['','','favorite'],achievement:'',item:''}}};
+  api.render();
+  let release;
+  api.setWriter((key,value)=>new Promise(resolve=>{release=()=>{saved.set(key,JSON.stringify(value));resolve();};}));
+  const pending=elements.get('prof-save').handlers.click();
+  assert.equal(api.state.profileEdit,true);
+  await Promise.resolve();await Promise.resolve();
+  release();await pending;
+  assert.equal(api.state.profileEdit,false);
+  const fresh=harness(saved).api;await fresh.loadProfile();
+  assert.equal(JSON.stringify(fresh.state.profile.library.showcase.titles),'["","","favorite"]');
+});
+test('failed profile save keeps the editor and selection available for retry', async () => {
+  const {api,elements,fail}=harness();
+  api.state.tab='profile';api.state.profileEdit=true;
+  api.state.profileDraft={n:'Reader',b:'',a:null,library:{showcase:{titles:['favorite']}}};
+  api.render();fail.add(api.keys.profile);
+  await elements.get('prof-save').handlers.click();
+  assert.equal(api.state.profileEdit,true);
+  assert.equal(api.state.profileDraft.library.showcase.titles[0],'favorite');
+  assert.match(elements.get('prof-msg').textContent,/Не удалось сохранить/);
 });

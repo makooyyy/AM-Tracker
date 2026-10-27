@@ -1211,6 +1211,7 @@
   function openTitle(id) {
     var m = findManhwa(id);
     if (!m) return;
+    libraryUI.menuOpen=false;
     state.recentOpened[id] = Date.now();
     saveRecentOpened();
     state.selectedId = id;
@@ -1221,7 +1222,7 @@
 
   function renderContinueReading() {
     var list = Features.continueReading(state.manhwas, state.recentOpened);
-    if (!list.length || state.searchQuery.trim() || state.filterStatus !== "all" || state.filterGenre !== "all") return "";
+    if (!list.length) return "";
     return '<section class="mt-continue" aria-label="Продолжить читать"><div class="mt-continue-strip">' + list.map(function (m) {
         var progress=Features.readingProgress(m);
         return '<article class="mt-reading-card"><button class="mt-continue-card" data-open-id="' + escapeHtml(m.id) + '">' +
@@ -2355,13 +2356,14 @@
       '<div class="mt-library-stats"><span><strong>' + state.manhwas.length + '</strong> в коллекции</span><span><strong>' +
       state.manhwas.filter(function (m) { return m.status === "reading"; }).length + '</strong> читаю</span><span><strong>' +
       state.manhwas.filter(function (m) { return ratedScore(m) !== null; }).length + '</strong> оценено</span></div></div></div>' +
-      (!state.addingManhwa ? '<div class="mt-featured-slot">' + renderContinueReading() + '</div>' : '') +
+
       '<div class="mt-library-controls">' +
       '<div class="mt-subrow">' +
       '<div class="mt-subrow-actions">' +
       '<div class="mt-sort-group">' + btns + "</div>" +
+      '<div class="mt-library-utility">' +
       '<button class="mt-icon-round mt-icon-round-sm' + (state.showSearch ? " active" : "") +
-      '" id="toggle-search" aria-label="Поиск">' + ICON_SEARCH + "</button>" +
+      '" id="toggle-search" aria-label="Поиск">' + ICON_SEARCH + "</button>" + renderLibraryTools(sortedManhwas(),true) + '</div>' +
       "</div></div>" +
       searchPanel +
       '<div class="mt-filter-row">' + filterBtns +
@@ -3322,6 +3324,7 @@
   function renderProfile() {
     if(state.accountSettings)return renderSettings();
     if(state.shopOpen) return renderShop();
+    if(state.profileEdit)return '<section class="mt-profile-page mt-profile-studio"><div class="mt-header"><div class="mt-section-eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h1 class="mt-page-title">Студия профиля</h1></div>'+renderProfileEditor()+'</section>';
     var rated = state.manhwas.filter(function (m) { return ratedScore(m) !== null; });
     var overallAvg = rated.length
       ? rated.reduce(function (a, m) { return a + average(m.criteria); }, 0) / rated.length
@@ -3672,7 +3675,7 @@
 
 
   function renderOutfits(d){
-    return '<section class="mt-outfits"><div class="mt-editor-label">СОХРАНЁННЫЕ ОБРАЗЫ</div><p class="mt-feature-hint">Аватар, тема, рамка и значок одним нажатием. До 6 образов. Изменения сохраняются кнопкой «Сохранить» внизу.</p><div class="mt-outfit-save"><input class="mt-input" id="outfit-name" maxlength="30" placeholder="Например, Ночной читатель" aria-label="Название образа" /><button type="button" class="mt-ghost-btn" id="outfit-save">Запомнить образ</button></div><div class="mt-outfit-list">'+(d.outfits||[]).map(function(o){return '<div><button type="button" class="mt-ghost-btn" data-outfit-use="'+escapeHtml(o.id)+'">'+escapeHtml(o.name)+'</button><button type="button" class="mt-icon-btn" data-outfit-delete="'+escapeHtml(o.id)+'" aria-label="Удалить образ '+escapeHtml(o.name)+'">×</button></div>';}).join('')+'</div></section>';
+    return '<details class="mt-outfits mt-editor-fold" data-editor-section="outfits"><summary>Сохранённые образы <small>'+((d.outfits||[]).length)+' / 6</small></summary><div class="mt-editor-label">СОХРАНЁННЫЕ ОБРАЗЫ</div><p class="mt-feature-hint">Аватар, тема, рамка и значок одним нажатием. До 6 образов. Изменения сохраняются кнопкой «Сохранить» внизу.</p><div class="mt-outfit-save"><input class="mt-input" id="outfit-name" maxlength="30" placeholder="Например, Ночной читатель" aria-label="Название образа" /><button type="button" class="mt-ghost-btn" id="outfit-save">Запомнить образ</button></div><div class="mt-outfit-list">'+(d.outfits||[]).map(function(o){return '<div><button type="button" class="mt-ghost-btn" data-outfit-use="'+escapeHtml(o.id)+'">'+escapeHtml(o.name)+'</button><button type="button" class="mt-icon-btn" data-outfit-delete="'+escapeHtml(o.id)+'" aria-label="Удалить образ '+escapeHtml(o.name)+'">×</button></div>';}).join('')+'</div></details>';
   }
   function renderOwnedStyles(d) {
     var style=Features.cleanStyle(d.style);Object.keys(style).forEach(function(k){if(!ownsStyle(style[k]))style[k]='';});
@@ -3707,8 +3710,8 @@
       (d.a && d.a.t === "img" ? '<button class="mt-ghost-btn" id="prof-photo-clear">Убрать фото</button>' : "") +
       "</div></div>" +
       '<input type="file" id="prof-photo-input" accept="image/*" style="display:none" />' +
-      '<div class="mt-editor-label">Или выбери эмодзи</div><div class="mt-emoji-grid">' + emojis + "</div>" +
-      '<div class="mt-editor-label">Цвет</div><div class="mt-swatch-row">' + swatches + "</div>" +
+      '<details class="mt-editor-fold" data-editor-section="avatar"><summary>Эмодзи и цвет аватара</summary><div class="mt-editor-label">Выбери эмодзи</div><div class="mt-emoji-grid">' + emojis + "</div>" +
+      '<div class="mt-editor-label">Цвет</div><div class="mt-swatch-row">' + swatches + "</div></details>" +
       '<div class="mt-editor-label">Ник</div>' +
       '<input class="mt-input" id="prof-nick" maxlength="' + NICK_MAX + '" placeholder="Как тебя называть?" value="' + attrEsc(d.n) + '" autocomplete="nickname" />' +
       '<div class="mt-editor-label">О себе</div>' +
@@ -4008,15 +4011,23 @@
       window.scrollTo(0, 0); // the editor is taller than the card: bring the result back into view
     });
     var save = $("prof-save");
-    if (save) save.addEventListener("click", function () {
+    var saveEditor = async function () {
+      if (save.disabled) return;
       readText();
+      save.disabled = true; save.textContent = 'Сохраняю…';
       state.profile = sanitizeProfile(d);
-      saveProfile();
-      state.profileEdit = false;
-      state.profileDraft = null;
-      render();
-      window.scrollTo(0, 0);
-    });
+      try {
+        await saveProfile();
+        state.profileEdit = false; state.profileDraft = null;
+        render(); window.scrollTo(0, 0);
+      } catch (err) {
+        save.disabled = false; save.textContent = 'Сохранить';
+        setMsg('Не удалось сохранить профиль. Проверь свободное место и повтори сохранение.');
+      }
+    };
+    if (save) save.addEventListener("click", saveEditor);
+    var showcaseSave = $('showcase-save');
+    if (showcaseSave) showcaseSave.addEventListener('click', saveEditor);
   }
 
   /* Library organisation, reading passes and personal showcase. */
@@ -4027,7 +4038,7 @@
     var ids=new Set(),collections=(Array.isArray(raw.collections)?raw.collections:[]).filter(function(c){if(!c||typeof c.id!=='string'||!c.id||c.id.length>80||ids.has(c.id)||typeof c.name!=='string'||!c.name.trim())return false;ids.add(c.id);return true;}).slice(0,40).map(function(c){return {id:c.id,name:c.name.trim().slice(0,40)};});
     var used={},trash=(Array.isArray(raw.trash)?raw.trash:[]).slice(0,20).map(function(t){if(!t||!Number.isFinite(t.ts))return null;var m=sanitizeImportedManhwa(t.title,used);return m?{ts:t.ts,title:m}:null;}).filter(Boolean);
     var show=isPlainObject(raw.showcase)?raw.showcase:{};
-    return {collections:collections,trash:trash,showcase:{titles:cleanStringList(show.titles).slice(0,3),achievement:typeof show.achievement==='string'?show.achievement:'',item:typeof show.item==='string'?show.item:''}};
+    return {collections:collections,trash:trash,showcase:{titles:(Array.isArray(show.titles)?show.titles:[]).slice(0,3).map(function(id){return typeof id==='string'?id:'';}),achievement:typeof show.achievement==='string'?show.achievement:'',item:typeof show.item==='string'?show.item:''}};
   }
   function libraryData(){return cleanLibraryData(state.profile.library);}
   function currentRun(m){return Number.isInteger(m.readingRun)&&m.readingRun>0?m.readingRun:1;}
@@ -4056,15 +4067,16 @@
     if(!lastUndo)return '';
     return '<div class="mt-extras-undo" role="status"><span>'+(lastUndo.kind==='titles'?'Тайтл перемещён в корзину':'Запись удалена')+'</span><button class="mt-ghost-btn" id="extras-undo">Отменить</button><button class="mt-ghost-btn" id="extras-dismiss" aria-label="Скрыть уведомление">×</button></div>';
   }
-  function renderLibraryTools(list){
+  function renderLibraryTools(list,menuOnly){
     var d=libraryData();
     libraryUI.selected=libraryUI.selected.filter(function(id){return !!findManhwa(id);});
     var options=d.collections.map(function(c){return '<option value="'+escapeHtml(c.id)+'"'+(libraryUI.collection===c.id?' selected':'')+'>'+escapeHtml(c.name)+'</option>';}).join('');
-    var shelf='<nav class="mt-shelf-strip" aria-label="Коллекции">'+[{id:'',name:'Все'}].concat(d.collections).map(function(c){return '<button class="mt-ghost-btn" data-shelf="'+escapeHtml(c.id)+'" aria-pressed="'+(libraryUI.collection===c.id)+'">'+escapeHtml(c.name)+'</button>';}).join('')+'</nav>';
-    var html='<section class="mt-library-tools">'+shelf+'<div class="mt-tools-row"><label class="mt-shelf-select">Моя полка<select class="mt-input" id="collection-filter"><option value="">Все тайтлы</option>'+options+'</select></label><button class="mt-ghost-btn" id="bulk-toggle">'+(libraryUI.bulk?'Готово':'Выбрать несколько')+'</button><button class="mt-ghost-btn" id="compare-open">Сравнить</button></div><details class="mt-library-menu"'+(libraryUI.menuOpen?' open':'')+'><summary aria-label="Меню библиотеки">⋯ Ещё</summary><details class="mt-collection-tools"'+(libraryUI.collectionsOpen?' open':'')+'><summary>Управление коллекциями · '+d.collections.length+'</summary><form id="collection-create" class="mt-tools-row"><input class="mt-input" id="collection-name" maxlength="40" required placeholder="Например, Перечитать" aria-label="Название коллекции"/><button class="mt-ghost-btn">Создать</button></form>'+d.collections.map(function(c){return '<div class="mt-collection-manage"><input class="mt-input" data-collection-name="'+escapeHtml(c.id)+'" value="'+escapeHtml(c.name)+'" maxlength="40" aria-label="Название коллекции"/><button class="mt-ghost-btn" data-collection-rename="'+escapeHtml(c.id)+'">Сохранить</button><button class="mt-ghost-btn" data-collection-delete="'+escapeHtml(c.id)+'" aria-label="Удалить коллекцию '+escapeHtml(c.name)+'">×</button></div>';}).join('')+'</details>';
+    var shelf='<nav class="mt-shelf-strip" aria-label="Коллекции">'+d.collections.map(function(c){return '<button class="mt-ghost-btn" data-shelf="'+escapeHtml(c.id)+'" aria-pressed="'+(libraryUI.collection===c.id)+'">'+escapeHtml(c.name)+'</button>';}).join('')+'</nav>';
+    var html='<details class="mt-library-menu"'+(libraryUI.menuOpen?' open':'')+'><summary aria-label="Ещё: действия библиотеки"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Ещё</span></summary><div class="mt-library-menu-content"><span class="mt-section-eyebrow">МОЯ БИБЛИОТЕКА</span><div class="mt-menu-actions"><button class="mt-ghost-btn" id="bulk-toggle">'+(libraryUI.bulk?'Завершить выбор':'Выбрать несколько')+'</button><button class="mt-ghost-btn" id="compare-open">Сравнить тайтлы</button></div><details class="mt-menu-reading"><summary>Продолжить читать</summary>'+(renderContinueReading()||'<p class="mt-feature-hint">Нет тайтлов со статусом «Читаю».</p>')+'</details><details class="mt-collection-tools"'+(libraryUI.collectionsOpen?' open':'')+'><summary>Управление коллекциями · '+d.collections.length+'</summary><form id="collection-create" class="mt-tools-row"><input class="mt-input" id="collection-name" maxlength="40" required placeholder="Например, Перечитать" aria-label="Название коллекции"/><button class="mt-ghost-btn">Создать</button></form>'+d.collections.map(function(c){return '<div class="mt-collection-manage"><input class="mt-input" data-collection-name="'+escapeHtml(c.id)+'" value="'+escapeHtml(c.name)+'" maxlength="40" aria-label="Название коллекции"/><button class="mt-ghost-btn" data-collection-rename="'+escapeHtml(c.id)+'">Сохранить</button><button class="mt-ghost-btn" data-collection-delete="'+escapeHtml(c.id)+'" aria-label="Удалить коллекцию '+escapeHtml(c.name)+'">×</button></div>';}).join('')+'</details>';
     var bulk='';if(libraryUI.bulk)bulk+='<aside class="mt-bulk-dock"><details'+(libraryUI.bulkOpen?' open':'')+'><summary>Выбрано: '+libraryUI.selected.length+' · Действия ▴</summary><div class="mt-bulk-panel"><div class="mt-tools-row"><button class="mt-ghost-btn" id="bulk-all">Выбрать видимые ('+list.length+')</button><button class="mt-ghost-btn" id="bulk-none">Снять выбор</button></div><label>Статус<select id="bulk-status" class="mt-input">'+STATUSES.map(function(s){return '<option value="'+s.id+'">'+s.label+'</option>';}).join('')+'</select></label><button class="mt-ghost-btn" id="bulk-status-apply">Применить статус</button><label>Жанр<input id="bulk-genre" class="mt-input" maxlength="50" placeholder="Например, Фэнтези"/></label><button id="bulk-genre-apply" class="mt-ghost-btn">Добавить жанр</button><label>Коллекция<select class="mt-input" id="bulk-collection"><option value="">Выбери коллекцию</option>'+options+'</select></label><div class="mt-tools-row"><button class="mt-ghost-btn" id="bulk-collection-add">Добавить</button><button class="mt-ghost-btn" id="bulk-collection-remove">Убрать</button></div><button class="mt-ghost-btn" id="bulk-trash">В корзину</button></div></details><button class="mt-ghost-btn" id="bulk-done">Готово</button></aside>';
-    html+='<details class="mt-trash"'+(libraryUI.trashOpen?' open':'')+'><summary>Корзина · '+d.trash.length+' / 20</summary><p class="mt-feature-hint">Тайтлы хранятся до восстановления или удаления вручную. Они не участвуют в статистике библиотеки.</p>'+d.trash.slice().reverse().map(function(t){var conflict=!!findManhwa(t.title.id);return '<article><strong>'+escapeHtml(displayTitle(t.title))+'</strong><small>'+new Date(t.ts).toLocaleDateString('ru-RU')+'</small><div class="mt-tools-row"><button class="mt-ghost-btn" data-trash-restore="'+escapeHtml(t.title.id)+'"'+(conflict?' disabled':'')+'>'+(conflict?'Уже в библиотеке':'Восстановить')+'</button><button class="mt-ghost-btn" data-trash-delete="'+escapeHtml(t.title.id)+'">Удалить навсегда</button></div></article>';}).join('')+'</details></details>'+bulk+'</section>';
-    return html;
+    html+='<details class="mt-trash"'+(libraryUI.trashOpen?' open':'')+'><summary>Корзина · '+d.trash.length+' / 20</summary><p class="mt-feature-hint">Тайтлы хранятся до восстановления или удаления вручную. Они не участвуют в статистике библиотеки.</p>'+d.trash.slice().reverse().map(function(t){var conflict=!!findManhwa(t.title.id);return '<article><strong>'+escapeHtml(displayTitle(t.title))+'</strong><small>'+new Date(t.ts).toLocaleDateString('ru-RU')+'</small><div class="mt-tools-row"><button class="mt-ghost-btn" data-trash-restore="'+escapeHtml(t.title.id)+'"'+(conflict?' disabled':'')+'>'+(conflict?'Уже в библиотеке':'Восстановить')+'</button><button class="mt-ghost-btn" data-trash-delete="'+escapeHtml(t.title.id)+'">Удалить навсегда</button></div></article>';}).join('')+'</details></div></details>';
+    if(menuOnly)return html;
+    return (d.collections.length?'<section class="mt-library-tools">'+shelf+(libraryUI.collection?'<p class="mt-collection-filter-hint">Нажми на выбранную коллекцию ещё раз, чтобы снять фильтр.</p>':'')+'</section>':'')+bulk;
   }
   function renderTitleTools(m){m=findManhwa(m.id)||m;
     var d=libraryData(),run=currentRun(m);
@@ -4090,17 +4102,17 @@
       var values=items.map(function(m){var c=m.criteria.find(function(c){return c.name===name;});return !m.rated||!c?null:c.score;});
       var both=values.every(function(n){return n!==null;}),delta=both?Math.round(Math.abs(values[0]-values[1])*10)/10:0;
       return '<div class="mt-compare-row"><span>'+escapeHtml(name)+(both?'<small>'+(delta?'Разница '+delta:'Равны')+'</small>':'')+'</span>'+values.map(function(value,i){return '<strong class="'+(both&&value>values[1-i]?'mt-compare-higher':both&&value<values[1-i]?'mt-compare-lower':'')+'">'+(value===null?'—':value+'/10')+(both&&value>values[1-i]?'<small>↑ Выше</small>':'')+'</strong>';}).join('')+'</div>';
-    }).join('')+'<div class="mt-compare-row"><span>Главы · средняя</span>'+items.map(function(m){var entries=runJournal(m).filter(function(e){return e.rating;});return '<strong>'+(entries.length?(entries.reduce(function(s,e){return s+e.rating;},0)/entries.length).toFixed(1)+'/10':'—')+'</strong>';}).join('')+'</div></div></section>';
+    }).join('')+'<div class="mt-compare-row"><span>Главы · средняя</span>'+items.map(function(m){var entries=runJournal(m).filter(function(e){return e.rating;});return '<strong>'+(entries.length?(entries.reduce(function(s,e){return s+e.rating;},0)/entries.length).toFixed(1)+'/10':'—')+'</strong>';}).join('')+'</div></div></details>';
     return html;
   }
   function renderShowcaseEditor(d){
     var show=cleanLibraryData(d.library).showcase;
-    return '<details class="mt-showcase-editor"><summary>Моя витрина</summary><div id="showcase-preview">'+renderShowcase(d)+'</div><p class="mt-feature-hint">До трёх любимых тайтлов, достижение и украшение. Изменения применятся после сохранения профиля.</p>'+[0,1,2].map(function(i){return '<label>Любимый тайтл '+(i+1)+'<select class="mt-input" data-showcase-title="'+i+'"><option value="">Не выбран</option>'+state.manhwas.map(function(m){return '<option value="'+escapeHtml(m.id)+'"'+(show.titles[i]===m.id?' selected':'')+'>'+escapeHtml(displayTitle(m))+'</option>';}).join('')+'</select><div class="mt-showcase-order"><button type="button" class="mt-ghost-btn" data-showcase-move="'+i+'" data-direction="-1"'+(i===0?' disabled':'')+'>← Раньше</button><button type="button" class="mt-ghost-btn" data-showcase-move="'+i+'" data-direction="1"'+(i===2?' disabled':'')+'>Позже →</button></div></label>';}).join('')+'<label>Главное достижение<select class="mt-input" id="showcase-achievement"><option value="">Не выбрано</option>'+ACHIEVEMENTS.filter(function(a){return state.unlockedAchievements[a.id];}).map(function(a){return '<option value="'+a.id+'"'+(show.achievement===a.id?' selected':'')+'>'+escapeHtml(a.name||a.title||a.id)+'</option>';}).join('')+'</select></label><label>Любимое украшение<select class="mt-input" id="showcase-item"><option value="">Не выбрано</option>'+Features.shopItems.filter(function(i){return ownsStyle(i.id);}).map(function(i){return '<option value="'+i.id+'"'+(show.item===i.id?' selected':'')+'>'+escapeHtml(i.name)+'</option>';}).join('')+'</select></label></details>';
+    return '<details class="mt-showcase-editor mt-editor-fold" data-editor-section="showcase"><summary>Моя витрина <small>Избранное</small></summary><div id="showcase-preview">'+renderShowcase(d)+'</div><p class="mt-feature-hint">До трёх любимых тайтлов, достижение и украшение. Нажми «Сохранить витрину», чтобы сохранить выбор и оформление профиля.</p>'+[0,1,2].map(function(i){return '<label>Любимый тайтл '+(i+1)+'<select class="mt-input" data-showcase-title="'+i+'"><option value="">Не выбран</option>'+state.manhwas.map(function(m){return '<option value="'+escapeHtml(m.id)+'"'+(show.titles[i]===m.id?' selected':'')+'>'+escapeHtml(displayTitle(m))+'</option>';}).join('')+'</select><div class="mt-showcase-order"><button type="button" class="mt-ghost-btn" data-showcase-move="'+i+'" data-direction="-1"'+(i===0?' disabled':'')+'>← Раньше</button><button type="button" class="mt-ghost-btn" data-showcase-move="'+i+'" data-direction="1"'+(i===2?' disabled':'')+'>Позже →</button></div></label>';}).join('')+'<label>Главное достижение<select class="mt-input" id="showcase-achievement"><option value="">Не выбрано</option>'+ACHIEVEMENTS.filter(function(a){return state.unlockedAchievements[a.id];}).map(function(a){return '<option value="'+a.id+'"'+(show.achievement===a.id?' selected':'')+'>'+escapeHtml(a.name||a.title||a.id)+'</option>';}).join('')+'</select></label><label>Любимое украшение<select class="mt-input" id="showcase-item"><option value="">Не выбрано</option>'+Features.shopItems.filter(function(i){return ownsStyle(i.id);}).map(function(i){return '<option value="'+i.id+'"'+(show.item===i.id?' selected':'')+'>'+escapeHtml(i.name)+'</option>';}).join('')+'</select></label><button type="button" class="mt-primary-btn" id="showcase-save">Сохранить витрину</button></details>';
   }
   function renderShowcase(profile){
-    var show=(profile?cleanLibraryData(profile.library):libraryData()).showcase,titles=show.titles.map(findManhwa).filter(Boolean),achievement=ACHIEVEMENTS.find(function(a){return a.id===show.achievement&&state.unlockedAchievements[a.id];}),item=Features.shopItem(show.item);
-    if(!titles.length&&!achievement&&!(item&&ownsStyle(item.id)))return '<section class="mt-showcase mt-paper"><span class="mt-section-eyebrow">ЛИЧНАЯ ВИТРИНА</span><h2>Истории, которые говорят о тебе</h2><p>Выбери любимые тайтлы, достижение и украшение в редакторе профиля.</p><button class="mt-ghost-btn" id="showcase-edit">Настроить витрину</button></section>';
-    return '<section class="mt-showcase mt-paper"><span class="mt-section-eyebrow">МОЯ ВИТРИНА</span><h2>Ближе всего к сердцу</h2><div class="mt-showcase-books">'+titles.map(function(m){return '<button data-open-id="'+escapeHtml(m.id)+'">'+journeyCover(m)+'<strong>'+escapeHtml(displayTitle(m))+'</strong></button>';}).join('')+'</div><div class="mt-showcase-treasures">'+(achievement?'<article><small>МОЁ ДОСТИЖЕНИЕ</small><strong>'+escapeHtml(achievement.name||achievement.title||achievement.id)+'</strong></article>':'')+(item&&ownsStyle(item.id)?'<article><small>ИЗ МОЕЙ КОЛЛЕКЦИИ</small>'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy"/>':'<span>'+item.icon+'</span>')+'<strong>'+escapeHtml(item.name)+'</strong></article>':'')+'</div></section>';
+    var show=(profile?cleanLibraryData(profile.library):libraryData()).showcase,titles=Array.from(new Set(show.titles)).map(findManhwa).filter(Boolean),achievement=ACHIEVEMENTS.find(function(a){return a.id===show.achievement&&state.unlockedAchievements[a.id];}),item=Features.shopItem(show.item);
+    if(!titles.length&&!achievement&&!(item&&ownsStyle(item.id)))return '<section class="mt-showcase mt-paper mt-showcase-empty"><span class="mt-showcase-spark" aria-hidden="true">✦</span><span class="mt-section-eyebrow">ЛИЧНАЯ ВИТРИНА</span><h2>Три истории.<br>Целый мир тебя.</h2><p>Собери здесь любимые тайтлы, главное достижение и украшение из своей коллекции.</p>'+(profile?'':'<button class="mt-ghost-btn" id="showcase-edit">Создать мою витрину ↗</button>')+'</section>';
+    return '<section class="mt-showcase mt-paper"><div class="mt-showcase-heading"><span class="mt-section-eyebrow">ЛИЧНАЯ КОЛЛЕКЦИЯ</span><span aria-hidden="true">✦</span></div><h2>Ближе всего<br><em>к сердцу.</em></h2><p class="mt-showcase-caption">Истории и награды, которые говорят обо мне.</p><div class="mt-showcase-books">'+titles.map(function(m,index){return '<button '+(profile?'disabled ':'')+'data-open-id="'+escapeHtml(m.id)+'">'+'<span class="mt-showcase-cover">'+journeyCover(m)+'<span class="mt-showcase-number">0'+(index+1)+'</span></span><strong>'+escapeHtml(displayTitle(m))+'</strong></button>';}).join('')+'</div><div class="mt-showcase-treasures">'+(achievement?'<article><small>МОЁ ДОСТИЖЕНИЕ</small><strong>'+escapeHtml(achievement.name||achievement.title||achievement.id)+'</strong></article>':'')+(item&&ownsStyle(item.id)?'<article><small>ИЗ МОЕЙ КОЛЛЕКЦИИ</small>'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy"/>':'<span>'+item.icon+'</span>')+'<strong>'+escapeHtml(item.name)+'</strong></article>':'')+'</div>'+(profile?'':'<button class="mt-ghost-btn mt-showcase-edit" id="showcase-edit">Изменить подборку ↗</button>')+'</section>';
   }
   function attachLibraryExtras(){
     var app=document.getElementById('app');
@@ -4114,7 +4126,7 @@
     each('[data-collection-name]','input',function(el){el.setCustomValidity('');});
     each('[data-collection-delete]','click',function(el){if(!window.confirm('Удалить коллекцию? Сами тайтлы останутся в библиотеке.'))return;var id=el.dataset.collectionDelete,d=libraryData();d.collections=d.collections.filter(function(c){return c.id!==id;});state.manhwas.forEach(function(m){m.collectionIds=(m.collectionIds||[]).filter(function(c){return c!==id;});});if(libraryUI.collection===id)libraryUI.collection='';saveLibraryData(d);save();render();});
     each('[data-title-collection]','change',function(el){var m=findManhwa(el.dataset.titleId);if(!m)return;var ids=new Set(m.collectionIds||[]);if(el.checked)ids.add(el.dataset.titleCollection);else ids.delete(el.dataset.titleCollection);m.collectionIds=Array.from(ids);save();});
-    bind('bulk-toggle','click',function(){libraryUI.bulk=!libraryUI.bulk;if(!libraryUI.bulk)libraryUI.selected=[];render();});
+    bind('bulk-toggle','click',function(){libraryUI.bulk=!libraryUI.bulk;libraryUI.menuOpen=false;if(!libraryUI.bulk)libraryUI.selected=[];render();});
     each('[data-select-title]','click',function(el){var id=el.dataset.selectTitle;libraryUI.selected=libraryUI.selected.includes(id)?libraryUI.selected.filter(function(x){return x!==id;}):libraryUI.selected.concat(id);render();});
     bind('bulk-all','click',function(){libraryUI.selected=sortedManhwas().filter(function(m){return !libraryUI.collection||(m.collectionIds||[]).includes(libraryUI.collection);}).map(function(m){return m.id;});render();});
     bind('bulk-none','click',function(){libraryUI.selected=[];render();});
@@ -4127,7 +4139,7 @@
     bind('extras-dismiss','click',function(){lastUndo=null;render();});
     each('[data-old-entry]','click',function(el){var m=findManhwa(el.dataset.oldTitle),entry=m&&Features.journal(m.journal).find(function(e){return e.id===el.dataset.oldEntry;});if(!entry||!window.confirm('Удалить запись из предыдущего прочтения?'))return;lastUndo={kind:'journal',id:m.id,entry:entry};m.journal=Features.journal(m.journal).filter(function(e){return e.id!==entry.id;});save();render();});
     bind('extras-undo','click',function(){if(!lastUndo)return;if(lastUndo.kind==='titles'){restoreTitles(lastUndo.ids);return;}var m=findManhwa(lastUndo.id),entry=lastUndo.entry;if(!m){lastUndo=null;render();return;}if(entry.rating&&runJournal(m,entry.run||1).some(function(e){return e.chapter===entry.chapter&&e.rating;})){state.error='У этой главы уже есть новая оценка. Удали её перед восстановлением прежней.';render();return;}if(!Features.journal(m.journal).some(function(e){return e.id===entry.id;}))m.journal=Features.journal(m.journal).concat(entry);lastUndo=null;save();render();});
-    bind('compare-open','click',function(){libraryUI.compare=true;libraryUI.compareIds=libraryUI.selected.slice(0,2);render();window.scrollTo(0,0);});
+    bind('compare-open','click',function(){libraryUI.compare=true;libraryUI.menuOpen=false;libraryUI.compareIds=libraryUI.selected.slice(0,2);render();window.scrollTo(0,0);});
     bind('compare-close','click',function(){libraryUI.compare=false;render();});
     each('[data-compare-pick]','change',function(el){libraryUI.compareIds[Number(el.dataset.comparePick)]=el.value;render();});
     bind('duel-compare','click',function(){var pair=currentDuel();if(!pair)return;libraryUI.compare=true;libraryUI.compareIds=pair.map(function(m){return m.id;});state.tab='library';render();window.scrollTo(0,0);});
@@ -4279,7 +4291,7 @@
     function bind(id,event,fn){var el=document.getElementById(id);if(el)el.addEventListener(event,fn);}
     [['.mt-library-menu','menuOpen'],['.mt-collection-tools','collectionsOpen'],['.mt-trash','trashOpen'],['.mt-bulk-dock>details','bulkOpen']].forEach(function(pair){var el=app.querySelector(pair[0]);if(el)el.addEventListener('toggle',function(){if(el.isConnected)libraryUI[pair[1]]=el.open;});});
     app.querySelectorAll('[data-shop-purchase]').forEach(function(el){el.addEventListener('click',function(){state.shopPreview=el.dataset.shopPurchase;buyShopItem(el.dataset.shopPurchase);render();});});
-    app.querySelectorAll('[data-shelf]').forEach(function(el){el.addEventListener('click',function(){libraryUI.collection=el.dataset.shelf;render();});});
+    app.querySelectorAll('[data-shelf]').forEach(function(el){el.addEventListener('click',function(){libraryUI.collection=libraryUI.collection===el.dataset.shelf?'':el.dataset.shelf;render();});});
     bind('bulk-done','click',function(){libraryUI.bulk=false;libraryUI.selected=[];render();});
     bind('chapter-sheet-close','click',function(){document.getElementById('chapter-quick-dialog').close();});
     bind('chapter-draft-continue','click',function(){if(selected)openChapterSheet(selected.id);});
@@ -4486,6 +4498,7 @@
     var selected = state.selectedId ? editableManhwa(state.selectedId) : null;
     if (state.selectedId && !selected) state.selectedId = null;
 
+    var editorOpen = Array.from(app.querySelectorAll('[data-editor-section][open]')).map(function(el){return el.dataset.editorSection;});
     var activeEl = document.activeElement;
     var focusInfo = null;
     if (activeEl && activeEl.id === "search-input") {
@@ -4522,6 +4535,7 @@
     attachCatalogHandlers();
     attachShopHandlers();
     attachAcctHandlers();
+    editorOpen.forEach(function(key){var section=app.querySelector('[data-editor-section="'+key+'"]');if(section)section.open=true;});
     attachProfileHandlers();
     attachLibraryExtras();
     attachPolishHandlers(selected);
