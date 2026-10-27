@@ -51,6 +51,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('[data-profile-style="frame"]').selectOption('frame-h26-spectral');
     await page.locator('[data-profile-style="badge"]').selectOption('badge-h26-keeper');
     await page.locator('#prof-save').click();
+    await page.waitForSelector('#prof-edit');
     assert.equal(await page.locator('.mt-hero.mt-theme-h26-manor.mt-frame-h26-spectral').count(),1);
     await page.screenshot({path:path.join(root,'test-results','halloween-profile.png'),animations:'disabled'});
     await page.reload();await page.locator('[data-tab="profile"]').click();

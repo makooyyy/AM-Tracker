@@ -170,10 +170,10 @@ test('writes snapshot values and serialize updates; retry never restores an olde
   assert.equal(Object.keys(a.failedWrites).length, 0);
 });
 
-test('reading shelf remembers opened titles across reload and excludes completed titles', async () => {
+test('recent title metadata survives reload without exposing the removed reading shelf', async () => {
   const h = harness(), a = h.api, m = addRated(a);
   a.openTitle(m.id); await a.flush(); a.goBack();
-  assert.match(a.renderLibrary(), /Продолжить читать/);
+  assert.doesNotMatch(a.renderLibrary(), /Продолжить читать|data-quick-title|mt-list-continue/);
   const b = harness(h.saved).api; b.state.manhwas = [m]; await b.loadRecentOpened();
   assert.ok(b.state.recentOpened[m.id] > 0);
   m.status = 'done';

@@ -696,7 +696,7 @@
     awardsMonth: null,
     awardPreview: null,
     compareFrom: {},
-    journeyUI: {mood:"",genre:"",type:"",duelGenre:"",pick:0,section:"discover",results:[],previousPair:[]},
+    journeyUI: {mood:"",genre:"",type:"",duelGenre:"",pick:0,section:"achievements",results:[],previousPair:[]},
     shareCard: null,
     // Which past rating is shown on a title's page (index into m.ratingHistory).
     // No entry = the current rating. Pure UI state, never saved or synced.
@@ -1212,7 +1212,7 @@
     var m = findManhwa(id);
     if (!m) return;
     if(!state.selectedId) usability.returnScroll=window.scrollY||0;
-    usability.detailSection=m.rated?'journal':'rating';
+    usability.detailSection='rating';
     libraryUI.menuOpen=false;
     state.recentOpened[id] = Date.now();
     saveRecentOpened();
@@ -1220,23 +1220,6 @@
     state.candidatePanelOpen = false;
     state.statusPickerOpen = false;
     render();
-  }
-
-  function renderContinueReading() {
-    var list = Features.continueReading(state.manhwas, state.recentOpened);
-    if (!list.length) return "";
-    return '<section class="mt-continue" aria-label="Продолжить читать"><div class="mt-continue-strip">' + list.map(function (m) {
-        var progress=Features.readingProgress(m);
-        return '<article class="mt-reading-card"><button class="mt-continue-card" data-open-id="' + escapeHtml(m.id) + '">' +
-          (m.coverUrl ? '<img loading="lazy" src="' + escapeHtml(m.coverUrl) + '" alt="" />' : '<span class="mt-continue-placeholder">AM</span>') +
-          '<span class="mt-continue-copy"><span class="mt-section-eyebrow">ПРОДОЛЖИТЬ ЧИТАТЬ</span><strong>' + escapeHtml(displayTitle(m)) + '</strong><small>' +
-          'Прочитано до главы '+progress.chapter + '</small><span class="mt-continue-link">К тайтлу <span aria-hidden="true">↗</span></span></span></button><div class="mt-reading-actions"><button class="mt-ghost-btn" data-reading-next="'+escapeHtml(m.id)+'"'+(progress.chapter>=1000000?' disabled':'')+'>+1 глава</button>'+(progress.url?'<a class="mt-ghost-btn" href="'+escapeHtml(progress.url)+'" target="_blank" rel="noopener noreferrer">Читать ↗</a>':'<button class="mt-ghost-btn" data-reading-edit="'+escapeHtml(m.id)+'">Добавить ссылку</button>')+'</div></article>';
-      }).join("") + '</div></section>';
-  }
-
-  function renderReadingPanel(m){
-    var p=Features.readingProgress(findManhwa(m.id)||m),entries=runJournal(findManhwa(m.id)||m),last=entries.slice().sort(function(a,b){return b.ts-a.ts;})[0];
-    return '<section class="mt-reading-panel"><div><span class="mt-section-eyebrow">ТВОЁ ЧТЕНИЕ</span><strong>Глава '+p.chapter+'</strong><small>'+(last?'Последняя запись: глава '+last.chapter:'В дневнике пока нет записей')+'</small></div><div class="mt-reading-actions"><button class="mt-primary-btn" id="journal-quick">Оценить главу</button>'+(last?'<button class="mt-ghost-btn" data-journal-jump="'+escapeHtml(last.id)+'">Последняя запись</button>':'')+'<button class="mt-ghost-btn" data-reading-next="'+escapeHtml(m.id)+'"'+(p.chapter>=1000000?' disabled':'')+'>+1 глава</button>'+(p.url?'<a class="mt-ghost-btn" href="'+escapeHtml(p.url)+'" target="_blank" rel="noopener noreferrer">Читать ↗</a>':'')+'</div><details id="reading-settings"><summary>Прогресс и ссылка на чтение</summary><form id="reading-form"><label>Прочитано до главы<input id="reading-chapter" class="mt-input" type="number" min="0" max="1000000" step="0.1" value="'+p.chapter+'" required /></label><label>Ссылка на сайт чтения<input id="reading-url" class="mt-input" type="url" placeholder="https://…" value="'+escapeHtml(p.url)+'" maxlength="2000" /></label><p id="reading-error" role="alert"></p><button class="mt-ghost-btn" type="submit">Сохранить прогресс</button></form></details></section>';
   }
 
   function deltaText(value) { return value > 0 ? "+" + value : String(value); }
@@ -2468,9 +2451,7 @@
           '">' + (avg === null ? "Не оценено" : Math.round(avg)) + "</span>" +
           "</button>" +
           '<div class="mt-cover-title" data-open-id="' + m.id + '">' + escapeHtml(title) + "</div>" +
-          '<div class="mt-cover-type-line">' + ty.label + ' · Глава '+Features.readingProgress(m).chapter+'</div>' +
-          (usability.list&&!libraryUI.bulk?(Features.readingProgress(m).url?'<a class="mt-list-continue" href="'+escapeHtml(Features.readingProgress(m).url)+'" target="_blank" rel="noopener noreferrer">Читать ↗</a>':'<button class="mt-list-continue" data-reading-next="'+escapeHtml(m.id)+'">+1 глава</button>'):'')+
-          (!libraryUI.bulk?'<button class="mt-title-more" data-quick-title="'+escapeHtml(m.id)+'" aria-label="Действия: '+escapeHtml(title)+'">•••</button>':'')+
+          '<div class="mt-cover-type-line">' + ty.label + '</div>' +
           "</div>";
       });
       html += "</div>";
@@ -2878,20 +2859,11 @@
       (state.statusPickerOpen ? renderStatusPicker(m) : "") +
       renderErrorBanner() +
       '<div class="mt-detail-body">' +
-      '<div class="mt-detail-overview">'+journeyCover(m)+'<div><span class="mt-section-eyebrow">ТВОЯ ИСТОРИЯ</span><strong>'+ (ratedScore(m)===null?'Без оценки':Math.round(ratedScore(m))+' / 100')+'</strong><small>'+escapeHtml(currentStatus.label)+'</small></div></div>'+renderReadingPanel(m)+
-      '<nav class="mt-detail-nav" aria-label="Разделы тайтла">'+[['journal','Дневник'],['rating','Оценка'],['info','Информация']].map(function(x){return '<button data-detail-section="'+x[0]+'" aria-pressed="'+(usability.detailSection===x[0])+'">'+x[1]+'</button>';}).join('')+'</nav><section data-detail-panel="info">'+renderTitleTools(m);
+      '<div class="mt-detail-overview">'+journeyCover(m)+'<div><span class="mt-section-eyebrow">ТВОЯ ИСТОРИЯ</span><strong>'+ (ratedScore(m)===null?'Без оценки':Math.round(ratedScore(m))+' / 100')+'</strong><small>'+escapeHtml(currentStatus.label)+'</small></div></div>'+
+      '<nav class="mt-detail-nav" aria-label="Разделы тайтла">'+[['rating','Оценка'],['journal','Дневник']].map(function(x){return '<button data-detail-section="'+x[0]+'" aria-pressed="'+(usability.detailSection===x[0])+'">'+x[1]+'</button>';}).join('')+'</nav><section data-detail-panel="rating">';
 
     var wins = awardsForManhwa(m);
     var hasGoldWin = positiveAwardsForManhwa(m).length > 0;
-
-    if (m.coverUrl) {
-      var coverUrlSafe = escapeHtml(m.coverUrl).replace(/'/g, "%27");
-      html +=
-        '<div class="mt-hero-wrap' + (hasGoldWin ? " mt-hero-winner" : "") + '">' +
-        '<div class="mt-hero-bg" style="background-image:url(\'' + coverUrlSafe + "')\"></div>" +
-        '<img class="mt-hero-fg" src="' + coverUrlSafe + '" alt="" />' +
-        "</div>";
-    }
 
     var candidateInfo = openAwardCategoriesFor(findManhwa(m.id));
     if (candidateInfo) {
@@ -2914,8 +2886,9 @@
         "</div>";
     }
 
+    html += renderRatingSection(m, avg, editable, rerateSnap);
+    html += renderTitleTools(m);
     if(!editable)html+=renderTagsReadOnly(m)+renderGenresReadOnly(m)+renderAltTitlesReadOnly(m)+renderNotesReadOnly(m);
-    html += '</section><section data-detail-panel="rating">'+renderRatingSection(m, avg, editable, rerateSnap);
 
     if (editable) {
       html += renderTagsPanel(m) + renderGenresPanel(m) + renderAltTitlesPanel(m) + renderNotesPanel(m) + renderCoverPanel(m);
@@ -2950,7 +2923,7 @@
         "Прочитал новые главы? «Оценить заново» сохранит старую оценку в историю и добавит новую в премию этого месяца</div>";
     }
 
-    html += '</section><section data-detail-panel="journal">'+renderChapterJournal(m);
+    html += '</section><section data-detail-panel="journal"><button class="mt-primary-btn" id="journal-quick">Оценить главу</button>'+renderChapterJournal(m);
     html += renderActivityFeedForManhwa(m)+'</section>';
 
     var confirmingDelete = state.confirmDeleteId === m.id;
@@ -3337,7 +3310,7 @@
     var html =
       '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
-      renderShopEntry() + renderShowcase() +
+      renderShopEntry() +
       renderRankPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
@@ -3720,7 +3693,7 @@
       '<input class="mt-input" id="prof-nick" maxlength="' + NICK_MAX + '" placeholder="Как тебя называть?" value="' + attrEsc(d.n) + '" autocomplete="nickname" />' +
       '<div class="mt-editor-label">О себе</div>' +
       '<input class="mt-input" id="prof-bio" maxlength="' + BIO_MAX + '" placeholder="Например: читаю всё, что с драконами" value="' + attrEsc(d.b) + '" />' +
-      renderOwnedStyles(d) + renderOutfits(d) + renderShowcaseEditor(d) +
+      renderOwnedStyles(d) + renderOutfits(d) +
       '<div class="mt-acct-msg err" id="prof-msg"></div>' +
       '<div class="mt-form-row">' +
       '<button class="mt-ghost-btn" id="prof-cancel" style="flex:1">Отмена</button>' +
@@ -4032,8 +4005,7 @@
     };
     usability.saveEditor=saveEditor;
     if (save) save.addEventListener("click", saveEditor);
-    var showcaseSave = $('showcase-save');
-    if (showcaseSave) showcaseSave.addEventListener('click', saveEditor);
+
   }
 
   /* Library organisation, reading passes and personal showcase. */
@@ -4078,7 +4050,7 @@
     libraryUI.selected=libraryUI.selected.filter(function(id){return !!findManhwa(id);});
     var options=d.collections.map(function(c){return '<option value="'+escapeHtml(c.id)+'"'+(libraryUI.collection===c.id?' selected':'')+'>'+escapeHtml(c.name)+'</option>';}).join('');
     var shelf='<nav class="mt-shelf-strip" aria-label="Коллекции">'+d.collections.map(function(c){return '<button class="mt-ghost-btn" data-shelf="'+escapeHtml(c.id)+'" aria-pressed="'+(libraryUI.collection===c.id)+'">'+escapeHtml(c.name)+'</button>';}).join('')+'</nav>';
-    var html='<details class="mt-library-menu"'+(libraryUI.menuOpen?' open':'')+'><summary aria-label="Ещё: действия библиотеки"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Ещё</span></summary><div class="mt-library-menu-content"><span class="mt-section-eyebrow">МОЯ БИБЛИОТЕКА</span><div class="mt-menu-actions"><button class="mt-ghost-btn" id="bulk-toggle">'+(libraryUI.bulk?'Завершить выбор':'Выбрать несколько')+'</button><button class="mt-ghost-btn" id="compare-open">Сравнить тайтлы</button></div><details class="mt-menu-reading"><summary>Продолжить читать</summary>'+(renderContinueReading()||'<p class="mt-feature-hint">Нет тайтлов со статусом «Читаю».</p>')+'</details><details class="mt-collection-tools"'+(libraryUI.collectionsOpen?' open':'')+'><summary>Управление коллекциями · '+d.collections.length+'</summary><form id="collection-create" class="mt-tools-row"><input class="mt-input" id="collection-name" maxlength="40" required placeholder="Например, Перечитать" aria-label="Название коллекции"/><button class="mt-ghost-btn">Создать</button></form>'+d.collections.map(function(c){return '<div class="mt-collection-manage"><input class="mt-input" data-collection-name="'+escapeHtml(c.id)+'" value="'+escapeHtml(c.name)+'" maxlength="40" aria-label="Название коллекции"/><button class="mt-ghost-btn" data-collection-rename="'+escapeHtml(c.id)+'">Сохранить</button><button class="mt-ghost-btn" data-collection-delete="'+escapeHtml(c.id)+'" aria-label="Удалить коллекцию '+escapeHtml(c.name)+'">×</button></div>';}).join('')+'</details>';
+    var html='<details class="mt-library-menu"'+(libraryUI.menuOpen?' open':'')+'><summary aria-label="Ещё: действия библиотеки"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Ещё</span></summary><div class="mt-library-menu-content"><span class="mt-section-eyebrow">МОЯ БИБЛИОТЕКА</span><div class="mt-menu-actions"><button class="mt-ghost-btn" id="bulk-toggle">'+(libraryUI.bulk?'Завершить выбор':'Выбрать несколько')+'</button><button class="mt-ghost-btn" id="compare-open">Сравнить тайтлы</button></div><details class="mt-collection-tools"'+(libraryUI.collectionsOpen?' open':'')+'><summary>Управление коллекциями · '+d.collections.length+'</summary><form id="collection-create" class="mt-tools-row"><input class="mt-input" id="collection-name" maxlength="40" required placeholder="Например, Перечитать" aria-label="Название коллекции"/><button class="mt-ghost-btn">Создать</button></form>'+d.collections.map(function(c){return '<div class="mt-collection-manage"><input class="mt-input" data-collection-name="'+escapeHtml(c.id)+'" value="'+escapeHtml(c.name)+'" maxlength="40" aria-label="Название коллекции"/><button class="mt-ghost-btn" data-collection-rename="'+escapeHtml(c.id)+'">Сохранить</button><button class="mt-ghost-btn" data-collection-delete="'+escapeHtml(c.id)+'" aria-label="Удалить коллекцию '+escapeHtml(c.name)+'">×</button></div>';}).join('')+'</details>';
     var bulk='';if(libraryUI.bulk)bulk+='<aside class="mt-bulk-dock"><details'+(libraryUI.bulkOpen?' open':'')+'><summary>Выбрано: '+libraryUI.selected.length+' · Действия ▴</summary><div class="mt-bulk-panel"><div class="mt-tools-row"><button class="mt-ghost-btn" id="bulk-all">Выбрать видимые ('+list.length+')</button><button class="mt-ghost-btn" id="bulk-none">Снять выбор</button></div><label>Статус<select id="bulk-status" class="mt-input">'+STATUSES.map(function(s){return '<option value="'+s.id+'">'+s.label+'</option>';}).join('')+'</select></label><button class="mt-ghost-btn" id="bulk-status-apply">Применить статус</button><label>Жанр<input id="bulk-genre" class="mt-input" maxlength="50" placeholder="Например, Фэнтези"/></label><button id="bulk-genre-apply" class="mt-ghost-btn">Добавить жанр</button><label>Коллекция<select class="mt-input" id="bulk-collection"><option value="">Выбери коллекцию</option>'+options+'</select></label><div class="mt-tools-row"><button class="mt-ghost-btn" id="bulk-collection-add">Добавить</button><button class="mt-ghost-btn" id="bulk-collection-remove">Убрать</button></div><button class="mt-ghost-btn" id="bulk-trash">В корзину</button></div></details><button class="mt-ghost-btn" id="bulk-done">Готово</button></aside>';
     html+='<details class="mt-trash"'+(libraryUI.trashOpen?' open':'')+'><summary>Корзина · '+d.trash.length+' / 20</summary><p class="mt-feature-hint">Тайтлы хранятся до восстановления или удаления вручную. Они не участвуют в статистике библиотеки.</p>'+d.trash.slice().reverse().map(function(t){var conflict=!!findManhwa(t.title.id);return '<article><strong>'+escapeHtml(displayTitle(t.title))+'</strong><small>'+new Date(t.ts).toLocaleDateString('ru-RU')+'</small><div class="mt-tools-row"><button class="mt-ghost-btn" data-trash-restore="'+escapeHtml(t.title.id)+'"'+(conflict?' disabled':'')+'>'+(conflict?'Уже в библиотеке':'Восстановить')+'</button><button class="mt-ghost-btn" data-trash-delete="'+escapeHtml(t.title.id)+'">Удалить навсегда</button></div></article>';}).join('')+'</details></div></details>';
     if(menuOnly)return html;
@@ -4098,7 +4070,7 @@
   }
   function renderTitleComparison(){
     var ids=libraryUI.compareIds,items=ids.map(findManhwa),valid=items.length===2&&items[0]&&items[1]&&ids[0]!==ids[1];
-    var html='<section class="mt-compare-page"><button class="mt-ghost-btn" id="compare-close">← Библиотека</button><h1>Две истории рядом</h1><p class="mt-feature-hint">Личные оценки и впечатления. Сравнение ничего не меняет в библиотеке.</p><div class="mt-compare-pickers">'+[0,1].map(function(i){return '<label>Тайтл '+(i+1)+'<select class="mt-input" data-compare-pick="'+i+'"><option value="">Выбрать</option>'+state.manhwas.map(function(m){return '<option value="'+escapeHtml(m.id)+'"'+(ids[i]===m.id?' selected':'')+'>'+escapeHtml(displayTitle(m))+'</option>';}).join('')+'</select></label>';}).join('')+'</div>';
+    var html='<section class="mt-compare-page"><button class="mt-ghost-btn" id="compare-close">← Библиотека</button><h1>Сравнение тайтлов</h1><p class="mt-feature-hint">Личные оценки и впечатления. Сравнение ничего не меняет в библиотеке.</p><div class="mt-compare-pickers">'+[0,1].map(function(i){return '<label>Тайтл '+(i+1)+'<select class="mt-input" data-compare-pick="'+i+'"><option value="">Выбрать</option>'+state.manhwas.map(function(m){return '<option value="'+escapeHtml(m.id)+'"'+(ids[i]===m.id?' selected':'')+'>'+escapeHtml(displayTitle(m))+'</option>';}).join('')+'</select></label>';}).join('')+'</div>';
     if(!valid)return html+'<p>Выбери два разных тайтла.</p></section>';
     html+='<div class="mt-compare-covers">'+items.map(function(m){return '<article>'+journeyCover(m)+'<h2>'+escapeHtml(displayTitle(m))+'</h2><strong>'+(ratedScore(m)===null?'Не оценено':Math.round(ratedScore(m))+' / 100')+'</strong><p>'+escapeHtml((m.genres||[]).join(' · ')||'Без жанров')+'</p></article>';}).join('')+'</div>';
     var names=Array.from(new Set(items.flatMap(function(m){return (m.criteria||[]).map(function(c){return c.name;});})));
@@ -4108,17 +4080,8 @@
       var values=items.map(function(m){var c=m.criteria.find(function(c){return c.name===name;});return !m.rated||!c?null:c.score;});
       var both=values.every(function(n){return n!==null;}),delta=both?Math.round(Math.abs(values[0]-values[1])*10)/10:0;
       return '<div class="mt-compare-row"><span>'+escapeHtml(name)+(both?'<small>'+(delta?'Разница '+delta:'Равны')+'</small>':'')+'</span>'+values.map(function(value,i){return '<strong class="'+(both&&value>values[1-i]?'mt-compare-higher':both&&value<values[1-i]?'mt-compare-lower':'')+'">'+(value===null?'—':value+'/10')+(both&&value>values[1-i]?'<small>↑ Выше</small>':'')+'</strong>';}).join('')+'</div>';
-    }).join('')+'<div class="mt-compare-row"><span>Главы · средняя</span>'+items.map(function(m){var entries=runJournal(m).filter(function(e){return e.rating;});return '<strong>'+(entries.length?(entries.reduce(function(s,e){return s+e.rating;},0)/entries.length).toFixed(1)+'/10':'—')+'</strong>';}).join('')+'</div></div></details>';
+    }).join('')+'<div class="mt-compare-row"><span>Главы · средняя</span>'+items.map(function(m){var entries=runJournal(m).filter(function(e){return e.rating;});return '<strong>'+(entries.length?(entries.reduce(function(s,e){return s+e.rating;},0)/entries.length).toFixed(1)+'/10':'—')+'</strong>';}).join('')+'</div></div></section>';
     return html;
-  }
-  function renderShowcaseEditor(d){
-    var show=cleanLibraryData(d.library).showcase;
-    return '<details class="mt-showcase-editor mt-editor-fold" data-editor-section="showcase"><summary>Моя витрина <small>Избранное</small></summary><div id="showcase-preview">'+renderShowcase(d)+'</div><p class="mt-feature-hint">До трёх любимых тайтлов, достижение и украшение. Нажми «Сохранить витрину», чтобы сохранить выбор и оформление профиля.</p>'+[0,1,2].map(function(i){return '<label>Любимый тайтл '+(i+1)+'<select class="mt-input" data-showcase-title="'+i+'"><option value="">Не выбран</option>'+state.manhwas.map(function(m){return '<option value="'+escapeHtml(m.id)+'"'+(show.titles[i]===m.id?' selected':'')+'>'+escapeHtml(displayTitle(m))+'</option>';}).join('')+'</select><div class="mt-showcase-order"><button type="button" class="mt-ghost-btn" data-showcase-move="'+i+'" data-direction="-1"'+(i===0?' disabled':'')+'>← Раньше</button><button type="button" class="mt-ghost-btn" data-showcase-move="'+i+'" data-direction="1"'+(i===2?' disabled':'')+'>Позже →</button></div></label>';}).join('')+'<label>Главное достижение<select class="mt-input" id="showcase-achievement"><option value="">Не выбрано</option>'+ACHIEVEMENTS.filter(function(a){return state.unlockedAchievements[a.id];}).map(function(a){return '<option value="'+a.id+'"'+(show.achievement===a.id?' selected':'')+'>'+escapeHtml(a.name||a.title||a.id)+'</option>';}).join('')+'</select></label><label>Любимое украшение<select class="mt-input" id="showcase-item"><option value="">Не выбрано</option>'+Features.shopItems.filter(function(i){return ownsStyle(i.id);}).map(function(i){return '<option value="'+i.id+'"'+(show.item===i.id?' selected':'')+'>'+escapeHtml(i.name)+'</option>';}).join('')+'</select></label><button type="button" class="mt-primary-btn" id="showcase-save">Сохранить витрину</button></details>';
-  }
-  function renderShowcase(profile){
-    var show=(profile?cleanLibraryData(profile.library):libraryData()).showcase,titles=Array.from(new Set(show.titles)).map(findManhwa).filter(Boolean),achievement=ACHIEVEMENTS.find(function(a){return a.id===show.achievement&&state.unlockedAchievements[a.id];}),item=Features.shopItem(show.item);
-    if(!titles.length&&!achievement&&!(item&&ownsStyle(item.id)))return '<section class="mt-showcase mt-paper mt-showcase-empty"><span class="mt-showcase-spark" aria-hidden="true">✦</span><span class="mt-section-eyebrow">ЛИЧНАЯ ВИТРИНА</span><h2>Три истории.<br>Целый мир тебя.</h2><p>Собери здесь любимые тайтлы, главное достижение и украшение из своей коллекции.</p>'+(profile?'':'<button class="mt-ghost-btn" id="showcase-edit">Создать мою витрину ↗</button>')+'</section>';
-    return '<section class="mt-showcase mt-paper"><div class="mt-showcase-heading"><span class="mt-section-eyebrow">ЛИЧНАЯ КОЛЛЕКЦИЯ</span><span aria-hidden="true">✦</span></div><h2>Ближе всего<br><em>к сердцу.</em></h2><p class="mt-showcase-caption">Истории и награды, которые говорят обо мне.</p><div class="mt-showcase-books">'+titles.map(function(m,index){return '<button '+(profile?'disabled ':'')+'data-open-id="'+escapeHtml(m.id)+'">'+'<span class="mt-showcase-cover">'+journeyCover(m)+'<span class="mt-showcase-number">0'+(index+1)+'</span></span><strong>'+escapeHtml(displayTitle(m))+'</strong></button>';}).join('')+'</div><div class="mt-showcase-treasures">'+(achievement?'<article><small>МОЁ ДОСТИЖЕНИЕ</small><strong>'+escapeHtml(achievement.name||achievement.title||achievement.id)+'</strong></article>':'')+(item&&ownsStyle(item.id)?'<article><small>ИЗ МОЕЙ КОЛЛЕКЦИИ</small>'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy"/>':'<span>'+item.icon+'</span>')+'<strong>'+escapeHtml(item.name)+'</strong></article>':'')+'</div>'+(profile?'':'<button class="mt-ghost-btn mt-showcase-edit" id="showcase-edit">Изменить подборку ↗</button>')+'</section>';
   }
   function attachLibraryExtras(){
     var app=document.getElementById('app');
@@ -4148,11 +4111,7 @@
     bind('compare-open','click',function(){libraryUI.compare=true;libraryUI.menuOpen=false;libraryUI.compareIds=libraryUI.selected.slice(0,2);render();window.scrollTo(0,0);});
     bind('compare-close','click',function(){libraryUI.compare=false;render();});
     each('[data-compare-pick]','change',function(el){libraryUI.compareIds[Number(el.dataset.comparePick)]=el.value;render();});
-    bind('duel-compare','click',function(){var pair=currentDuel();if(!pair)return;libraryUI.compare=true;libraryUI.compareIds=pair.map(function(m){return m.id;});state.tab='library';render();window.scrollTo(0,0);});
     each('[data-reread]','click',function(el){var m=findManhwa(el.dataset.reread);if(!m||currentRun(m)>=10000)return;if(!window.confirm('Начать новое прочтение? Прогресс начнётся с 0, прежние записи и оценки останутся в истории.'))return;var run=currentRun(m),p=Features.readingProgress(m);m.readingRuns=(m.readingRuns||[]).concat({run:run,ended:Date.now(),chapter:p.chapter,score:ratedScore(m)}).slice(-100);m.readingRun=run+1;m.reading={chapter:0,url:p.url,updatedAt:Date.now()};m.status='reading';delete chapterDrafts[m.id];persistChapterDrafts();journalView[m.id]={query:'',sort:'recent'};save();render();});
-    bind('showcase-edit','click',function(){state.profileEdit=true;state.profileDraft=sanitizeProfile(state.profile);render();window.scrollTo(0,0);});
-    function updateShowcase(){var d=state.profileDraft;if(!d)return;var data=cleanLibraryData(d.library);data.showcase.titles=Array.from(app.querySelectorAll('[data-showcase-title]')).map(function(el){return el.value;});data.showcase.achievement=document.getElementById('showcase-achievement').value;data.showcase.item=document.getElementById('showcase-item').value;d.library=data;var preview=document.getElementById('showcase-preview');if(preview)preview.innerHTML=renderShowcase(d);}
-    each('[data-showcase-title]','change',updateShowcase);bind('showcase-achievement','change',updateShowcase);bind('showcase-item','change',updateShowcase);
   }
   function journeyData() { return Features.cleanJourney(state.profile.journey); }
   function updateGoals() {
@@ -4164,63 +4123,6 @@
     if(data.goals.some(function(g){var o=Features.goalOptions.find(function(o){return o.id===g.id;});return new Set(g.earned).size>=o.target&&!state.unlockedAchievements['goal_reward_'+g.id];}))checkAchievements();
   }
   function journeyCover(m) {return m.coverUrl ? '<img loading="lazy" src="'+escapeHtml(m.coverUrl)+'" alt="" />' : '<span class="mt-journey-placeholder">AM</span>';}
-  function discoverySelection() {
-    var ui=state.journeyUI, seeds=Features.recentReading(state.manhwas), weights={};
-    seeds.forEach(function(m,i){(m.genres||[]).forEach(function(g){weights[g]=(weights[g]||0)+(5-i);});});
-    journeyData().feedback.filter(function(f){return f.action==='like';}).forEach(function(f){f.genres.forEach(function(g){weights[g]=(weights[g]||0)+3;});});
-    var genres=Object.keys(weights).sort(function(a,b){return weights[b]-weights[a];});
-    var moods={calm:['Повседневность','Романтика','Комедия'],adventure:['Фэнтези','Приключения','Экшн'],dark:['Ужасы','Триллер','Психология','Драма']};
-    if(ui.genre)genres=[ui.genre];
-    else if(ui.mood)genres=(moods[ui.mood]||[]).slice().sort(function(a,b){return (weights[b]||0)-(weights[a]||0);});
-    var english=genres.map(function(g){return Object.keys(ANILIST_GENRE_RU).find(function(k){return ANILIST_GENRE_RU[k]===g;});}).filter(Boolean).slice(0,3);
-    return {seeds:seeds,english:english,moods:moods};
-  }
-  function loadDiscovery(force) {
-    var ui=state.journeyUI, selection=discoverySelection();
-    var key=JSON.stringify([selection.seeds.map(function(m){return [m.id,m.lastRatedAt,m.completedAt,m.genres];}),ui.genre,ui.mood,ui.type,selection.english]);
-    if(!force&&ui.discoveryKey===key)return;
-    if(ui.discoveryAbort)ui.discoveryAbort.abort();
-    ui.discoveryAbort=null;
-    ui.discoveryKey=key;ui.results=[];ui.pick=0;ui.discoveryError='';
-    if(!selection.english.length){ui.discoveryLoading=false;return;}
-    var controller=new AbortController();ui.discoveryAbort=controller;ui.discoveryLoading=true;
-    var timer=setTimeout(function(){controller.abort();},15000);
-    var query='query ($genres: [String], $country: CountryCode) { Page(page: 1, perPage: 50) { media(type: MANGA, countryOfOrigin: $country, genre_in: $genres, isAdult: false, sort: POPULARITY_DESC) { id title { romaji english native } synonyms coverImage { large } genres countryOfOrigin averageScore } } }';
-    fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},signal:controller.signal,body:JSON.stringify({query:query,variables:Features.aniListVariables({genres:selection.english,country:({manhwa:'KR',manhua:'CN',manga:'JP'})[ui.type]||null})})})
-      .then(function(r){if(!r.ok)throw new Error(r.status===429?'Каталог занят. Попробуй чуть позже.':'Не удалось связаться с каталогом.');return r.json();})
-      .then(function(r){if(r.errors||!r.data||!r.data.Page||!Array.isArray(r.data.Page.media))throw new Error('Каталог не вернул подборку.');if(ui.discoveryAbort!==controller)return;
-        ui.results=r.data.Page.media.filter(function(m){return m&&Number.isInteger(m.id)&&m.title;}).map(function(m){var translated=(m.genres||[]).map(translateAniListGenre);return Object.assign({},m,{localGenres:translated});});
-      }).catch(function(e){if(ui.discoveryAbort===controller)ui.discoveryError=e.name==='AbortError'?'Каталог не ответил вовремя. Проверь интернет и повтори.':e.message;})
-      .finally(function(){clearTimeout(timer);if(ui.discoveryAbort!==controller)return;ui.discoveryLoading=false;if(state.tab==='journey'&&!state.selectedId)render();});
-  }
-  function discoveryResults() {
-    var ui=state.journeyUI, selection=discoverySelection();
-    return Features.unseenMedia(ui.results||[],state.manhwas).filter(function(m){return !journeyData().feedback.some(function(f){return f.id===m.id;})&&(!ui.type||typeFromCountryOfOrigin(m.countryOfOrigin)===ui.type)&&(!ui.genre||m.localGenres.includes(ui.genre))&&(!ui.mood||m.localGenres.some(function(g){return (selection.moods[ui.mood]||[]).includes(g);}));}).map(function(m){var matches=selection.seeds.map(function(seed,i){var shared=(seed.genres||[]).filter(function(g){return m.localGenres.includes(g);});return {seed:seed,shared:shared,score:shared.length*(5-i)};}).sort(function(a,b){return b.score-a.score;});return {media:m,match:matches[0],score:matches.reduce(function(n,x){return n+x.score;},0)+journeyData().feedback.filter(function(f){return f.action==='like';}).reduce(function(n,f){return n+f.genres.filter(function(g){return m.localGenres.includes(g);}).length*3;},0)};}).sort(function(a,b){return b.score-a.score||(b.media.averageScore||0)-(a.media.averageScore||0);});
-  }
-  function renderDiscovery() {
-    loadDiscovery(false);
-    var ui=state.journeyUI, selection=discoverySelection(),results=discoveryResults(),rec=results.length?results[ui.pick%results.length]:null;
-    var html='<div class="mt-discovery-intro"><div class="mt-section-eyebrow">ЗА ПРЕДЕЛАМИ БИБЛИОТЕКИ</div><h2>Следующая<br><em>любимая история.</em></h2><p>Новые тайтлы по следам твоего недавнего чтения.</p></div>';
-    if(selection.seeds.length)html+='<div class="mt-reading-seeds"><span>Вдохновлено твоим чтением</span><div>'+selection.seeds.slice(0,3).map(function(m){return '<span>'+escapeHtml(displayTitle(m))+'</span>';}).join('')+'</div></div>';
-    html+='<fieldset class="mt-discovery-types"><legend>Что хочешь почитать?</legend><div>'+[['','Всё'],['manhwa','Манхва'],['manhua','Маньхуа'],['manga','Манга']].map(function(t){return '<button type="button" data-discovery-type="'+t[0]+'" aria-pressed="'+((ui.type||'')===t[0])+'">'+t[1]+'</button>';}).join('')+'</div></fieldset>';
-    html+='<div class="mt-journey-fields"><label>Настроение<select id="journey-mood" class="mt-input">'+[['','По моему вкусу'],['calm','Уют и лёгкость'],['adventure','Приключения'],['dark','Мрачные истории']].map(function(o){return '<option value="'+o[0]+'"'+(ui.mood===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label><label>Жанр<select id="journey-genre" class="mt-input"><option value="">На основе чтения</option>'+Object.values(ANILIST_GENRE_RU).filter(function(g){return g!=='Хентай';}).map(function(g){return '<option'+(ui.genre===g?' selected':'')+'>'+escapeHtml(g)+'</option>';}).join('')+'</select></label></div>';
-    if(journeyData().feedback.length)html+='<div class="mt-feedback-notice" role="status">Предпочтения сохранены. Отметка «Уже читал» скрывает рекомендацию без добавления в библиотеку.<button id="discovery-undo" class="mt-ghost-btn">Отменить последний выбор</button></div>';
-    if(ui.discoveryLoading)return html+'<div class="mt-discovery-skeleton" role="status"><span></span><p>Ищем историю под твой вкус…</p></div>';
-    if(ui.discoveryError)return html+'<div class="mt-journey-empty" role="status">'+escapeHtml(ui.discoveryError)+'<button class="mt-primary-btn" id="discovery-retry">Попробовать снова</button></div>';
-    if(!rec)return html+'<div class="mt-journey-empty">'+(!selection.seeds.length?'Сначала оцени или заверши хотя бы один тайтл — так мы узнаем твой вкус.':!selection.english.length?'У недавних тайтлов нет знакомых каталогу жанров. Выбери жанр выше.':'В этой подборке нет новых подходящих тайтлов. Попробуй другой жанр или настроение.')+'</div>';
-    var m=rec.media,title=m.title.english||m.title.romaji||m.title.native;
-    html+='<article class="mt-discovery-card"><div class="mt-discovery-art">'+journeyCover({coverUrl:m.coverImage&&m.coverImage.large})+'<span>НОВОЕ ДЛЯ ТЕБЯ</span></div><div class="mt-discovery-copy"><span class="mt-section-eyebrow">'+escapeHtml(m.localGenres.slice(0,2).join(' / '))+'</span><h3>'+escapeHtml(title)+'</h3><p>'+ (rec.match&&rec.match.shared.length?'Общие жанры с «'+escapeHtml(displayTitle(rec.match.seed))+'»: '+escapeHtml(rec.match.shared.join(', '))+'.':'Подходит под выбранные фильтры.')+'</p></div><div class="mt-discovery-actions"><button class="mt-primary-btn" id="discovery-add" data-media-id="'+m.id+'">+ В планы</button><a class="mt-ghost-btn" href="https://anilist.co/manga/'+m.id+'" target="_blank" rel="noopener noreferrer">О тайтле ↗</a></div></article><div class="mt-discovery-feedback" aria-label="Настроить рекомендации">'+[['hide','Не интересно'],['read','Уже читал'],['like','Больше похожего']].map(function(f){return '<button class="mt-ghost-btn" data-discovery-feedback="'+f[0]+'" data-media-id="'+m.id+'">'+f[1]+'</button>';}).join('')+'</div><div class="mt-discovery-bottom"><button class="mt-ghost-btn" id="journey-surprise"'+(results.length<2?' disabled':'')+'>Другая история ↻</button><span>'+(ui.pick%results.length+1)+' / '+results.length+'</span></div><p class="mt-discovery-credit">Каталог AniList · названия могут быть на английском. Проверяем совпадения по ID и известным названиям.</p>';
-    return html;
-  }
-  function currentDuel() {
-    var ui=state.journeyUI,d=journeyData();
-    var key=JSON.stringify([ui.duelGenre,state.manhwas.map(function(m){return [m.id,m.rated,m.genres];}),d.duels.length]);
-    if(ui.pairKey!==key){ui.pair=null;ui.pairKey=key;}
-    if(!ui.pair)ui.pair=Features.duelPair(state.manhwas,d.duels,ui.duelGenre,ui.previousPair);
-    return ui.pair;
-  }
-  function nextDuel(){var ui=state.journeyUI;ui.previousPair=ui.pair?ui.pair.map(function(m){return m.id;}):[];ui.pair=null;}
-
   var halloweenPreview='harvest';
   function renderHalloween(){
     var w=Features.halloweenWindow(Date.now()),p=Features.halloweenProgress(state.manhwas,state.activityLog,state.unlockedAchievements,Date.now()),quests=Features.halloweenQuests;
@@ -4229,24 +4131,14 @@
     return '<section class="mt-halloween"><header class="mt-halloween-hero"><span class="mt-section-eyebrow">СЕЗОННОЕ СОБЫТИЕ · 2026</span><span class="mt-halloween-moon" aria-hidden="true">✦</span><h2>Ночь<br><em>историй.</em></h2><p>Зажги фонари своей библиотеки.<br>У каждой истории есть светлая сторона.</p><span class="mt-halloween-date">18 октября — 2 ноября · '+(w.active?'Событие идёт':w.upcoming?'Скоро открытие':'Событие завершено')+'</span></header><div class="mt-halloween-progress"><div><strong>'+claimed+' / 7</strong><span>наград в твоей коллекции</span></div><progress max="7" value="'+claimed+'" aria-label="Полученные награды события"></progress><p>До 800 XP и 800 монет · 7 эксклюзивных украшений</p></div><div class="mt-halloween-intro"><h3>Собери свою ночь</h3><p>Задания выполняются автоматически по действиям с 18 октября. Награды выдаются один раз и остаются навсегда. Применить их можно в редакторе профиля.</p></div><div class="mt-halloween-preview-tabs"><button class="mt-ghost-btn" data-halloween-preview="harvest" aria-pressed="'+(halloweenPreview==='harvest')+'">Тыквенная долина</button><button class="mt-ghost-btn" data-halloween-preview="manor" aria-pressed="'+(halloweenPreview==='manor')+'">Лунный особняк</button></div><div class="mt-shop-preview'+styleClasses(style)+'"><span class="mt-section-eyebrow">ПРИМЕРКА НАГРАД СОБЫТИЯ</span><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(state.profile)+'</div><div><strong>'+escapeHtml(displayNick())+'</strong>'+styleBadge(style)+'<p>Твоя история продолжается после полуночи.</p></div></div></div><button class="mt-ghost-btn" id="halloween-wardrobe">Мои украшения →</button><div class="mt-halloween-quests">'+quests.map(function(q,i){var earned=!!state.unlockedAchievements[q.id],n=earned?q.target:Math.min(p[q.metric],q.target),item=Features.shopItem(q.reward);return '<article class="mt-halloween-quest'+(earned?' earned':'')+(i===6?' finale':'')+'"><div class="mt-halloween-quest-top"><span aria-hidden="true">'+q.icon+'</span><small>'+(i===6?'ФИНАЛЬНАЯ НАГРАДА':'ЗАДАНИЕ 0'+(i+1))+'</small><b>'+(earned?'✓ Получено':!w.active?'Закрыто':n+' / '+q.target)+'</b></div><h3>'+q.name+'</h3><p>'+q.text+'</p><progress max="'+q.target+'" value="'+n+'" aria-label="'+q.name+'"></progress><div class="mt-halloween-reward"><span>'+({theme:'Тема',frame:'Рамка',badge:'Значок'})[item.kind]+' · '+item.name+'</span><strong>+'+q.xp+' XP · '+q.xp+' ◈</strong></div>'+(!earned&&w.active&&i<6?'<button class="mt-ghost-btn" data-halloween-go="'+(q.metric==='dark'?'catalog':'library')+'">'+(q.metric==='dark'?'Найти мрачную историю ↗':'К моей библиотеке →')+'</button>':'')+'</article>';}).join('')+'</div><details class="mt-halloween-rules"><summary>Как считается прогресс</summary><p>Событие идёт до конца 2 ноября 2026 года по времени устройства. Для заданий по главам учитываются разные главы; повторная запись той же главы не увеличивает счётчик. Дни считаются по записям дневника, оценкам тайтлов и завершениям — просто открывать приложение недостаточно.</p><p>До получения награды прогресс зависит от сохранённых записей. Удалённые данные могут уменьшить его. Полученные награды сохраняются при синхронизации и в резервной копии, даже после завершения события. Новые награды после закрытия события не выдаются.</p></details></section>';
   }
   function renderJourney() {
-    var data=journeyData(),ui=state.journeyUI,pair=ui.section==='duels'?currentDuel():null;
+    var data=journeyData(),ui=state.journeyUI;
+    if(!['achievements','goals','halloween'].includes(ui.section))ui.section='achievements';
     var genres=Array.from(new Set(state.manhwas.filter(function(m){return m.rated;}).flatMap(function(m){return m.genres||[];}))).sort();
-    var html='<div class="mt-journey-page"><header class="mt-journey-heading"><div class="mt-journey-orbit" aria-hidden="true">✦</div><span class="mt-section-eyebrow">ТВОЁ ПРОСТРАНСТВО ЧТЕНИЯ</span><h1>Для тебя<span aria-hidden="true"> ✦</span></h1><p>Истории, цели и маленькие победы.</p></header><nav class="mt-journey-nav" aria-label="Разделы для тебя">'+[['discover','01','Открытия'],['duels','02','Дуэли'],['goals','03','Мои цели'],['achievements','04','Достижения'],['halloween','☾','Хэллоуин']].map(function(x){return '<button data-journey-section="'+x[0]+'" aria-pressed="'+(ui.section===x[0])+'"><small>'+x[1]+'</small>'+x[2]+'</button>';}).join('')+'</nav><div class="mt-journey-stage">';
+    var html='<div class="mt-journey-page"><header class="mt-journey-heading"><div class="mt-journey-orbit" aria-hidden="true">✦</div><span class="mt-section-eyebrow">ТВОЁ ПРОСТРАНСТВО ЧТЕНИЯ</span><h1>Для тебя<span aria-hidden="true"> ✦</span></h1><p>Твои достижения, цели и события.</p></header><nav class="mt-journey-nav" aria-label="Разделы для тебя">'+[['achievements','01','Достижения'],['goals','02','Цели'],['halloween','☾','Ивент']].map(function(x){return '<button data-journey-section="'+x[0]+'" aria-pressed="'+(ui.section===x[0])+'"><small>'+x[1]+'</small>'+x[2]+'</button>';}).join('')+'</nav><div class="mt-journey-stage">';
     if(ui.section==='achievements')html+=renderAchievementsTab();
     if(ui.section==='halloween')html+=renderHalloween();
-    if(ui.section==='discover')html+='<section class="mt-journey-panel mt-discovery-panel">'+renderDiscovery()+'</section>';
-    if(ui.section==='duels'){
-      html+='<section class="mt-journey-panel mt-duel-panel"><div class="mt-section-eyebrow">ОДИН ЖАНР. ДВЕ ИСТОРИИ.</div><h2>Кого оставишь<br><em>в сердце?</em></h2><p>Случайные пары с общими жанрами. Твои оценки остаются прежними.</p><label>Жанр дуэли<select id="duel-genre" class="mt-input"><option value="">Любой общий жанр</option>'+genres.map(function(g){return '<option'+(ui.duelGenre===g?' selected':'')+'>'+escapeHtml(g)+'</option>';}).join('')+'</select></label>';
-      if(pair){
-        var shared=(pair[0].genres||[]).filter(function(g){return (pair[1].genres||[]).includes(g);});
-        html+='<div class="mt-duel-genre">'+shared.map(function(g){return '<span>'+escapeHtml(g)+'</span>';}).join('')+'</div><div class="mt-duel-pair">'+pair.map(function(m,i){return '<button class="mt-duel-card" data-duel-winner="'+escapeHtml(m.id)+'" data-duel-other="'+escapeHtml(pair[1-i].id)+'">'+journeyCover(m)+'<span class="mt-duel-choice">'+(i?'02':'01')+'</span><strong>'+escapeHtml(displayTitle(m))+'</strong><span>Этот ближе мне ↗</span></button>';}).join('')+'<span class="mt-duel-vs" aria-hidden="true">или</span></div><button class="mt-ghost-btn" id="duel-compare">Сравнить подробно</button><button class="mt-ghost-btn" id="duel-skip">Другая пара ↻</button>';
-        if(pair.some(function(m){return (ui.previousPair||[]).includes(m.id);}))html+='<p class="mt-feature-hint">'+(pair.every(function(m){return (ui.previousPair||[]).includes(m.id);})?'Другой несравнённой пары в этом жанре пока нет.':'Пары из двух новых участников пока нет: один тайтл повторяется.')+'</p>';
-      }else html+='<div class="mt-journey-empty">Нет новых пар с общими жанрами. Добавь жанры оценённым тайтлам или выбери другой жанр.</div>';
-      if(data.duels.length)html+='<div class="mt-duel-summary"><span>Сохранено выборов: <b>'+data.duels.length+'</b></span><button class="mt-ghost-btn" id="duel-undo">Отменить последний</button></div><details class="mt-duel-history"><summary>История выборов <span>Показать</span></summary><ol>'+data.duels.slice(-10).reverse().map(function(d){var winner=findManhwa(d.winner),loser=findManhwa(d.a===d.winner?d.b:d.a);return '<li><b>'+escapeHtml(winner?displayTitle(winner):'Удалённый тайтл')+'</b><span>выбран вместо «'+escapeHtml(loser?displayTitle(loser):'Удалённый тайтл')+'»</span></li>';}).join('')+'</ol><small>Последние 10 выборов</small></details>';
-      html+='</section>';
-    }
     if(ui.section==='goals')html+=
-      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">03 / ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов. Награда за каждый вид цели выдаётся один раз.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p><div class="mt-goal-reward">'+(state.unlockedAchievements['goal_reward_'+o.id]?'Награда получена ✓':'Награда: +'+o.reward+' XP · +'+o.reward+' монет')+'</div>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
+      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов. Награда за каждый вид цели выдаётся один раз.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p><div class="mt-goal-reward">'+(state.unlockedAchievements['goal_reward_'+o.id]?'Награда получена ✓':'Награда: +'+o.reward+' XP · +'+o.reward+' монет')+'</div>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
     return html+'</div></div>';
   }
   function chapterRatingSlider(value){
@@ -4287,7 +4179,7 @@
     var m=findManhwa(id);if(!m)return;
     if(viewedRun(m)!==currentRun(m)){journalSettings(m).run=currentRun(m);render();}
     var dialog=document.getElementById('chapter-quick-dialog'),form=document.getElementById('chapter-form'),input=document.getElementById('chapter-number');if(!dialog||!form)return;
-    if(!input.value){input.value=String(Features.readingProgress(m).chapter||1);var d=chapterDrafts[id]||(chapterDrafts[id]={run:currentRun(m)});d['chapter-number']=input.value;persistChapterDrafts();}
+    if(!input.value){input.value=String(Math.max(0,...runJournal(m).map(function(e){return e.chapter;}))+1);var d=chapterDrafts[id]||(chapterDrafts[id]={run:currentRun(m)});d['chapter-number']=input.value;persistChapterDrafts();}
     var home=document.getElementById('chapter-form-home');document.getElementById('chapter-sheet-body').appendChild(form);
     if(!dialog.open)dialog.showModal();
     dialog.onclose=function(){if(home&&form.isConnected)home.appendChild(form);var trigger=document.getElementById('journal-quick');if(trigger)trigger.focus({preventScroll:true});};
@@ -4303,7 +4195,6 @@
     bind('chapter-draft-continue','click',function(){if(selected)openChapterSheet(selected.id);});
     bind('chapter-draft-discard','click',function(){if(!selected||!window.confirm('Удалить несохранённый черновик этой главы?'))return;delete chapterDrafts[selected.id];persistChapterDrafts();render();});
     bind('journal-run','change',function(e){if(!selected)return;journalSettings(selected).run=Number(e.target.value);journalSettings(selected).query='';render();document.getElementById('chapter-journal').scrollIntoView({block:'start'});});
-    app.querySelectorAll('[data-showcase-move]').forEach(function(el){el.addEventListener('click',function(){var index=Number(el.dataset.showcaseMove),other=index+Number(el.dataset.direction),fields=Array.from(app.querySelectorAll('[data-showcase-title]'));if(!fields[index]||!fields[other])return;var value=fields[index].value;fields[index].value=fields[other].value;fields[other].value=value;fields[index].dispatchEvent(new Event('change',{bubbles:true}));});});
   }
   function journalSettings(m){return journalView[m.id]||(journalView[m.id]={query:'',sort:'recent'});}
   function viewedRun(m){return journalSettings(m).run||currentRun(m);}
@@ -4356,23 +4247,10 @@
     ['journal-search','journal-sort'].forEach(function(id){bind(id,id==='journal-search'?'input':'change',function(e){var m=selected&&findManhwa(selected.id);if(!m)return;journalSettings(m)[id==='journal-search'?'query':'sort']=e.target.value;document.getElementById('journal-list').innerHTML=journalEntriesHtml(m);});});
     var journalList=document.getElementById('journal-list');
     if(journalList)journalList.onclick=function(e){var el=e.target.closest('[data-journal-delete]');if(!el||!window.confirm('Удалить эту запись?'))return;var m=selected&&findManhwa(selected.id);if(!m)return;var removed=Features.journal(m.journal).find(function(x){return x.id===el.getAttribute('data-journal-delete');});if(removed)lastUndo={kind:'journal',id:m.id,entry:removed};m.journal=Features.journal(m.journal).filter(function(x){return x.id!==el.getAttribute('data-journal-delete');});m.updatedAt=Date.now();save();render();};
-    document.getElementById('app').querySelectorAll('[data-reading-next]').forEach(function(el){el.addEventListener('click',function(){var m=findManhwa(el.getAttribute('data-reading-next'));if(!m)return;var p=Features.readingProgress(m);p.chapter=Math.min(1000000,Math.round((p.chapter+1)*10)/10);p.updatedAt=Date.now();m.reading=p;m.updatedAt=p.updatedAt;save();render();});});
-    document.getElementById('app').querySelectorAll('[data-reading-edit]').forEach(function(el){el.addEventListener('click',function(){openTitle(el.getAttribute('data-reading-edit'));var panel=document.getElementById('reading-settings');if(panel){panel.open=true;document.getElementById('reading-url').focus();}});});
-    bind('reading-form','submit',function(e){e.preventDefault();var m=selected&&findManhwa(selected.id);if(!m)return;var chapter=Number(document.getElementById('reading-chapter').value),raw=document.getElementById('reading-url').value.trim(),url=Features.readingUrl(raw);if(raw&&!url){document.getElementById('reading-error').textContent='Нужна ссылка http:// или https:// без логина и пароля.';return;}if(!Number.isFinite(chapter)||chapter<0||chapter>1000000)return;m.reading={chapter:chapter,url:url,updatedAt:Date.now()};m.updatedAt=Date.now();save();render();});
     document.getElementById('app').querySelectorAll('[data-halloween-preview]').forEach(function(el){el.addEventListener('click',function(){halloweenPreview=el.getAttribute('data-halloween-preview');render();});});
     document.getElementById('app').querySelectorAll('[data-halloween-go]').forEach(function(el){el.addEventListener('click',function(){state.tab=el.getAttribute('data-halloween-go');if(state.tab==='catalog'){catalog.genre='Horror';catalog.search='';catalog.status='';catalog.country='';loadCatalog(true);}render();window.scrollTo(0,0);});});
     bind('halloween-wardrobe','click',function(){state.tab='profile';state.shopOpen=false;state.accountSettings=false;state.profileEdit=true;state.profileDraft=sanitizeProfile(state.profile);render();window.scrollTo(0,0);});
     document.getElementById('app').querySelectorAll('[data-journey-section]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.section=el.getAttribute('data-journey-section');usability.journey=state.journeyUI.section;saveUsability();render();});});
-    [['journey-mood','mood'],['journey-genre','genre'],['duel-genre','duelGenre']].forEach(function(x){bind(x[0],'change',function(e){state.journeyUI[x[1]]=e.target.value;state.journeyUI.pick=0;state.journeyUI.pair=null;render();});});
-    document.getElementById('app').querySelectorAll('[data-discovery-type]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.type=el.getAttribute('data-discovery-type');state.journeyUI.pick=0;render();});});
-    document.getElementById('app').querySelectorAll('[data-discovery-feedback]').forEach(function(el){el.addEventListener('click',function(){if(el.disabled)return;el.disabled=true;var media=(state.journeyUI.results||[]).find(function(m){return String(m.id)===el.getAttribute('data-media-id');});if(!media)return;var d=journeyData();d.feedback=Features.cleanFeedback(d.feedback.concat([{id:media.id,action:el.getAttribute('data-discovery-feedback'),genres:media.localGenres,ts:Date.now()}]));state.profile.journey=d;state.journeyUI.pick=0;saveProfile().then(render,render);});});
-    bind('discovery-undo','click',function(){var d=journeyData();d.feedback.pop();state.profile.journey=d;state.journeyUI.pick=0;saveProfile();render();});
-    bind('discovery-retry','click',function(){loadDiscovery(true);render();});
-    bind('journey-surprise','click',function(){var n=discoveryResults().length;if(n>1)state.journeyUI.pick=(state.journeyUI.pick+1+Math.floor(Math.random()*(n-1)))%n;render();});
-    bind('discovery-add','click',function(e){var media=(state.journeyUI.results||[]).find(function(m){return String(m.id)===e.currentTarget.getAttribute('data-media-id');});if(!media||!Features.unseenMedia([media],state.manhwas).length)return;var m=newManhwa(media.title.english||media.title.romaji||media.title.native,typeFromCountryOfOrigin(media.countryOfOrigin),media.coverImage&&media.coverImage.large);m.status='plan';m.anilistId=media.id;m.genres=media.localGenres.slice();m.altTitles={en:media.title.english||media.title.romaji||'',ja:media.countryOfOrigin==='JP'?media.title.native||'':'',ko:media.countryOfOrigin==='KR'?media.title.native||'':'',ru:''};state.manhwas.push(m);logActivity('add',m.id,displayTitle(m),{type:m.type});save();render();});
-    bind('duel-skip','click',function(){nextDuel();render();});
-    bind('duel-undo','click',function(){var d=journeyData();d.duels.pop();state.profile.journey=d;nextDuel();saveProfile();render();});
-    document.getElementById('app').querySelectorAll('[data-duel-winner]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),a=el.getAttribute('data-duel-winner'),b=el.getAttribute('data-duel-other');if(d.duels.some(function(x){return (x.a===a&&x.b===b)||(x.a===b&&x.b===a);}))return;d.duels.push({a:a,b:b,winner:a});state.profile.journey=d;nextDuel();saveProfile();render();});});
     document.getElementById('app').querySelectorAll('[data-goal-add]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),o=Features.goalOptions.find(function(o){return o.id===el.getAttribute('data-goal-add');});if(d.goals.some(function(g){return g.id===o.id;}))return;d.goals.push({id:o.id,started:Date.now(),baseline:Features.goalKeys(state.manhwas,o.metric),earned:[]});state.profile.journey=d;saveProfile();render();});});
     document.getElementById('app').querySelectorAll('[data-goal-remove]').forEach(function(el){el.addEventListener('click',function(){if(!window.confirm('Убрать цель? При повторном выборе прогресс начнётся заново.'))return;var d=journeyData();d.goals=d.goals.filter(function(g){return g.id!==el.getAttribute('data-goal-remove');});state.profile.journey=d;saveProfile();render();});});
     document.getElementById('app').querySelectorAll('.mt-chapter-slider input').forEach(function(el){el.addEventListener('input',function(){
@@ -4500,13 +4378,13 @@
   }
 
   /* Daily navigation and compact controls. */
-  var usability={list:false,hideOwned:false,journey:'discover',detailSection:'journal',returnScroll:0,quickId:null,suppressClick:false};
+  var usability={list:false,hideOwned:false,journey:'achievements',detailSection:'rating',returnScroll:0,quickId:null,suppressClick:false};
   var leaveAction=null,leavingProfile=false;
   function saveUsability(){
     try{window.localStorage.setItem('mt-usability-v1',JSON.stringify({list:usability.list,hideOwned:usability.hideOwned,journey:state.journeyUI.section}));}catch(e){}
   }
   function loadUsability(){
-    try{var p=JSON.parse(window.localStorage.getItem('mt-usability-v1')||'{}');usability.list=!!p.list;usability.hideOwned=!!p.hideOwned;if(['discover','duels','goals','achievements','halloween'].includes(p.journey))state.journeyUI.section=p.journey;}catch(e){}
+    try{var p=JSON.parse(window.localStorage.getItem('mt-usability-v1')||'{}');usability.list=!!p.list;usability.hideOwned=!!p.hideOwned;if(['goals','achievements','halloween'].includes(p.journey))state.journeyUI.section=p.journey;}catch(e){}
   }
   function profileIsDirty(){function normal(p){var v=sanitizeProfile(p);v.style=Features.cleanStyle(v.style);v.library=cleanLibraryData(v.library);v.outfits=v.outfits||[];return JSON.stringify([v.n,v.b,v.a,v.style,v.library,v.outfits,v.journey||null]);}return !!(state.profileEdit&&state.profileDraft&&normal(state.profileDraft)!==normal(state.profile));}
   function showToast(message){
@@ -4514,7 +4392,7 @@
     setTimeout(function(){if(el.isConnected)el.hidden=true;},2600);
   }
   function renderUsabilityDialogs(){
-    return '<div id="usability-toast" class="mt-toast" role="status" hidden></div><dialog id="title-quick-dialog" class="mt-action-sheet" aria-labelledby="quick-title-heading"><div id="title-quick-content"></div></dialog><dialog id="profile-leave-dialog" class="mt-action-sheet" aria-labelledby="leave-heading"><span class="mt-section-eyebrow">ТВОИ ИЗМЕНЕНИЯ</span><h2 id="leave-heading">Сохранить перед выходом?</h2><p>Оформление и витрина ещё не сохранены.</p><button id="leave-save" class="mt-primary-btn">Сохранить и выйти</button><button id="leave-stay" class="mt-ghost-btn">Продолжить редактирование</button><button id="leave-discard" class="mt-ghost-btn">Отменить изменения</button></dialog>';
+    return '<div id="usability-toast" class="mt-toast" role="status" hidden></div><dialog id="profile-leave-dialog" class="mt-action-sheet" aria-labelledby="leave-heading"><span class="mt-section-eyebrow">ТВОИ ИЗМЕНЕНИЯ</span><h2 id="leave-heading">Сохранить перед выходом?</h2><p>Изменения профиля ещё не сохранены.</p><button id="leave-save" class="mt-primary-btn">Сохранить и выйти</button><button id="leave-stay" class="mt-ghost-btn">Продолжить редактирование</button><button id="leave-discard" class="mt-ghost-btn">Отменить изменения</button></dialog>';
   }
   function selectDetailSection(section){
     usability.detailSection=section;
@@ -4522,34 +4400,12 @@
     app.querySelectorAll('[data-detail-panel]').forEach(function(el){el.hidden=el.dataset.detailPanel!==section;});
     app.querySelectorAll('[data-detail-section]').forEach(function(el){el.setAttribute('aria-pressed',String(el.dataset.detailSection===section));});
   }
-  function showQuickTitle(id){
-    var m=findManhwa(id),dialog=document.getElementById('title-quick-dialog');if(!m||!dialog||libraryUI.bulk)return;
-    usability.quickId=id;var p=Features.readingProgress(m);
-    document.getElementById('title-quick-content').innerHTML='<header><div><span class="mt-section-eyebrow">БЫСТРЫЕ ДЕЙСТВИЯ</span><h2 id="quick-title-heading">'+escapeHtml(displayTitle(m))+'</h2></div><button class="mt-icon-btn" id="quick-close" aria-label="Закрыть">×</button></header><p>Прочитано до главы '+p.chapter+'</p><div class="mt-quick-grid"><button id="quick-next" class="mt-primary-btn"'+(p.chapter>=1000000?' disabled':'')+'>+1 глава</button><button id="quick-rate" class="mt-ghost-btn">Оценить главу</button></div><label>Статус<select id="quick-status" class="mt-input">'+STATUSES.map(function(s){return '<option value="'+s.id+'"'+(s.id===m.status?' selected':'')+'>'+s.label+'</option>';}).join('')+'</select></label>'+(p.url?'<a class="mt-primary-btn" href="'+escapeHtml(p.url)+'" target="_blank" rel="noopener noreferrer">Продолжить на сайте ↗</a>':'<button id="quick-link" class="mt-ghost-btn">Добавить ссылку на чтение ↗</button>')+'<button id="quick-open" class="mt-ghost-btn">Открыть карточку →</button>';
-    document.getElementById('quick-close').onclick=function(){dialog.close();};
-    document.getElementById('quick-next').onclick=function(){p.chapter=Math.min(1000000,Math.round((p.chapter+1)*10)/10);p.updatedAt=Date.now();m.reading=p;m.updatedAt=p.updatedAt;save();render();showToast('Глава '+p.chapter+' записана');};
-    document.getElementById('quick-rate').onclick=function(){dialog.close();openTitle(id);selectDetailSection('journal');openChapterSheet(id);};
-    document.getElementById('quick-status').onchange=function(e){m.status=e.target.value;if(m.status==='done')m.completedAt=Date.now();save();logActivity('status',m.id,displayTitle(m),{status:m.status});render();showToast('Статус обновлён');};
-    document.getElementById('quick-open').onclick=function(){dialog.close();openTitle(id);};
-    var link=document.getElementById('quick-link');if(link)link.onclick=function(){dialog.close();openTitle(id);var details=document.getElementById('reading-settings');details.open=true;document.getElementById('reading-url').focus();};
-    dialog.onclick=function(e){if(e.target===dialog)dialog.close();};
-    dialog.showModal();
-  }
   function attachUsability(selected){
     var app=document.getElementById('app');
     if(selected)selectDetailSection(usability.detailSection);
     app.querySelectorAll('[data-detail-section]').forEach(function(el){el.onclick=function(){selectDetailSection(el.dataset.detailSection);};});
     app.querySelectorAll('[data-journal-jump]').forEach(function(el){el.addEventListener('click',function(){selectDetailSection('journal');},true);});
     var layout=document.getElementById('library-layout');if(layout)layout.onclick=function(){usability.list=!usability.list;saveUsability();render();};
-    app.querySelectorAll('[data-quick-title]').forEach(function(el){el.onclick=function(){showQuickTitle(el.dataset.quickTitle);};});
-    app.querySelectorAll('.mt-grid-card .mt-cover').forEach(function(el){
-      var timer=null,x=0,y=0,suppress=false;function cancel(){clearTimeout(timer);timer=null;}
-      el.addEventListener('pointerdown',function(e){if(e.button!==0||libraryUI.bulk)return;x=e.clientX;y=e.clientY;timer=setTimeout(function(){timer=null;if(!el.isConnected)return;suppress=true;setTimeout(function(){suppress=false;},900);showQuickTitle(el.dataset.openId);},550);});
-      el.addEventListener('pointermove',function(e){if(Math.abs(e.clientX-x)+Math.abs(e.clientY-y)>12)cancel();});
-      ['pointerup','pointercancel','pointerleave'].forEach(function(type){el.addEventListener(type,cancel);});
-      el.addEventListener('click',function(e){if(suppress){suppress=false;e.preventDefault();e.stopImmediatePropagation();}},true);
-      el.addEventListener('contextmenu',function(e){e.preventDefault();showQuickTitle(el.dataset.openId);});
-    });
     app.querySelectorAll('[data-style-value]').forEach(function(el){el.onclick=function(){var select=app.querySelector('[data-profile-style="'+el.dataset.styleKind+'"]');select.value=el.dataset.styleValue;select.dispatchEvent(new Event('change',{bubbles:true}));};});
     var leave=document.getElementById('profile-leave-dialog');
     if(leave){
@@ -5579,7 +5435,7 @@
     chapterDrafts=Object.create(null);persistChapterDrafts();journalView={};
     if(state.journeyUI.discoveryAbort)state.journeyUI.discoveryAbort.abort();
     state.journeyUI.discoveryAbort=null;
-    state.journeyUI={mood:"",genre:"",type:"",duelGenre:"",pick:0,section:"discover",results:[],previousPair:[]};
+    state.journeyUI={mood:"",genre:"",type:"",duelGenre:"",pick:0,section:"achievements",results:[],previousPair:[]};
     state.manhwas = [];
     state.ratingDrafts = {};
     state.recentOpened = {};
