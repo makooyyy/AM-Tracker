@@ -1211,6 +1211,8 @@
   function openTitle(id) {
     var m = findManhwa(id);
     if (!m) return;
+    if(!state.selectedId) usability.returnScroll=window.scrollY||0;
+    usability.detailSection=m.rated?'journal':'rating';
     libraryUI.menuOpen=false;
     state.recentOpened[id] = Date.now();
     saveRecentOpened();
@@ -2426,7 +2428,7 @@
     } else {
       html += '<div class="mt-collection-heading"><div><h2>Библиотека <span>' + list.length + '</span></h2><p>' +
         (state.searchQuery.trim() || state.filterStatus !== "all" || state.filterGenre !== "all" ? 'По выбранным фильтрам' : 'Каждая история — часть тебя') +
-        '</p></div><button class="mt-add-btn" id="start-add-manhwa"><span aria-hidden="true">+</span> Добавить</button></div>';
+        '</p></div><button class="mt-icon-btn mt-layout-toggle" id="library-layout" aria-label="'+(usability.list?'Показать обложки':'Показать списком')+'" title="'+(usability.list?'Обложки':'Список')+'">'+(usability.list?'▦':'☷')+'</button><button class="mt-add-btn" id="start-add-manhwa"><span aria-hidden="true">+</span> Добавить</button></div>';
     }
 
     if (list.length === 0 && !state.addingManhwa) {
@@ -2439,7 +2441,7 @@
     }
 
     if (list.length > 0) {
-      html += '<div class="mt-grid">';
+      html += '<div class="mt-grid'+(usability.list?' mt-library-list':'')+'">';
       list.forEach(function (m, gridIdx) {
         var avg = ratedScore(m);
         var st = statusById(m.status);
@@ -2466,7 +2468,9 @@
           '">' + (avg === null ? "Не оценено" : Math.round(avg)) + "</span>" +
           "</button>" +
           '<div class="mt-cover-title" data-open-id="' + m.id + '">' + escapeHtml(title) + "</div>" +
-          '<div class="mt-cover-type-line">' + ty.label + "</div>" +
+          '<div class="mt-cover-type-line">' + ty.label + ' · Глава '+Features.readingProgress(m).chapter+'</div>' +
+          (usability.list&&!libraryUI.bulk?(Features.readingProgress(m).url?'<a class="mt-list-continue" href="'+escapeHtml(Features.readingProgress(m).url)+'" target="_blank" rel="noopener noreferrer">Читать ↗</a>':'<button class="mt-list-continue" data-reading-next="'+escapeHtml(m.id)+'">+1 глава</button>'):'')+
+          (!libraryUI.bulk?'<button class="mt-title-more" data-quick-title="'+escapeHtml(m.id)+'" aria-label="Действия: '+escapeHtml(title)+'">•••</button>':'')+
           "</div>";
       });
       html += "</div>";
@@ -2874,7 +2878,8 @@
       (state.statusPickerOpen ? renderStatusPicker(m) : "") +
       renderErrorBanner() +
       '<div class="mt-detail-body">' +
-      renderReadingPanel(m)+renderTitleTools(m);
+      '<div class="mt-detail-overview">'+journeyCover(m)+'<div><span class="mt-section-eyebrow">ТВОЯ ИСТОРИЯ</span><strong>'+ (ratedScore(m)===null?'Без оценки':Math.round(ratedScore(m))+' / 100')+'</strong><small>'+escapeHtml(currentStatus.label)+'</small></div></div>'+renderReadingPanel(m)+
+      '<nav class="mt-detail-nav" aria-label="Разделы тайтла">'+[['journal','Дневник'],['rating','Оценка'],['info','Информация']].map(function(x){return '<button data-detail-section="'+x[0]+'" aria-pressed="'+(usability.detailSection===x[0])+'">'+x[1]+'</button>';}).join('')+'</nav><section data-detail-panel="info">'+renderTitleTools(m);
 
     var wins = awardsForManhwa(m);
     var hasGoldWin = positiveAwardsForManhwa(m).length > 0;
@@ -2909,12 +2914,11 @@
         "</div>";
     }
 
-    html += renderRatingSection(m, avg, editable, rerateSnap);
+    if(!editable)html+=renderTagsReadOnly(m)+renderGenresReadOnly(m)+renderAltTitlesReadOnly(m)+renderNotesReadOnly(m);
+    html += '</section><section data-detail-panel="rating">'+renderRatingSection(m, avg, editable, rerateSnap);
 
     if (editable) {
       html += renderTagsPanel(m) + renderGenresPanel(m) + renderAltTitlesPanel(m) + renderNotesPanel(m) + renderCoverPanel(m);
-    } else {
-      html += renderTagsReadOnly(m) + renderGenresReadOnly(m) + renderAltTitlesReadOnly(m) + renderNotesReadOnly(m);
     }
 
     if (editable) {
@@ -2946,8 +2950,8 @@
         "Прочитал новые главы? «Оценить заново» сохранит старую оценку в историю и добавит новую в премию этого месяца</div>";
     }
 
-    html += renderChapterJournal(m);
-    html += renderActivityFeedForManhwa(m);
+    html += '</section><section data-detail-panel="journal">'+renderChapterJournal(m);
+    html += renderActivityFeedForManhwa(m)+'</section>';
 
     var confirmingDelete = state.confirmDeleteId === m.id;
     html += '<button class="mt-clear-btn' + (confirmingDelete ? " confirm" : "") +
@@ -3683,7 +3687,7 @@
       '<div class="mt-shop-preview'+styleClasses(style)+'"><div class="mt-shop-preview-person"><div class="mt-shop-avatar">'+avatarHtml(d)+'</div><div><strong>'+escapeHtml(d.n||displayNick())+'</strong>'+styleBadge(style)+'</div></div></div>'+
       [['theme','Тема'],['frame','Рамка'],['badge','Значок']].map(function(pair){
         var owned=Features.shopItems.filter(function(i){return i.kind===pair[0]&&ownsStyle(i.id);});
-        return '<label class="mt-owned-field">'+pair[1]+'<select class="mt-input" data-profile-style="'+pair[0]+'"><option value="">Базовое оформление</option>'+owned.map(function(i){return '<option value="'+i.id+'"'+(style[pair[0]]===i.id?' selected':'')+'>'+escapeHtml(i.name)+' · '+Features.shopRarities[i.rarity]+'</option>';}).join('')+'</select></label>';
+        return '<div class="mt-style-category"><h3>'+pair[1]+' <small>'+owned.length+' в коллекции</small></h3><div class="mt-style-choices">'+[{id:'',name:'Базовое',kind:pair[0],icon:'○'}].concat(owned).map(function(item){return '<button type="button" class="mt-style-choice" data-style-kind="'+pair[0]+'" data-style-value="'+item.id+'" aria-pressed="'+(style[pair[0]]===item.id)+'"><span class="mt-style-thumb mt-shop-swatch '+(item.id?'mt-'+pair[0]+'-'+item.id.replace(pair[0]+'-',''):'')+'">'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy"/>':'<span>'+ (item.icon||'✦')+'</span>')+'</span><strong>'+escapeHtml(item.name)+'</strong>'+(item.rarity?'<small>'+Features.shopRarities[item.rarity]+'</small>':'')+'</button>';}).join('')+'</div><label class="mt-sr-only">'+pair[1]+'<select class="mt-input" data-profile-style="'+pair[0]+'"><option value="">Базовое оформление</option>'+owned.map(function(i){return '<option value="'+i.id+'"'+(style[pair[0]]===i.id?' selected':'')+'>'+escapeHtml(i.name)+' · '+Features.shopRarities[i.rarity]+'</option>';}).join('')+'</select></label></div>';
       }).join('')+'</section>';
   }
 
@@ -4019,12 +4023,14 @@
       try {
         await saveProfile();
         state.profileEdit = false; state.profileDraft = null;
-        render(); window.scrollTo(0, 0);
+        render(); window.scrollTo(0, 0);showToast('Профиль сохранён');
+        return true;
       } catch (err) {
         save.disabled = false; save.textContent = 'Сохранить';
-        setMsg('Не удалось сохранить профиль. Проверь свободное место и повтори сохранение.');
+        setMsg('Не удалось сохранить профиль. Проверь свободное место и повтори сохранение.');return false;
       }
     };
+    usability.saveEditor=saveEditor;
     if (save) save.addEventListener("click", saveEditor);
     var showcaseSave = $('showcase-save');
     if (showcaseSave) showcaseSave.addEventListener('click', saveEditor);
@@ -4356,7 +4362,7 @@
     document.getElementById('app').querySelectorAll('[data-halloween-preview]').forEach(function(el){el.addEventListener('click',function(){halloweenPreview=el.getAttribute('data-halloween-preview');render();});});
     document.getElementById('app').querySelectorAll('[data-halloween-go]').forEach(function(el){el.addEventListener('click',function(){state.tab=el.getAttribute('data-halloween-go');if(state.tab==='catalog'){catalog.genre='Horror';catalog.search='';catalog.status='';catalog.country='';loadCatalog(true);}render();window.scrollTo(0,0);});});
     bind('halloween-wardrobe','click',function(){state.tab='profile';state.shopOpen=false;state.accountSettings=false;state.profileEdit=true;state.profileDraft=sanitizeProfile(state.profile);render();window.scrollTo(0,0);});
-    document.getElementById('app').querySelectorAll('[data-journey-section]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.section=el.getAttribute('data-journey-section');render();});});
+    document.getElementById('app').querySelectorAll('[data-journey-section]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.section=el.getAttribute('data-journey-section');usability.journey=state.journeyUI.section;saveUsability();render();});});
     [['journey-mood','mood'],['journey-genre','genre'],['duel-genre','duelGenre']].forEach(function(x){bind(x[0],'change',function(e){state.journeyUI[x[1]]=e.target.value;state.journeyUI.pick=0;state.journeyUI.pair=null;render();});});
     document.getElementById('app').querySelectorAll('[data-discovery-type]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.type=el.getAttribute('data-discovery-type');state.journeyUI.pick=0;render();});});
     document.getElementById('app').querySelectorAll('[data-discovery-feedback]').forEach(function(el){el.addEventListener('click',function(){if(el.disabled)return;el.disabled=true;var media=(state.journeyUI.results||[]).find(function(m){return String(m.id)===el.getAttribute('data-media-id');});if(!media)return;var d=journeyData();d.feedback=Features.cleanFeedback(d.feedback.concat([{id:media.id,action:el.getAttribute('data-discovery-feedback'),genres:media.localGenres,ts:Date.now()}]));state.profile.journey=d;state.journeyUI.pick=0;saveProfile().then(render,render);});});
@@ -4424,7 +4430,7 @@
     if(!catalog.started)loadCatalog(true);
     var m=catalog.detail;
     if(m){var owned=catalogMatch(m),release=CATALOG_STATUSES.find(function(x){return x[0]===m.status;});
-      return '<section class="mt-catalog-page"><button class="mt-ghost-btn" id="catalog-back">← Каталог</button><article class="mt-catalog-detail"><div class="mt-catalog-detail-top">'+journeyCover({coverUrl:m.coverImage&&m.coverImage.large})+'<div><span class="mt-section-eyebrow">'+escapeHtml(typeById(typeFromCountryOfOrigin(m.countryOfOrigin)).label)+'</span><h1>'+escapeHtml(catalogTitle(m))+'</h1><p>'+escapeHtml(m.title.native||m.title.romaji||'')+'</p><strong>★ '+(m.averageScore==null?'Нет оценки':(m.averageScore/10).toFixed(1)+' / 10')+' · AniList</strong></div></div><div class="mt-catalog-facts"><span>'+escapeHtml(release?release[1]:'Статус неизвестен')+'</span><span>Глав: '+(m.chapters==null?'неизвестно':Number(m.chapters))+'</span><span>Томов: '+(m.volumes==null?'неизвестно':Number(m.volumes))+'</span></div><div class="mt-catalog-genres">'+(m.genres||[]).map(function(g){return '<span>'+escapeHtml(translateAniListGenre(g))+'</span>';}).join('')+'</div><div class="mt-catalog-add">'+(owned?'<p role="status">✓ В библиотеке · '+escapeHtml(statusById(owned.status).label)+'</p><button class="mt-primary-btn" id="catalog-open-library">Открыть в библиотеке</button>':'<label>Добавить со статусом<select id="catalog-add-status" class="mt-input">'+catalogOptions(STATUSES.map(function(s){return [s.id,s.label];}),catalog.addStatus)+'</select></label><button class="mt-primary-btn" id="catalog-add">+ Добавить в библиотеку</button>')+'</div><h2>Об истории</h2><p class="mt-catalog-description">'+escapeHtml(catalogDescription(m)||'Описание пока отсутствует.')+'</p><a class="mt-ghost-btn" href="https://anilist.co/manga/'+m.id+'" target="_blank" rel="noopener noreferrer">Открыть на AniList ↗</a></article></section>';
+      return '<section class="mt-catalog-page"><button class="mt-ghost-btn" id="catalog-back">← Каталог</button><article class="mt-catalog-detail"><div class="mt-catalog-detail-top">'+journeyCover({coverUrl:m.coverImage&&m.coverImage.large})+'<div><span class="mt-section-eyebrow">'+escapeHtml(typeById(typeFromCountryOfOrigin(m.countryOfOrigin)).label)+'</span><h1>'+escapeHtml(catalogTitle(m))+'</h1><p>'+escapeHtml(m.title.native||m.title.romaji||'')+'</p><strong>★ '+(m.averageScore==null?'Нет оценки':(m.averageScore/10).toFixed(1)+' / 10')+' · AniList</strong></div></div><div class="mt-catalog-facts"><span>'+escapeHtml(release?release[1]:'Статус неизвестен')+'</span><span>Глав: '+(m.chapters==null?'неизвестно':Number(m.chapters))+'</span><span>Томов: '+(m.volumes==null?'неизвестно':Number(m.volumes))+'</span></div><div class="mt-catalog-genres">'+(m.genres||[]).map(function(g){return '<span>'+escapeHtml(translateAniListGenre(g))+'</span>';}).join('')+'</div><div class="mt-catalog-add">'+(owned?'<p role="status">✓ В библиотеке · '+escapeHtml(statusById(owned.status).label)+'</p><button class="mt-primary-btn" id="catalog-open-library">Открыть в библиотеке</button>':'<label>Добавить со статусом<select id="catalog-add-status" class="mt-input">'+catalogOptions(STATUSES.map(function(s){return [s.id,s.label];}),catalog.addStatus)+'</select></label><label>Коллекция<select id="catalog-add-collection" class="mt-input"><option value="">Без коллекции</option>'+libraryData().collections.map(function(c){return '<option value="'+escapeHtml(c.id)+'"'+(catalog.addCollection===c.id?' selected':'')+'>'+escapeHtml(c.name)+'</option>';}).join('')+'</select></label><button class="mt-primary-btn" id="catalog-add">+ Добавить в библиотеку</button>')+'</div><h2>Об истории</h2><p class="mt-catalog-description">'+escapeHtml(catalogDescription(m)||'Описание пока отсутствует.')+'</p><a class="mt-ghost-btn" href="https://anilist.co/manga/'+m.id+'" target="_blank" rel="noopener noreferrer">Открыть на AniList ↗</a></article></section>';
     }
     var filters=[['country',catalog.country,({'JP':'Манга','KR':'Манхва','CN':'Маньхуа'})[catalog.country]],['genre',catalog.genre,translateAniListGenre(catalog.genre)],['status',catalog.status,(CATALOG_STATUSES.find(function(x){return x[0]===catalog.status;})||[])[1]]].filter(function(x){return x[1];});
     var chips=filters.map(function(x){return '<button type="button" data-catalog-clear="'+x[0]+'">'+escapeHtml(x[2])+' <span aria-hidden="true">×</span><span class="mt-sr-only">Убрать фильтр</span></button>';}).join('');
@@ -4433,8 +4439,10 @@
       '<div class="mt-catalog-toolbar"><label class="mt-catalog-sort-label"><span aria-hidden="true">↕</span><select class="mt-input" id="catalog-sort" aria-label="Сортировка"'+(catalog.search.trim()?' disabled':'')+'>'+ (catalog.search.trim()?'<option>По совпадению</option>':catalogOptions([['POPULARITY_DESC','Популярные'],['SCORE_DESC','По рейтингу'],['TRENDING_DESC','В тренде'],['START_DATE_DESC','Сначала новые']],catalog.sort))+'</select></label><button type="button" class="mt-catalog-filter-toggle" id="catalog-filter-toggle" aria-controls="catalog-filter-panel" aria-expanded="'+!!catalog.filtersOpen+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></svg>Фильтры'+(filters.length?'<b>'+filters.length+'</b>':'')+'</button></div>'+
       '<div id="catalog-filter-panel"'+(catalog.filtersOpen?'':' hidden')+'><div class="mt-catalog-filter-heading"><strong>Подбери под настроение</strong><button type="button" id="catalog-reset">Сбросить</button></div><div class="mt-catalog-filters"><label>Тип<select class="mt-input" id="catalog-country">'+catalogOptions([['','Все типы'],['JP','Манга'],['KR','Манхва'],['CN','Маньхуа']],catalog.country)+'</select></label><label>Жанр<select class="mt-input" id="catalog-genre">'+catalogOptions([['','Все жанры']].concat(Object.keys(ANILIST_GENRE_RU).map(function(g){return [g,ANILIST_GENRE_RU[g]];})),catalog.genre)+'</select></label><label>Статус выхода<select class="mt-input" id="catalog-status">'+catalogOptions(CATALOG_STATUSES,catalog.status)+'</select></label></div><p>Фильтры применяются сразу. Для поиска попробуй английское или оригинальное название.</p><button type="button" id="catalog-filters-done" class="mt-ghost-btn">Показать тайтлы</button></div></form>'+
       (chips?'<div class="mt-catalog-chips" aria-label="Выбранные фильтры">'+chips+'</div>':'')+
+      '<label class="mt-catalog-hide"><input id="catalog-hide-owned" type="checkbox"'+(usability.hideOwned?' checked':'')+' /> Скрыть добавленные в библиотеку</label>'+
+      (usability.hideOwned&&catalog.items.length&&!catalog.items.some(function(m){return !catalogMatch(m);})?'<p class="mt-feature-hint">Все загруженные тайтлы уже в библиотеке. Загрузи ещё или отключи фильтр.</p>':'')+
       '<div class="mt-catalog-results-heading"><h2>'+(catalog.query&&catalog.query.search?'Результаты поиска':filters.length?'Твоя подборка':'Открой для себя')+'</h2><span>'+ (catalog.loading?'Загружаем…':catalog.items.length+' загружено')+'</span></div>'+
-      '<div class="mt-catalog-grid" aria-busy="'+catalog.loading+'">'+catalog.items.map(function(m){var owned=catalogMatch(m),type=typeById(typeFromCountryOfOrigin(m.countryOfOrigin)).label;return '<button class="mt-catalog-card" data-catalog-detail="'+m.id+'" title="'+escapeHtml(catalogTitle(m))+'"><span class="mt-catalog-cover">'+journeyCover({coverUrl:m.coverImage&&m.coverImage.large})+'<span class="mt-catalog-cover-shade"></span><span class="mt-catalog-cover-meta"><span>'+escapeHtml(type)+'</span><span class="mt-catalog-score" aria-label="Рейтинг AniList: '+(m.averageScore==null?'нет':m.averageScore/10+' из 10')+'">★ '+(m.averageScore==null?'—':(m.averageScore/10).toFixed(1))+'</span></span>'+(owned?'<span class="mt-catalog-owned" aria-label="В библиотеке" title="В библиотеке">✓</span>':'')+'</span><strong>'+escapeHtml(catalogTitle(m))+'</strong>'+(owned?'<small class="mt-catalog-saved-label">В библиотеке</small>':'')+'</button>';}).join('')+
+      '<div class="mt-catalog-grid" aria-busy="'+catalog.loading+'">'+catalog.items.filter(function(m){return !usability.hideOwned||!catalogMatch(m);}).map(function(m){var owned=catalogMatch(m),type=typeById(typeFromCountryOfOrigin(m.countryOfOrigin)).label;return '<button class="mt-catalog-card" data-catalog-detail="'+m.id+'" title="'+escapeHtml(catalogTitle(m))+'"><span class="mt-catalog-cover">'+journeyCover({coverUrl:m.coverImage&&m.coverImage.large})+'<span class="mt-catalog-cover-shade"></span><span class="mt-catalog-cover-meta"><span>'+escapeHtml(type)+'</span><span class="mt-catalog-score" aria-label="Рейтинг AniList: '+(m.averageScore==null?'нет':m.averageScore/10+' из 10')+'">★ '+(m.averageScore==null?'—':(m.averageScore/10).toFixed(1))+'</span></span>'+(owned?'<span class="mt-catalog-owned" aria-label="В библиотеке" title="В библиотеке">✓</span>':'')+'</span><strong>'+escapeHtml(catalogTitle(m))+'</strong>'+(owned?'<small class="mt-catalog-saved-label">В библиотеке · '+escapeHtml(statusById(owned.status).label)+'</small>':'')+'</button>';}).join('')+
       (catalog.loading&&!catalog.items.length?Array.from({length:6},function(){return '<div class="mt-catalog-skeleton" aria-hidden="true"><span></span><i></i><i></i></div>';}).join(''):'')+'</div>'+
       (catalog.error?'<div class="mt-catalog-message" role="alert">'+escapeHtml(catalog.error)+'<button id="catalog-retry" class="mt-ghost-btn">Повторить</button></div>':catalog.loading?'<p class="mt-catalog-message" role="status">Загружаем истории…</p>':!catalog.items.length?'<div class="mt-catalog-message" role="status"><strong>Эта история пока не нашлась</strong><p>Попробуй оригинальное название или убери часть фильтров.</p></div>':catalog.more?'<button class="mt-ghost-btn" id="catalog-more">Ещё истории ↓</button>':'<p class="mt-feature-hint">'+(catalog.page>=208?'Уточни поиск или фильтры, чтобы посмотреть другие тайтлы.':'Ты посмотрел все результаты этой подборки.')+'</p>')+'<p class="mt-catalog-credit">Обложки и данные · <a href="https://anilist.co" target="_blank" rel="noopener noreferrer">AniList ↗</a><br>Рейтинг на обложке — по шкале 10. Твои оценки хранятся отдельно.</p></section>';
   }
@@ -4452,14 +4460,17 @@
     ['country','genre','status','sort'].forEach(function(key){bind('catalog-'+key,'change',function(e){catalog[key]=e.target.value;loadCatalog(true);render();});});
     bind('catalog-retry','click',function(){loadCatalog(false);render();});
     bind('catalog-more','click',function(){loadCatalog(false);render();});
-    document.querySelectorAll('[data-catalog-detail]').forEach(function(el){el.addEventListener('click',function(){catalog.detail=catalog.items.find(function(m){return String(m.id)===el.getAttribute('data-catalog-detail');});catalog.scroll=window.scrollY;catalog.addStatus='plan';render();window.scrollTo(0,0);});});
+    document.querySelectorAll('[data-catalog-detail]').forEach(function(el){el.addEventListener('click',function(){catalog.detail=catalog.items.find(function(m){return String(m.id)===el.getAttribute('data-catalog-detail');});catalog.scroll=window.scrollY;catalog.addStatus='plan';catalog.addCollection='';render();window.scrollTo(0,0);});});
     bind('catalog-back','click',function(){catalog.detail=null;render();window.scrollTo(0,catalog.scroll);});
+    bind('catalog-add-collection','change',function(e){catalog.addCollection=e.target.value;});
+    bind('catalog-hide-owned','change',function(e){usability.hideOwned=e.target.checked;saveUsability();render();});
     bind('catalog-add-status','change',function(e){catalog.addStatus=e.target.value;});
     bind('catalog-open-library','click',function(){var found=catalogMatch(catalog.detail);if(found)openTitle(found.id);});
     bind('catalog-add','click',function(){var media=catalog.detail;if(!media||catalogMatch(media))return;
       var m=newManhwa(catalogTitle(media),typeFromCountryOfOrigin(media.countryOfOrigin),media.coverImage&&media.coverImage.large);
       m.status=STATUSES.some(function(s){return s.id===catalog.addStatus;})?catalog.addStatus:'plan';if(m.status==='done')m.completedAt=Date.now();
       m.anilistId=media.id;m.genres=(media.genres||[]).map(translateAniListGenre);m.altTitles={en:media.title.english||media.title.romaji||'',ja:media.countryOfOrigin==='JP'?media.title.native||'':'',ko:media.countryOfOrigin==='KR'?media.title.native||'':'',ru:''};
+      m.collectionIds=catalog.addCollection?[catalog.addCollection]:[];
       m.catalogInfo={description:catalogDescription(media),chapters:media.chapters,volumes:media.volumes,status:media.status};
       state.manhwas.push(m);logActivity('add',m.id,displayTitle(m),{type:m.type});save();render();
     });
@@ -4487,6 +4498,78 @@
     }).join("");
     return '<nav class="mt-tabbar" aria-label="Основная навигация"><div class="mt-nav-brand"><img src="icons/mark.svg" alt=""/><strong>AM TRACKER</strong><span>Личный дневник чтения</span></div><div class="mt-tabbar-inner">' + inner + '</div><div class="mt-nav-note">Хорошие истории<br>заслуживают места.</div></nav>';
   }
+
+  /* Daily navigation and compact controls. */
+  var usability={list:false,hideOwned:false,journey:'discover',detailSection:'journal',returnScroll:0,quickId:null,suppressClick:false};
+  var leaveAction=null,leavingProfile=false;
+  function saveUsability(){
+    try{window.localStorage.setItem('mt-usability-v1',JSON.stringify({list:usability.list,hideOwned:usability.hideOwned,journey:state.journeyUI.section}));}catch(e){}
+  }
+  function loadUsability(){
+    try{var p=JSON.parse(window.localStorage.getItem('mt-usability-v1')||'{}');usability.list=!!p.list;usability.hideOwned=!!p.hideOwned;if(['discover','duels','goals','achievements','halloween'].includes(p.journey))state.journeyUI.section=p.journey;}catch(e){}
+  }
+  function profileIsDirty(){function normal(p){var v=sanitizeProfile(p);v.style=Features.cleanStyle(v.style);v.library=cleanLibraryData(v.library);v.outfits=v.outfits||[];return JSON.stringify([v.n,v.b,v.a,v.style,v.library,v.outfits,v.journey||null]);}return !!(state.profileEdit&&state.profileDraft&&normal(state.profileDraft)!==normal(state.profile));}
+  function showToast(message){
+    var el=document.getElementById('usability-toast');if(!el)return;el.textContent=message;el.hidden=false;
+    setTimeout(function(){if(el.isConnected)el.hidden=true;},2600);
+  }
+  function renderUsabilityDialogs(){
+    return '<div id="usability-toast" class="mt-toast" role="status" hidden></div><dialog id="title-quick-dialog" class="mt-action-sheet" aria-labelledby="quick-title-heading"><div id="title-quick-content"></div></dialog><dialog id="profile-leave-dialog" class="mt-action-sheet" aria-labelledby="leave-heading"><span class="mt-section-eyebrow">ТВОИ ИЗМЕНЕНИЯ</span><h2 id="leave-heading">Сохранить перед выходом?</h2><p>Оформление и витрина ещё не сохранены.</p><button id="leave-save" class="mt-primary-btn">Сохранить и выйти</button><button id="leave-stay" class="mt-ghost-btn">Продолжить редактирование</button><button id="leave-discard" class="mt-ghost-btn">Отменить изменения</button></dialog>';
+  }
+  function selectDetailSection(section){
+    usability.detailSection=section;
+    var app=document.getElementById('app');
+    app.querySelectorAll('[data-detail-panel]').forEach(function(el){el.hidden=el.dataset.detailPanel!==section;});
+    app.querySelectorAll('[data-detail-section]').forEach(function(el){el.setAttribute('aria-pressed',String(el.dataset.detailSection===section));});
+  }
+  function showQuickTitle(id){
+    var m=findManhwa(id),dialog=document.getElementById('title-quick-dialog');if(!m||!dialog||libraryUI.bulk)return;
+    usability.quickId=id;var p=Features.readingProgress(m);
+    document.getElementById('title-quick-content').innerHTML='<header><div><span class="mt-section-eyebrow">БЫСТРЫЕ ДЕЙСТВИЯ</span><h2 id="quick-title-heading">'+escapeHtml(displayTitle(m))+'</h2></div><button class="mt-icon-btn" id="quick-close" aria-label="Закрыть">×</button></header><p>Прочитано до главы '+p.chapter+'</p><div class="mt-quick-grid"><button id="quick-next" class="mt-primary-btn"'+(p.chapter>=1000000?' disabled':'')+'>+1 глава</button><button id="quick-rate" class="mt-ghost-btn">Оценить главу</button></div><label>Статус<select id="quick-status" class="mt-input">'+STATUSES.map(function(s){return '<option value="'+s.id+'"'+(s.id===m.status?' selected':'')+'>'+s.label+'</option>';}).join('')+'</select></label>'+(p.url?'<a class="mt-primary-btn" href="'+escapeHtml(p.url)+'" target="_blank" rel="noopener noreferrer">Продолжить на сайте ↗</a>':'<button id="quick-link" class="mt-ghost-btn">Добавить ссылку на чтение ↗</button>')+'<button id="quick-open" class="mt-ghost-btn">Открыть карточку →</button>';
+    document.getElementById('quick-close').onclick=function(){dialog.close();};
+    document.getElementById('quick-next').onclick=function(){p.chapter=Math.min(1000000,Math.round((p.chapter+1)*10)/10);p.updatedAt=Date.now();m.reading=p;m.updatedAt=p.updatedAt;save();render();showToast('Глава '+p.chapter+' записана');};
+    document.getElementById('quick-rate').onclick=function(){dialog.close();openTitle(id);selectDetailSection('journal');openChapterSheet(id);};
+    document.getElementById('quick-status').onchange=function(e){m.status=e.target.value;if(m.status==='done')m.completedAt=Date.now();save();logActivity('status',m.id,displayTitle(m),{status:m.status});render();showToast('Статус обновлён');};
+    document.getElementById('quick-open').onclick=function(){dialog.close();openTitle(id);};
+    var link=document.getElementById('quick-link');if(link)link.onclick=function(){dialog.close();openTitle(id);var details=document.getElementById('reading-settings');details.open=true;document.getElementById('reading-url').focus();};
+    dialog.onclick=function(e){if(e.target===dialog)dialog.close();};
+    dialog.showModal();
+  }
+  function attachUsability(selected){
+    var app=document.getElementById('app');
+    if(selected)selectDetailSection(usability.detailSection);
+    app.querySelectorAll('[data-detail-section]').forEach(function(el){el.onclick=function(){selectDetailSection(el.dataset.detailSection);};});
+    app.querySelectorAll('[data-journal-jump]').forEach(function(el){el.addEventListener('click',function(){selectDetailSection('journal');},true);});
+    var layout=document.getElementById('library-layout');if(layout)layout.onclick=function(){usability.list=!usability.list;saveUsability();render();};
+    app.querySelectorAll('[data-quick-title]').forEach(function(el){el.onclick=function(){showQuickTitle(el.dataset.quickTitle);};});
+    app.querySelectorAll('.mt-grid-card .mt-cover').forEach(function(el){
+      var timer=null,x=0,y=0,suppress=false;function cancel(){clearTimeout(timer);timer=null;}
+      el.addEventListener('pointerdown',function(e){if(e.button!==0||libraryUI.bulk)return;x=e.clientX;y=e.clientY;timer=setTimeout(function(){timer=null;if(!el.isConnected)return;suppress=true;setTimeout(function(){suppress=false;},900);showQuickTitle(el.dataset.openId);},550);});
+      el.addEventListener('pointermove',function(e){if(Math.abs(e.clientX-x)+Math.abs(e.clientY-y)>12)cancel();});
+      ['pointerup','pointercancel','pointerleave'].forEach(function(type){el.addEventListener(type,cancel);});
+      el.addEventListener('click',function(e){if(suppress){suppress=false;e.preventDefault();e.stopImmediatePropagation();}},true);
+      el.addEventListener('contextmenu',function(e){e.preventDefault();showQuickTitle(el.dataset.openId);});
+    });
+    app.querySelectorAll('[data-style-value]').forEach(function(el){el.onclick=function(){var select=app.querySelector('[data-profile-style="'+el.dataset.styleKind+'"]');select.value=el.dataset.styleValue;select.dispatchEvent(new Event('change',{bubbles:true}));};});
+    var leave=document.getElementById('profile-leave-dialog');
+    if(leave){
+      document.getElementById('leave-stay').onclick=function(){leaveAction=null;leave.close();};
+      document.getElementById('leave-discard').onclick=function(){var action=leaveAction;leaveAction=null;leavingProfile=true;state.profileEdit=false;state.profileDraft=null;leave.close();if(action)action();else render();leavingProfile=false;};
+      document.getElementById('leave-save').onclick=async function(){var action=leaveAction;leave.close();if(await usability.saveEditor()){leaveAction=null;leavingProfile=true;if(action)action();leavingProfile=false;}};
+      leave.addEventListener('click',function(e){if(e.target===leave){leaveAction=null;leave.close();}});
+    }
+    // Install one delegated guard; its listener reads current state after each render.
+    if(!app._profileGuard){
+      app._profileGuard=true;
+      app.addEventListener('click',function(e){
+        var target=e.target.closest('[data-tab],#prof-cancel,#account-settings-back,#season-settings-open,#open-changelog');
+        if(!target||leavingProfile||!profileIsDirty())return;
+        e.preventDefault();e.stopImmediatePropagation();leaveAction=function(){target.click();};
+        document.getElementById('profile-leave-dialog').showModal();
+      },true);
+    }
+  }
+
 
   /* ---------- main render ---------- */
   function render() {
@@ -4528,7 +4611,7 @@
     var seasonHeader=showTabs&&halloweenAppearance()?'<aside class="mt-season-header"><button id="season-event-open"><span aria-hidden="true">☾</span><span><small>AM TRACKER · ОСОБЫЙ ОБЛИК</small><strong>Ночь историй</strong></span></button><div class="mt-season-actions"><button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL + (CHANGELOG.length&&CHANGELOG[0].version!==state.changelogSeenVersion?'<span class="mt-notify-dot"></span>':'') + '</button><button id="season-settings-open" aria-label="Настройки оформления" title="Изменить оформление"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.6-2 3.4 1.5 1.4v3.2L2.5 15l2 3.4 2-.6 2 1.2.5 2h6l.5-2 2-1.2 2 .6 2-3.4-1.5-1.4v-3.2L21.5 9l-2-3.4-2 .6-2-1.2L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></aside>':'';
     app.innerHTML = '<div class="mt-shell' + (showTabs ? ' mt-shell-tabs' : ' mt-shell-detail') + '"><div id="storage-notice"></div>' + seasonHeader + extrasUndoHtml() + body + "</div>" + (showTabs ? renderTabbar() : "") +
       (selected?'<dialog id="chapter-quick-dialog" class="mt-chapter-sheet" aria-labelledby="chapter-sheet-title"><header><h2 id="chapter-sheet-title">Впечатление о главе</h2><button class="mt-ghost-btn" id="chapter-sheet-close" aria-label="Закрыть">×</button></header><div id="chapter-sheet-body"></div></dialog>':'')+
-      (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard();
+      (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard() + renderUsabilityDialogs();
     patchStorageNotice();
     attachHandlers(selected);
     attachJourneyHandlers(selected);
@@ -4539,6 +4622,7 @@
     attachProfileHandlers();
     attachLibraryExtras();
     attachPolishHandlers(selected);
+    attachUsability(selected);
 
     var viewKey = state.showChangelog ? "changelog" :
       (selected ? "detail:" + selected.id : "tab:" + state.tab);
@@ -5450,6 +5534,7 @@
   // Single "go back" action for the in-app ← buttons — closes whichever
   // "sub-page" is currently open, innermost first.
   function goBack() {
+    if(profileIsDirty()&&!leavingProfile){leaveAction=goBack;document.getElementById('profile-leave-dialog').showModal();return;}
     if(state.tab==='catalog'&&catalog.detail&&!state.selectedId){catalog.detail=null;render();window.scrollTo(0,catalog.scroll);return;}
     if(state.accountSettings && !state.selectedId && !state.showChangelog){closeAccountSettings();return;}
     if (state.shopOpen && !state.selectedId) { state.shopOpen=false; state.shopPreview=null; state.shopSet=null; render(); return; }
@@ -5475,6 +5560,7 @@
       state.candidatePanelOpen = false;
       state.statusPickerOpen = false;
       render();
+      window.scrollTo(0,usability.returnScroll||0);
     }
   }
 
@@ -5588,6 +5674,8 @@
   };
 
   /* ---------- boot ---------- */
+  window.addEventListener('beforeunload',function(e){if(profileIsDirty()){e.preventDefault();e.returnValue='';}});
+  loadUsability();
   load().then(loadUiSettings).then(loadProfile).then(loadShop).then(loadRatingDrafts).then(loadRecentOpened).then(loadChapterDrafts).then(render).catch(function () { render(); }).then(function () {
     if (!window.AMSync) return;
     // Repaint only the status line when the sync state changes (so a form the

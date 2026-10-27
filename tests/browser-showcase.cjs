@@ -72,7 +72,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.setViewportSize({width:390,height:844});await page.locator('#showcase-edit').click();
     await expand('.mt-showcase-editor');
     await page.locator('[data-showcase-title="0"]').selectOption('');
-    await page.locator('#prof-cancel').click();
+    await page.locator('#prof-cancel').click();await page.locator('#leave-discard').click();
     assert.equal(await page.locator('.mt-showcase-books button').count(),3);
     await page.locator('#prof-edit').click();
     for(const width of [320,390,1280]){
