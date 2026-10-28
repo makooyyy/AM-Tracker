@@ -1,4 +1,4 @@
-var CACHE_NAME = "manhwa-tracker-v126";
+var CACHE_NAME = "manhwa-tracker-v127";
 
 // The Firebase SDK files are versioned, immutable URLs, so they get their own
 // long-lived cache (surviving app updates) and are served cache-first. That lets
@@ -81,7 +81,7 @@ self.addEventListener("install", function (event) {
       return Promise.all(core.concat(optional));
     })
   );
-  self.skipWaiting();
+  // Existing tabs keep their version until the user accepts the update.
 });
 
 self.addEventListener("activate", function (event) {
@@ -164,4 +164,8 @@ self.addEventListener("fetch", function (event) {
       });
     })
   );
+});
+
+self.addEventListener("message", function (event) {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });

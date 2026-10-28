@@ -1270,3 +1270,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .mt-library-controls .mt-library-menu>summary {padding:0 7px;gap:3px;}
   .mt-library-controls .mt-library-menu>summary svg {width:16px;height:16px;flex-basis:16px;}
 }
+
+/* v111: everyday actions */
+.mt-active-filters{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;}
+.mt-active-filters button{max-width:100%;white-space:normal;overflow-wrap:anywhere;min-height:44px;text-align:left;}
+.mt-data-status{color:var(--muted,#aca5b5);font-size:11px;line-height:1.6;padding:18px var(--page-gutter,20px);overflow-wrap:anywhere;}
+.mt-update-notice{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px var(--page-gutter,20px) 24px;padding:16px;border:1px solid var(--amber,#d7b979);border-radius:14px;background:var(--surface,#242027);font-size:13px;}
+.mt-update-notice span{flex:1 1 180px;}.mt-update-notice button{min-height:44px;}
+.mt-award-help{margin:18px 0;padding:14px 16px;border:1px solid #ffffff24;border-radius:14px;font-size:13px;line-height:1.65;}
+.mt-award-help summary{cursor:pointer;min-height:32px;}.mt-award-help p{color:var(--muted,#bcb4c7);}
+.mt-preview-composition{font-size:12px;line-height:1.8;overflow-wrap:anywhere;margin:14px 0;}
