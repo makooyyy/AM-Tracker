@@ -1255,9 +1255,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-month-awards .mt-winner-category {letter-spacing:.08em;line-height:1.6;}
 @media(min-width:700px){.mt-month-awards .mt-award-months{grid-template-columns:repeat(4,minmax(0,1fr));}}
 
-/* Give library statistics and sorting enough breathing room on phones. */
-.mt-library-intro.mt-library-intro-compact {padding-bottom:18px;}
-.mt-library-controls .mt-subrow-actions {row-gap:14px;column-gap:16px;}
-.mt-library-controls .mt-sort-group {flex:1 1 250px;gap:4px;justify-content:space-between;}
-.mt-library-controls .mt-sort-btn {min-height:44px;padding:12px 10px;font-size:11px;line-height:1.4;}
-.mt-library-controls .mt-filter-row {margin-top:16px;}
+/* Compact library toolbar with small, consistent text gaps. */
+.mt-library-intro.mt-library-intro-compact {padding-bottom:8px;}
+.mt-library-controls .mt-subrow-actions {flex-wrap:nowrap;gap:8px;}
+.mt-library-controls .mt-sort-group {flex:1 1 0;min-width:0;flex-wrap:nowrap;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.mt-library-controls .mt-sort-group::-webkit-scrollbar {display:none;}
+.mt-library-controls .mt-sort-btn {flex:0 0 auto;min-height:42px;padding:11px 6px;font-size:10px;line-height:1.4;white-space:nowrap;}
+.mt-library-controls .mt-filter-row {margin-top:10px;}
+.mt-library-controls .mt-library-utility {gap:6px;}
+.mt-library-controls .mt-library-menu>summary {padding:0 9px;gap:5px;font-size:11px;}
+@media(max-width:360px){
+  .mt-library-controls .mt-sort-btn {padding-left:4px;padding-right:4px;font-size:9px;}
+  .mt-library-controls .mt-library-utility #toggle-search {width:36px;flex-basis:36px;}
+  .mt-library-controls .mt-library-menu>summary {padding:0 7px;gap:3px;}
+  .mt-library-controls .mt-library-menu>summary svg {width:16px;height:16px;flex-basis:16px;}
+}
