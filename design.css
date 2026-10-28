@@ -1227,3 +1227,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-journey-nav {overflow:visible!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));}
 .mt-journey-nav button {width:100%!important;min-width:0;padding:12px 5px!important;font-size:11px!important;}
 .mt-detail-nav button[aria-pressed=true] {background:var(--pink,#c4b2ed);}
+
+/* v110: compact library, equal journey tabs and monthly award details. */
+.mt-library-intro.mt-library-intro-compact {padding:12px 0 0;margin:0;}
+.mt-library-intro-compact .mt-library-stats {margin-top:0;}
+.mt-journey-page .mt-journey-nav {gap:6px;padding:6px!important;align-items:stretch;}
+.mt-journey-page .mt-journey-nav button {grid-column:auto;grid-row:auto;min-height:48px;height:100%;margin:0;box-sizing:border-box;border:1px solid transparent;line-height:1.3;}
+.mt-journey-page .mt-journey-nav [data-journey-section=halloween] {grid-column:auto;background:transparent;color:var(--text-muted);border-color:transparent;}
+.mt-journey-page .mt-journey-nav button[aria-pressed=true] {background:var(--pink);color:#241a30;border-color:transparent;box-shadow:0 3px 10px #0002;}
+.mt-halloween-site .mt-journey-page .mt-journey-nav button[aria-pressed=true] {background:linear-gradient(110deg,#e9bb84,#c69360);color:#332116;}
+.mt-month-awards .mt-award-months {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.mt-month-awards .mt-award-month {min-width:0;min-height:74px;padding:15px 16px;justify-content:center;border-radius:16px;background:linear-gradient(135deg,#ffffff07,#ffffff02);transition:background .2s,border-color .2s;}
+.mt-month-awards .mt-award-month strong {font:700 13px/1.5 Manrope,sans-serif;}
+.mt-month-awards .mt-award-month span {font-size:10px;line-height:1.5;}
+.mt-month-awards .mt-award-month.active {border-color:var(--amber);background:linear-gradient(125deg,#c9bfa81f,#c9bfa807);box-shadow:inset 3px 0 var(--amber);}
+.mt-month-awards .mt-award-month.active span {color:var(--amber);}
+.mt-month-awards>.mt-paper {padding:22px;border-radius:22px;background:linear-gradient(145deg,#c9bfa80b,transparent 65%),var(--surface,#201e26);}
+.mt-month-awards .mt-panel-title {font-size:15px;line-height:1.5;margin-bottom:8px;}
+.mt-month-awards .mt-ceremony-hint {line-height:1.7;margin-bottom:18px;}
+.mt-month-awards .mt-category-chip-row {gap:8px;}
+.mt-month-awards .mt-category-chip {min-height:40px;padding:10px 13px;border-radius:12px;font-size:11px;line-height:1.4;}
+.mt-month-awards .mt-nominee-row {gap:12px;padding:15px 12px;margin:8px 0;border:1px solid #ffffff0d;border-radius:14px;background:#ffffff03;}
+.mt-month-awards .mt-nominee-row.picked,.mt-month-awards .mt-nominee-row.confirming {border-color:var(--amber);background:#c9bfa80d;}
+.mt-month-awards .mt-nominee-title {font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
+.mt-month-awards .mt-nominee-score {font-size:17px;font-weight:700;flex-shrink:0;}
+.mt-month-awards .mt-winner-cover {border-radius:18px;box-shadow:0 8px 24px #0003;}
+.mt-month-awards .mt-winner-category {letter-spacing:.08em;line-height:1.6;}
+@media(min-width:700px){.mt-month-awards .mt-award-months{grid-template-columns:repeat(4,minmax(0,1fr));}}

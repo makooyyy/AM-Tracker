@@ -2103,7 +2103,7 @@
       "</div></div>" +
       toggle +
       "</div>" +
-      '<div class="mt-list">';
+      '<div class="mt-list' + (state.awardsView === 'month' ? ' mt-month-awards' : '') + '">';
 
     if (state.awardsView === "year") {
       html += renderYearSummary();
@@ -2337,7 +2337,7 @@
       '<button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL +
       (hasUnseen ? '<span class="mt-notify-dot"></span>' : "") + "</button>" +
       "</div>") +
-      '<div class="mt-library-intro"><div class="mt-section-eyebrow">ЛИЧНАЯ КОЛЛЕКЦИЯ</div><h1>Истории, которые<br><em>остаются с тобой.</em></h1>' +
+      '<div class="mt-library-intro mt-library-intro-compact">' +
       '<div class="mt-library-stats"><span><strong>' + state.manhwas.length + '</strong> в коллекции</span><span><strong>' +
       state.manhwas.filter(function (m) { return m.status === "reading"; }).length + '</strong> читаю</span><span><strong>' +
       state.manhwas.filter(function (m) { return ratedScore(m) !== null; }).length + '</strong> оценено</span></div></div></div>' +

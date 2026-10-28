@@ -102,6 +102,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('#prof-nick').fill('Мой профиль');await page.locator('#prof-save').click();await page.waitForSelector('#prof-edit');
     await page.reload();await page.waitForSelector('[data-tab="profile"]');await page.locator('[data-tab="profile"]').click();
     assert.equal(await page.evaluate(()=>e2e.state.profile.n),'Мой профиль');
+    await page.locator('[data-tab="library"]').click();
+    assert.equal(await page.locator('.mt-library-intro h1,.mt-library-intro .mt-section-eyebrow').count(),0);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:844});
+      await page.locator('[data-tab="journey"]').click();
+      const boxes=await page.locator('[data-journey-section]').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};}));
+      assert.equal(boxes.length,3);
+      boxes.forEach(b=>{assert.ok(Math.abs(b.w-boxes[0].w)<1);assert.ok(Math.abs(b.h-boxes[0].h)<1);assert.equal(b.y,boxes[0].y);});
+      assert.ok(boxes[2].x+boxes[2].w<=width);
+      await page.screenshot({path:path.join(root,'test-results',`journey-v110-${width}.png`),animations:'disabled'});
+      await page.evaluate(()=>{e2e.state.manhwas.forEach(m=>{m.lastRatedAt=new Date(new Date().getFullYear(),new Date().getMonth()-1,15).getTime();});e2e.state.tab='awards';e2e.state.awardsView='month';e2e.render();});
+      assert.equal(await page.locator('.mt-month-awards').count(),1);
+      assert.ok(await page.locator('[data-toggle-candidate]').count()>0);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      await page.screenshot({path:path.join(root,'test-results',`awards-v110-${width}.png`),animations:'disabled'});
+    }
     assert.deepEqual(errors,[]);
     console.log('PASS: removed surfaces, rating default, two panels, aligned rating layout, diary save, comparison, journey migration, profile save');
   }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
