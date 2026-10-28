@@ -1254,3 +1254,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-month-awards .mt-winner-cover {border-radius:18px;box-shadow:0 8px 24px #0003;}
 .mt-month-awards .mt-winner-category {letter-spacing:.08em;line-height:1.6;}
 @media(min-width:700px){.mt-month-awards .mt-award-months{grid-template-columns:repeat(4,minmax(0,1fr));}}
+
+/* Give library statistics and sorting enough breathing room on phones. */
+.mt-library-intro.mt-library-intro-compact {padding-bottom:18px;}
+.mt-library-controls .mt-subrow-actions {row-gap:14px;column-gap:16px;}
+.mt-library-controls .mt-sort-group {flex:1 1 250px;gap:4px;justify-content:space-between;}
+.mt-library-controls .mt-sort-btn {min-height:44px;padding:12px 10px;font-size:11px;line-height:1.4;}
+.mt-library-controls .mt-filter-row {margin-top:16px;}
