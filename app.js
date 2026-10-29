@@ -1214,6 +1214,7 @@
     });
   }
   function openTitle(id) {
+    chapterSaveNotice='';
     var m = findManhwa(id);
     if (!m) return;
     if(!state.selectedId) usability.returnScroll=window.scrollY||0;
@@ -2938,7 +2939,7 @@
         "Прочитал новые главы? «Оценить заново» сохранит старую оценку в историю и добавит новую в премию этого месяца</div>";
     }
 
-    html += '</section><section data-detail-panel="journal"><button class="mt-primary-btn" id="journal-quick">'+(chapterDrafts[m.id]?'Продолжить черновик':'Оценить главу')+'</button>'+renderChapterJournal(m);
+    html += '</section><section data-detail-panel="journal"><button class="mt-primary-btn mt-journal-add" id="journal-quick">'+(chapterDrafts[m.id]?'Продолжить черновик':'Оценить главу')+'</button>'+renderChapterJournal(m);
     html += renderActivityFeedForManhwa(m)+'</section>';
 
     var confirmingDelete = state.confirmDeleteId === m.id;
@@ -4159,18 +4160,21 @@
       '<section class="mt-journey-panel"><div class="mt-section-eyebrow">ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов. Награда за каждый вид цели выдаётся один раз.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p><div class="mt-goal-reward">'+(state.unlockedAchievements['goal_reward_'+o.id]?'Награда получена ✓':'Награда: +'+o.reward+' XP · +'+o.reward+' монет')+'</div>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
     return html+'</div></div>';
   }
+  var CHAPTER_QUICK_NOTES=['Раскрытие прошлого ГГ','Ничего не произошло','Неожиданный поворот','Развитие отношений','Сильная сцена боя','Новый персонаж','Важная подсказка','Красивые кадры','Смешной момент','Трогательная сцена','Много объяснений','Интригующий финал'];
   function chapterRatingSlider(value){
-    var n=value||0,caption=n?n+' / 10':'Без оценки';
-    return '<div class="mt-chapter-slider" style="--chapter-fill:'+(n*10)+'%"><div class="mt-chapter-slider-heading"><span>Оценка главы</span><output>'+caption+'</output></div><input type="range" min="0" max="10" step="1" value="'+n+'" aria-label="Оценка главы" aria-valuetext="'+caption+'" id="chapter-rating" /><p class="mt-chapter-mood">'+chapterRatingMood(n)+'</p><div class="mt-chapter-slider-scale"><span>Без оценки</span><span>10 / 10</span></div></div>';
+    var n=value||0;
+    return '<fieldset class="mt-score-picker mt-chapter-slider"><legend>Как тебе глава?</legend><div class="mt-score-picker-heading"><output>'+(n?n+' / 10':'Без оценки')+'</output><p class="mt-chapter-mood">'+chapterRatingMood(n)+'</p></div><input type="range" id="chapter-rating" min="0" max="10" step="1" value="'+n+'" aria-label="Оценка главы" aria-valuetext="'+(n?n+' из 10. '+chapterRatingMood(n):'Без оценки')+'" /><div class="mt-score-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div><button type="button" class="mt-note-only" data-chapter-score="0" aria-pressed="'+(!n)+'">Без оценки · только заметка</button><p id="chapter-existing" role="status"></p></fieldset>';
   }
   function chapterRatingMood(value){
-    return !value?'Как тебе эта глава?':value<=3?'Не зацепила':value<=5?'Смешанные чувства':value<=7?'Хорошая глава':value<=9?'Очень понравилась':'Незабываемая глава';
+    return ['Как тебе эта глава?','Совсем не понравилась','Слабая глава','Не зацепила','Ниже ожиданий','Смешанные чувства','Неплохая глава','Хорошая глава','Очень понравилась','Потрясающая глава','Незабываемая глава'][Number(value)||0]||'Как тебе эта глава?';
   }
   function savedChapterRating(value){
     var n=value||0;
-    return '<div class="mt-saved-chapter-rating" style="--chapter-score:'+n+'"><div class="mt-chapter-score-ring"><strong>'+(n?n+' / 10':'—')+'</strong></div><div class="mt-chapter-score-copy"><span>ТВОЯ ОЦЕНКА</span><b>'+ (n?chapterRatingMood(n):'Только впечатление')+'</b><div class="mt-chapter-score-bars" aria-hidden="true">'+Array.from({length:10},function(_,i){return '<i'+(i<n?' class="is-filled"':'')+'></i>';}).join('')+'</div><small>'+(n?'Сохранена · без редактирования':'Без оценки')+'</small></div></div>';
+    return '<div class="mt-entry-score"><strong>'+(n?n+'<small> / 10</small>':'Заметка')+'</strong><span>'+(n?chapterRatingMood(n):'Без оценки')+'</span></div>';
   }
   var journalView={};
+  var chapterSaveNotice='';
+  var chapterSubmitting=false;
   var chapterDrafts=Object.create(null);
   var chapterDraftSaveFailed=false;
   var CHAPTER_DRAFTS_KEY='mt-chapter-drafts-v1';
@@ -4186,8 +4190,10 @@
       });
     }catch(e){}
   }
+
   function renderChapterDraftNotice(m){
-    return '<div class="mt-draft-notice"><p id="chapter-draft-status" role="status">'+(chapterDraftSaveFailed?'Черновик не сохранён: не закрывай страницу':chapterDrafts[m.id]?'Черновик главы '+escapeHtml(chapterDrafts[m.id]['chapter-number']||'без номера')+' · прочтение №'+currentRun(m):'Черновик автоматически сохраняется на этом устройстве')+'</p><div class="mt-tools-row"><button type="button" class="mt-ghost-btn" id="chapter-draft-continue">Продолжить в панели</button><button type="button" class="mt-ghost-btn" id="chapter-draft-discard">Удалить черновик</button></div></div>';
+    var draft=chapterDrafts[m.id];
+    return '<div class="mt-draft-notice"'+(!draft&&!chapterDraftSaveFailed?' hidden':'')+'><div><strong>Незаконченная запись</strong><p id="chapter-draft-status" role="status">'+(chapterDraftSaveFailed?'Не удалось сохранить черновик':draft?'Глава '+escapeHtml(draft['chapter-number']||'без номера')+' · прочтение №'+currentRun(m):'Черновик на этом устройстве')+'</p></div><div class="mt-tools-row"><button type="button" class="mt-ghost-btn" id="chapter-draft-continue">Продолжить</button><button type="button" class="mt-ghost-btn" id="chapter-draft-discard">Удалить</button></div></div>';
   }
   function renderRunSelector(m){
     var current=currentRun(m),view=viewedRun(m),passes=Array.from(new Set([current].concat((m.readingRuns||[]).map(function(r){return r.run;}),Features.journal(m.journal).map(function(e){return e.run||1;})))).sort(function(a,b){return a-b;});
@@ -4200,7 +4206,9 @@
     var dialog=document.getElementById('chapter-quick-dialog'),form=document.getElementById('chapter-form'),input=document.getElementById('chapter-number');if(!dialog||!form)return;
     if(!input.value){input.value=String(Math.max(0,...runJournal(m).map(function(e){return e.chapter;}))+1);var d=chapterDrafts[id]||(chapterDrafts[id]={run:currentRun(m)});d['chapter-number']=input.value;persistChapterDrafts();}
     var home=document.getElementById('chapter-form-home');document.getElementById('chapter-sheet-body').appendChild(form);
+    refreshChapterComposer(m);
     if(!dialog.open)dialog.showModal();
+    document.getElementById('chapter-rating').focus({preventScroll:true});
     dialog.onclose=function(){if(home&&form.isConnected)home.appendChild(form);var trigger=document.getElementById('journal-quick');if(trigger)trigger.focus({preventScroll:true});};
   }
   function attachPolishHandlers(selected){
@@ -4223,18 +4231,31 @@
     return list.length?list.map(function(e){var duplicates=e.rating&&all.filter(function(x){return x.chapter===e.chapter&&x.rating;}).length>1;
       var previous=Features.chapterScores(runJournal(m,Math.max(1,viewedRun(m)-1))).find(function(p){return p.chapter===e.chapter;});
       return '<article id="journal-entry-'+escapeHtml(e.id)+'" tabindex="-1"><header><b>Глава '+e.chapter+'</b><time>'+escapeHtml(new Date(e.ts).toLocaleDateString('ru-RU'))+'</time></header>'+(e.rating&&previous&&viewedRun(m)>1?'<p class="mt-score-change">Прошлое прочтение → это: <b>'+previous.rating+' → '+e.rating+'</b> / 10</p>':'')+savedChapterRating(e.rating)+(duplicates?'<p class="mt-feature-hint">В старых записях есть несколько оценок этой главы. На графике показана самая ранняя; лишние записи можно удалить.</p>':'')+(e.text?(e.spoiler?'<details><summary>Показать спойлер</summary><p>'+escapeHtml(e.text)+'</p></details>':'<p>'+escapeHtml(e.text)+'</p>'):'')+'<button class="mt-ghost-btn" data-journal-delete="'+escapeHtml(e.id)+'">Удалить запись</button></article>';
-    }).join(''):'<p class="mt-feature-hint">Пока нет записей'+(v.query!==''?' для этой главы':'')+'.</p>';
+    }).join(''):'<p class="mt-journal-empty">Пока нет записей'+(v.query!==''?' для этой главы':'')+'.</p>';
   }
   function chapterChart(m){
-    var entries=Features.chapterScores(runJournal(m,viewedRun(m)));if(!entries.length)return '';
+    var entries=Features.chapterScores(runJournal(m,viewedRun(m)));if(!entries.length)return '<section class="mt-chapter-chart"><h3>Динамика оценок</h3><p>Поставь первую оценку — здесь появится график впечатлений по главам.</p></section>';
     var min=entries[0].chapter,max=entries[entries.length-1].chapter;
     function x(e){return entries.length===1?170:30+(e.chapter-min)/(max-min)*280;}
     function y(e){return 120-(e.rating-1)*10;}
-    return '<section class="mt-chapter-chart"><h3>Как менялось впечатление</h3><p>Оценки по номеру главы · нажми на точку, чтобы открыть запись.</p><div class="mt-chart-scroll"><svg viewBox="0 0 340 154" role="group" aria-label="График оценок глав">'+[1,5,10].map(function(n){var yy=120-(n-1)*10;return '<line x1="30" x2="310" y1="'+yy+'" y2="'+yy+'" class="mt-chart-grid"/><text x="7" y="'+(yy+4)+'">'+n+'</text>';}).join('')+'<polyline points="'+entries.map(function(e){return x(e)+','+y(e);}).join(' ')+'" class="mt-chart-line"/>'+entries.map(function(e){return '<a href="#journal-entry-'+escapeHtml(e.id)+'" data-journal-jump="'+escapeHtml(e.id)+'" aria-label="Глава '+e.chapter+': '+e.rating+' из 10"><circle cx="'+x(e)+'" cy="'+y(e)+'" r="10" fill="transparent"/><circle class="mt-chart-dot" cx="'+x(e)+'" cy="'+y(e)+'" r="4"/><title>Глава '+e.chapter+' · '+e.rating+' / 10</title></a>';}).join('')+'<text x="30" y="148">Гл. '+min+'</text>'+(entries.length>1?'<text x="310" y="148" text-anchor="end">Гл. '+max+'</text>':'')+'</svg></div><details><summary>Все точки графика · '+entries.length+'</summary><div class="mt-chart-points">'+entries.map(function(e){return '<button class="mt-ghost-btn" data-journal-jump="'+escapeHtml(e.id)+'">Глава '+e.chapter+' · '+e.rating+'/10</button>';}).join('')+'</div></details></section>';
+    return '<section class="mt-chapter-chart"><h3>Динамика оценок</h3><p>Оценки по номеру главы · нажми на точку, чтобы открыть запись.</p><div class="mt-chart-scroll"><svg viewBox="0 0 340 154" role="group" aria-label="График оценок глав">'+[1,5,10].map(function(n){var yy=120-(n-1)*10;return '<line x1="30" x2="310" y1="'+yy+'" y2="'+yy+'" class="mt-chart-grid"/><text x="7" y="'+(yy+4)+'">'+n+'</text>';}).join('')+'<polygon points="'+x(entries[0])+',130 '+entries.map(function(e){return x(e)+','+y(e);}).join(' ')+' '+x(entries[entries.length-1])+',130" class="mt-chart-area"/><polyline points="'+entries.map(function(e){return x(e)+','+y(e);}).join(' ')+'" class="mt-chart-line"/>'+entries.map(function(e){return '<a href="#journal-entry-'+escapeHtml(e.id)+'" data-journal-jump="'+escapeHtml(e.id)+'" aria-label="Глава '+e.chapter+': '+e.rating+' из 10"><circle cx="'+x(e)+'" cy="'+y(e)+'" r="10" fill="transparent"/><circle class="mt-chart-dot" cx="'+x(e)+'" cy="'+y(e)+'" r="4"/><title>Глава '+e.chapter+' · '+e.rating+' / 10</title></a>';}).join('')+'<text x="30" y="148">Гл. '+min+'</text>'+(entries.length>1?'<text x="310" y="148" text-anchor="end">Гл. '+max+'</text>':'')+'</svg></div><details><summary>Все точки графика · '+entries.length+'</summary><div class="mt-chart-points">'+entries.map(function(e){return '<button class="mt-ghost-btn" data-journal-jump="'+escapeHtml(e.id)+'">Глава '+e.chapter+' · '+e.rating+'/10</button>';}).join('')+'</div></details></section>';
+  }
+  function chapterComposerHtml(){
+    return '<form id="chapter-form"><div class="mt-composer-fields"><div class="mt-chapter-number-row"><label for="chapter-number">Глава</label><div class="mt-chapter-stepper"><button type="button" data-chapter-step="-1" aria-label="Предыдущая глава">−</button><input id="chapter-number" class="mt-input" type="number" inputmode="decimal" min="0" step="0.1" max="1000000" required placeholder="Номер" /><button type="button" data-chapter-step="1" aria-label="Следующая глава">+</button></div><span id="chapter-run-label"></span></div>'+chapterRatingSlider(null)+'<label class="mt-chapter-note-label">Заметка <span>необязательно</span><textarea id="chapter-text" class="mt-input" maxlength="2000" rows="3" placeholder="Что хочется запомнить?"></textarea></label><details class="mt-quick-notes"><summary>Быстрые заметки</summary><p>Несколько слов, чтобы запомнить главное.</p><div>'+CHAPTER_QUICK_NOTES.map(function(note,i){return '<button type="button" data-quick-note="'+i+'">'+note+'</button>';}).join('')+'</div></details><label class="mt-spoiler-check"><input id="chapter-spoiler" type="checkbox" /> Спрятать текст под спойлер</label><p class="mt-composer-hint">Черновик сохраняется на устройстве. Сохранённую оценку можно только удалить вместе с записью.</p><p id="chapter-error" role="alert"></p></div><footer class="mt-chapter-submit"><button class="mt-primary-btn" type="submit">Сохранить</button><button class="mt-ghost-btn" type="submit" name="next" value="1">Сохранить и следующая →</button></footer></form>';
   }
   function renderChapterJournal(m) {
-    m=findManhwa(m.id)||m;var v=journalSettings(m);
-    return '<section class="mt-journey-panel mt-chapter-journal" id="chapter-journal"><div class="mt-section-eyebrow">МЕЖДУ СТРОК</div><h2>Впечатления по главам</h2><p>Одна оценка на главу, сколько угодно заметок. Сохранённый балл нельзя изменить — только удалить запись.</p>'+renderRunSelector(m)+chapterChart(m)+'<div id="chapter-form-home"'+(viewedRun(m)!==currentRun(m)?' hidden':'')+'>'+renderChapterDraftNotice(m)+'<form id="chapter-form"><label>Номер главы<input id="chapter-number" class="mt-input" type="number" min="0" step="0.1" max="1000000" required placeholder="Например, 74" /></label>'+chapterRatingSlider(null)+'<label>Твоё впечатление · необязательно<textarea id="chapter-text" class="mt-input" maxlength="2000" placeholder="Что удивило или запомнилось?"></textarea></label><label class="mt-spoiler-check"><input id="chapter-spoiler" type="checkbox" /> Содержит спойлер</label><p id="chapter-error" class="mt-feature-hint" role="alert"></p><button class="mt-primary-btn" type="submit">Сохранить</button></form></div><div class="mt-journal-toolbar"><label>Найти главу<input id="journal-search" class="mt-input" type="number" min="0" max="1000000" step="0.1" placeholder="Все главы" value="'+escapeHtml(v.query)+'" /></label><label>Порядок<select id="journal-sort" class="mt-input">'+[['recent','Сначала новые'],['chapter','По номеру главы'],['rating','По оценке']].map(function(o){return '<option value="'+o[0]+'"'+(v.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label></div><div class="mt-journal-list" id="journal-list">'+journalEntriesHtml(m)+'</div></section>';
+    m=findManhwa(m.id)||m;var v=journalSettings(m),entries=runJournal(m,viewedRun(m)),scores=Features.chapterScores(entries),avg=scores.length?(scores.reduce(function(n,e){return n+e.rating;},0)/scores.length).toFixed(1):'—';
+    return '<section class="mt-journey-panel mt-chapter-journal" id="chapter-journal"><header class="mt-journal-heading"><div><span class="mt-section-eyebrow">ТВОИ ВПЕЧАТЛЕНИЯ</span><h2>Дневник глав</h2></div></header>'+renderRunSelector(m)+'<div class="mt-journal-stats"><div><strong>'+scores.length+'</strong><span>глав с оценкой</span></div><div><strong>'+avg+'</strong><span>средний балл</span></div><div><strong>'+entries.length+'</strong><span>записей</span></div></div>'+(chapterSaveNotice?'<p class="mt-journal-saved" role="status">'+escapeHtml(chapterSaveNotice)+'</p>':'')+renderChapterDraftNotice(m)+'<div id="chapter-form-home" hidden>'+chapterComposerHtml()+'</div>'+chapterChart(m)+'<button type="button" id="journal-records-toggle" class="mt-ghost-btn mt-records-toggle" aria-expanded="'+!!v.entriesOpen+'" aria-controls="journal-records">'+(v.entriesOpen?'Скрыть записи':'Все оценки и заметки')+' · '+entries.length+'</button><div id="journal-records"'+(v.entriesOpen?'':' hidden')+'><div class="mt-journal-toolbar"><label>Найти главу<input id="journal-search" class="mt-input" type="number" min="0" max="1000000" step="0.1" placeholder="Все главы" value="'+escapeHtml(v.query)+'" /></label><label>Порядок<select id="journal-sort" class="mt-input">'+[['recent','Сначала новые'],['chapter','По номеру главы'],['rating','По оценке']].map(function(o){return '<option value="'+o[0]+'"'+(v.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label></div><div class="mt-journal-list" id="journal-list">'+journalEntriesHtml(m)+'</div></div></section>';
+  }
+  function refreshChapterComposer(m){
+    var rating=document.getElementById('chapter-rating'),input=document.getElementById('chapter-number');if(!rating||!input)return;
+    var picker=rating.closest('.mt-score-picker');if(!picker)return;
+    var n=Number(rating.value),existing=runJournal(m).find(function(e){return input.value!==''&&e.chapter===Number(input.value)&&e.rating;});
+    picker.querySelectorAll('[data-chapter-score]').forEach(function(btn){btn.setAttribute('aria-pressed',String(Number(btn.dataset.chapterScore)===n));});
+    var output=rating.closest('.mt-score-picker').querySelector('output');output.textContent=n?n+' / 10':'Выбери оценку';
+    rating.closest('.mt-score-picker').querySelector('.mt-chapter-mood').textContent=chapterRatingMood(n);
+    document.getElementById('chapter-existing').textContent=existing?'У этой главы уже есть оценка '+existing.rating+' / 10. Выбери «Без оценки», чтобы добавить заметку.':'';
+    document.getElementById('chapter-run-label').textContent='Прочтение №'+currentRun(m);
   }
   function attachJourneyHandlers(selected) {
     function bind(id,event,fn){var el=document.getElementById(id);if(el)el.addEventListener(event,fn);}
@@ -4250,19 +4271,28 @@
       var rating=document.getElementById('chapter-rating'),slider=rating&&rating.closest('.mt-chapter-slider');
       if(slider){var caption=Number(rating.value)?rating.value+' / 10':'Без оценки';slider.querySelector('output').textContent=caption;rating.setAttribute('aria-valuetext',caption);slider.style.setProperty('--chapter-fill',(Number(rating.value)*10)+'%');slider.querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(rating.value));}
     }
+    if(chapterForm&&selected){
+      var liveTitle=findManhwa(selected.id)||selected;
+      chapterForm.querySelectorAll('[data-chapter-score]').forEach(function(btn){btn.addEventListener('click',function(){var input=document.getElementById('chapter-rating');input.value=btn.dataset.chapterScore;input.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('chapter-error').textContent='';refreshChapterComposer(liveTitle);});});
+      chapterForm.querySelectorAll('[data-chapter-step]').forEach(function(btn){btn.addEventListener('click',function(){var input=document.getElementById('chapter-number');input.value=String(Math.max(0,Math.min(1000000,Math.round(((Number(input.value)||0)+Number(btn.dataset.chapterStep))*10)/10)));input.dispatchEvent(new Event('input',{bubbles:true}));});});
+      document.getElementById('chapter-number').addEventListener('input',function(){document.getElementById('chapter-error').textContent='';refreshChapterComposer(liveTitle);});
+      chapterForm.querySelectorAll('[data-quick-note]').forEach(function(btn){btn.addEventListener('click',function(){var area=document.getElementById('chapter-text'),note=CHAPTER_QUICK_NOTES[Number(btn.dataset.quickNote)];if(!note)return;var lines=area.value.split('\n');if(lines.some(function(line){return line.trim()===note;}))return;var text=area.value+(area.value&&!area.value.endsWith('\n')?'\n':'')+note;if(text.length>2000){document.getElementById('chapter-error').textContent='В заметке не осталось места для этой фразы.';return;}area.value=text;area.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('chapter-error').textContent='';});});
+      refreshChapterComposer(liveTitle);
+    }
     var journeyNav=document.getElementById('app').querySelector('.mt-journey-nav'),activeJourney=journeyNav&&journeyNav.querySelector('[aria-pressed="true"]');
     if(activeJourney)journeyNav.scrollLeft=Math.max(0,activeJourney.offsetLeft-journeyNav.offsetLeft-12);
     function jumpJournal(id){
       var m=selected&&findManhwa(selected.id);if(!m)return;
       var target=Features.journal(m.journal).find(function(e){return e.id===id;});
       if(target&&(target.run||1)!==viewedRun(m)){journalSettings(m).run=target.run||1;render();}
-      var list=document.getElementById('journal-list');journalSettings(m).query='';
+      var list=document.getElementById('journal-list');journalSettings(m).query='';journalSettings(m).entriesOpen=true;var records=document.getElementById('journal-records');if(records)records.hidden=false;var toggle=document.getElementById('journal-records-toggle');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.textContent='Скрыть записи · '+runJournal(m,viewedRun(m)).length;}
       var search=document.getElementById('journal-search');if(search)search.value='';
       if(list)list.innerHTML=journalEntriesHtml(m);
       var entry=document.getElementById('journal-entry-'+id);if(entry){entry.scrollIntoView({block:'center'});entry.focus({preventScroll:true});}
     }
     document.getElementById('app').querySelectorAll('[data-journal-jump]').forEach(function(el){el.addEventListener('click',function(e){e.preventDefault();jumpJournal(el.getAttribute('data-journal-jump'));});});
     bind('journal-quick','click',function(){if(selected)openChapterSheet(selected.id);});
+    bind('journal-records-toggle','click',function(){if(!selected)return;var m=findManhwa(selected.id),v=journalSettings(m);v.entriesOpen=!v.entriesOpen;document.getElementById('journal-records').hidden=!v.entriesOpen;var btn=document.getElementById('journal-records-toggle');btn.setAttribute('aria-expanded',String(v.entriesOpen));btn.textContent=(v.entriesOpen?'Скрыть записи':'Все оценки и заметки')+' · '+runJournal(m,viewedRun(m)).length;});
     ['journal-search','journal-sort'].forEach(function(id){bind(id,id==='journal-search'?'input':'change',function(e){var m=selected&&findManhwa(selected.id);if(!m)return;journalSettings(m)[id==='journal-search'?'query':'sort']=e.target.value;document.getElementById('journal-list').innerHTML=journalEntriesHtml(m);});});
     var journalList=document.getElementById('journal-list');
     if(journalList)journalList.onclick=function(e){var el=e.target.closest('[data-journal-delete]');if(!el)return;var m=selected&&findManhwa(selected.id);if(!m)return;var removed=Features.journal(m.journal).find(function(x){return x.id===el.getAttribute('data-journal-delete');});if(!removed||!window.confirm('Удалить запись главы '+removed.chapter+(removed.rating?' вместе с оценкой '+removed.rating+' / 10':'')+'? Отменить удаление можно до перезагрузки страницы.'))return;if(removed)lastUndo={kind:'journal',id:m.id,entry:removed};m.journal=Features.journal(m.journal).filter(function(x){return x.id!==el.getAttribute('data-journal-delete');});m.updatedAt=Date.now();save();render();};
@@ -4275,10 +4305,10 @@
     document.getElementById('app').querySelectorAll('.mt-chapter-slider input').forEach(function(el){el.addEventListener('input',function(){
       var caption=Number(el.value)?el.value+' / 10':'Без оценки';
       el.closest('.mt-chapter-slider').querySelector('output').textContent=caption;el.setAttribute('aria-valuetext',caption);
-      el.closest('.mt-chapter-slider').style.setProperty('--chapter-fill',(Number(el.value)*10)+'%');el.closest('.mt-chapter-slider').querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(el.value));
+      el.closest('.mt-chapter-slider').style.setProperty('--chapter-fill',(Number(el.value)*10)+'%');el.closest('.mt-chapter-slider').querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(el.value));el.setAttribute('aria-valuetext',caption+'. '+chapterRatingMood(Number(el.value)));if(selected)refreshChapterComposer(findManhwa(selected.id)||selected);
     });});
-    bind('chapter-form','submit',function(e){
-      e.preventDefault();var m=selected&&findManhwa(selected.id),text=document.getElementById('chapter-text').value.trim(),rawChapter=document.getElementById('chapter-number').value,chapter=Number(rawChapter),rating=Number(document.getElementById('chapter-rating').value)||null;
+    bind('chapter-form','submit',async function(e){
+      e.preventDefault();if(chapterSubmitting)return;var next=e.submitter&&e.submitter.name==='next';var m=selected&&findManhwa(selected.id),text=document.getElementById('chapter-text').value.trim(),rawChapter=document.getElementById('chapter-number').value,chapter=Number(rawChapter),rating=Number(document.getElementById('chapter-rating').value)||null;
       if(!m||!rawChapter||!Number.isFinite(chapter)||chapter<0||chapter>1000000)return;
       if(!text&&!rating){document.getElementById('chapter-error').textContent='Поставь оценку или напиши заметку.';return;}
       if(rating!==null&&(!Number.isInteger(rating)||rating<1||rating>10))return;
@@ -4287,7 +4317,13 @@
       var progress=Features.readingProgress(m);progress.chapter=Math.max(progress.chapter,chapter);progress.updatedAt=Date.now();m.reading=progress;
       journalSettings(m).query='';
       delete chapterDrafts[m.id];persistChapterDrafts();
-      m.journal.push(entry);m.journal=Features.journal(m.journal);m.updatedAt=Date.now();save();render();
+      m.journal.push(entry);m.journal=Features.journal(m.journal);m.updatedAt=Date.now();chapterSubmitting=true;
+      chapterForm.querySelectorAll('button[type="submit"]').forEach(function(btn){btn.disabled=true;});
+      try{save();await Promise.all(Object.keys(storageWrites).map(function(k){return storageWrites[k].catch(function(){});}));
+        chapterSaveNotice=Object.keys(failedWrites).length?'Запись добавлена, но сохранение на устройстве требует повторной попытки.':'Глава '+chapter+' сохранена'+(rating?' · '+rating+' / 10':'');
+        if(next&&!Object.keys(failedWrites).length&&chapter<1000000){chapterDrafts[m.id]={run:currentRun(m),'chapter-number':String(Math.round((chapter+1)*10)/10),'chapter-rating':'0','chapter-text':'','chapter-spoiler':false};persistChapterDrafts();}
+        render();if(next&&!Object.keys(failedWrites).length&&chapter<1000000)openChapterSheet(m.id);
+      }finally{chapterSubmitting=false;}
     });
 
   }
@@ -4489,7 +4525,7 @@
     var revealManhwa = state.revealManhwaId ? findManhwa(state.revealManhwaId) : null;
     var seasonHeader=showTabs&&halloweenAppearance()?'<aside class="mt-season-header"><button id="season-event-open"><span aria-hidden="true">☾</span><span><small>AM TRACKER · ОСОБЫЙ ОБЛИК</small><strong>Ночь историй</strong></span></button><div class="mt-season-actions"><button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL + (CHANGELOG.length&&CHANGELOG[0].version!==state.changelogSeenVersion?'<span class="mt-notify-dot"></span>':'') + '</button><button id="season-settings-open" aria-label="Настройки оформления" title="Изменить оформление"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.6-2 3.4 1.5 1.4v3.2L2.5 15l2 3.4 2-.6 2 1.2.5 2h6l.5-2 2-1.2 2 .6 2-3.4-1.5-1.4v-3.2L21.5 9l-2-3.4-2 .6-2-1.2L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></aside>':'';
     app.innerHTML = '<div class="mt-shell' + (showTabs ? ' mt-shell-tabs' : ' mt-shell-detail') + '"><div id="storage-notice"></div>' + seasonHeader + extrasUndoHtml() + body + '<div id="data-status" class="mt-data-status" role="status"></div><div id="update-notice"></div>' + "</div>" + (showTabs ? renderTabbar() : "") +
-      (selected?'<dialog id="chapter-quick-dialog" class="mt-chapter-sheet" aria-labelledby="chapter-sheet-title"><header><h2 id="chapter-sheet-title">Впечатление о главе</h2><button class="mt-ghost-btn" id="chapter-sheet-close" aria-label="Закрыть">×</button></header><div id="chapter-sheet-body"></div></dialog>':'')+
+      (selected?'<dialog id="chapter-quick-dialog" class="mt-chapter-sheet" aria-labelledby="chapter-sheet-title"><header><div><span class="mt-composer-eyebrow">МАЛЕНЬКАЯ ИСТОРИЯ · ТВОЯ ОЦЕНКА</span><h2 id="chapter-sheet-title">Оценить главу</h2></div><button class="mt-ghost-btn" id="chapter-sheet-close" aria-label="Закрыть">×</button></header><div id="chapter-sheet-body"></div></dialog>':'')+
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard() + renderUsabilityDialogs();
     patchStorageNotice();
     patchUpdateNotice();

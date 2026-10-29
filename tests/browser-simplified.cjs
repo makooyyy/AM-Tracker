@@ -80,7 +80,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.locator('[data-detail-section="journal"]').click();
     await page.locator('#journal-quick').click();
     await page.locator('#chapter-number').fill('7');await page.locator('#chapter-rating').press('End');
-    await page.locator('#chapter-form button[type=submit]').click();
+    await page.locator('#chapter-form button[type=submit]:not([name])').click();
     assert.ok(await page.evaluate(()=>e2e.state.manhwas[0].journal.some(e=>e.chapter===7&&e.rating===10)));
     await page.locator('#back-btn').click();await page.locator('.mt-cover[data-open-id="v0"]').click();
     assert.equal(await page.locator('[data-detail-section="rating"]').getAttribute('aria-pressed'),'true');
