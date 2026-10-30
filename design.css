@@ -1422,6 +1422,12 @@ dialog.mt-chapter-sheet[open]{display:flex;flex-direction:column;}
 .mt-chapter-sheet .mt-chapter-stepper input:focus-visible{outline:none;}
 
 /* Personal chapter ratings: compact, readable heatmap. */
+:root body .mt-journey-panel.mt-chapter-journal{width:100%;box-sizing:border-box;padding:24px 0;margin:0;}
+.mt-rating-map .mt-map-summary{gap:10px;}
+.mt-rating-map .mt-map-summary>div{align-items:center;justify-content:center;text-align:center;gap:8px;min-height:94px;padding:14px 8px;background:linear-gradient(145deg,var(--diary-wash),transparent);border-radius:15px;box-shadow:inset 0 1px 0 #ffffff08;}
+.mt-rating-map .mt-map-summary strong{color:var(--text-primary);font-size:23px;font-weight:800;line-height:1.2;letter-spacing:-.5px;font-variant-numeric:tabular-nums;}
+.mt-rating-map .mt-map-summary span{display:flex;align-items:center;justify-content:center;min-height:2.8em;font-size:12px;line-height:1.4;}
+@media(max-width:359px){.mt-rating-map .mt-map-summary{gap:7px;}.mt-rating-map .mt-map-summary>div{padding:12px 5px;}.mt-rating-map .mt-map-summary strong{font-size:20px;}}
 /* Shared type, spacing and controls across the two appearances. */
 :root{--ui-font:'Manrope',sans-serif;--ui-radius:14px;--ui-panel-radius:22px;--ui-control-height:44px;--ui-space:20px;}
 :root body{font-family:var(--ui-font);line-height:1.55;}
