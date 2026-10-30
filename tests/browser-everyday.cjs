@@ -63,6 +63,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
       await page.locator('#journal-quick').click();await setScore(9);
       const dialog=await page.locator('#chapter-quick-dialog').boundingBox();assert.ok(dialog.x>=0&&dialog.x+dialog.width<=width);
       assert.equal(await page.locator('#chapter-rating').getAttribute('type'),'range');
+      assert.equal(await page.locator('#chapter-number').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','chapter input shares the stepper background in both appearances');
+      assert.ok(await page.locator('.mt-chapter-mood').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=14),'rating caption remains readable on narrow screens');
       await page.locator('.mt-quick-notes summary').click();
       const fields=await page.locator('.mt-composer-fields').boundingBox(),footer=await page.locator('.mt-chapter-submit').boundingBox();
       assert.ok(fields.y+fields.height<=footer.y+1,'save actions never cover the scrolling form');

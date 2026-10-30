@@ -1393,3 +1393,30 @@ dialog.mt-chapter-sheet[open]{display:flex;flex-direction:column;}
 .mt-chapter-submit{position:static;flex-shrink:0;padding:14px 22px max(16px,env(safe-area-inset-bottom));border-top:1px solid var(--diary-line);gap:7px;background:var(--card-bg);box-shadow:0 -12px 25px #0001;}
 .mt-chapter-submit button{min-height:46px;border-radius:13px;font-size:12px;}.mt-chapter-submit .mt-primary-btn{background:var(--pink);color:#201a28;border:0;font-weight:700;box-shadow:0 4px 18px var(--diary-wash);}.mt-chapter-submit .mt-ghost-btn{border:0;background:none;color:var(--text-muted);min-height:38px;}
 @media(max-width:359px){.mt-composer-fields{padding:16px;gap:17px;}.mt-chapter-sheet>header{padding:18px 16px 15px;}.mt-chapter-submit{padding:12px 16px max(12px,env(safe-area-inset-bottom));}.mt-composer-eyebrow{font-size:7px;}.mt-chapter-sheet>header h2{font-size:26px;}.mt-score-picker-heading output{font-size:35px;}.mt-journal-stats span{font-size:9px;}}
+
+/* Readable composer typography and a single, uninterrupted chapter control. */
+.mt-chapter-sheet{font-family:'Manrope',sans-serif;font-size:14px;line-height:1.55;}
+.mt-chapter-sheet>header h2{font-family:inherit;font-size:25px;font-weight:700;line-height:1.25;letter-spacing:-.4px;}
+.mt-chapter-sheet .mt-composer-eyebrow{font-size:10px;letter-spacing:.06em;line-height:1.6;}
+.mt-chapter-sheet .mt-chapter-number-row>label,
+.mt-chapter-sheet .mt-score-picker legend,
+.mt-chapter-sheet .mt-chapter-mood,
+.mt-chapter-sheet .mt-quick-notes summary,
+.mt-chapter-sheet .mt-spoiler-check,
+.mt-chapter-sheet .mt-note-only,
+.mt-chapter-sheet .mt-chapter-submit button{font-size:14px;line-height:1.55;}
+.mt-chapter-sheet .mt-chapter-note-label{font-size:14px!important;}
+.mt-chapter-sheet .mt-chapter-number-row>span,
+.mt-chapter-sheet .mt-chapter-note-label>span,
+.mt-chapter-sheet .mt-quick-notes p,
+.mt-chapter-sheet .mt-composer-hint,
+.mt-chapter-sheet .mt-score-ruler{font-family:inherit;font-size:12px;line-height:1.65;color:var(--text-muted);}
+.mt-chapter-sheet .mt-quick-notes button{font-size:13px;line-height:1.5;}
+.mt-chapter-sheet .mt-chapter-note-label textarea{font-family:inherit;font-size:15px;line-height:1.65;}
+.mt-chapter-sheet .mt-score-picker-heading output{font-family:inherit;font-weight:600;letter-spacing:-1px;}
+.mt-chapter-sheet .mt-chapter-stepper input.mt-input,
+.mt-chapter-sheet .mt-chapter-stepper input.mt-input:focus{background:transparent;border:0;box-shadow:none;border-radius:0;font-family:inherit;font-size:24px;font-weight:600;line-height:1.25;appearance:textfield;}
+.mt-chapter-stepper input::-webkit-inner-spin-button,
+.mt-chapter-stepper input::-webkit-outer-spin-button{appearance:none;margin:0;}
+.mt-chapter-sheet .mt-chapter-stepper:focus-within{outline:2px solid var(--pink);outline-offset:3px;}
+.mt-chapter-sheet .mt-chapter-stepper input:focus-visible{outline:none;}
