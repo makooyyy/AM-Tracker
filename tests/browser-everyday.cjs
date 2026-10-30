@@ -67,6 +67,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     assert.equal(await page.locator('.mt-rating-tile').count(),1);
     assert.equal(await page.locator('.mt-rating-tile strong').innerText(),'2.0');
     await page.locator('#journal-run').selectOption('1');
+    assert.match(await page.locator('.mt-map-summary').innerText(),/66/);
+    await page.locator('#map-range').selectOption('1');
+    assert.equal(await page.locator('.mt-rating-tile:visible').count(),16);
+    const pngEvent=page.waitForEvent('download');await page.locator('#map-download').click();const png=await pngEvent;
+    await png.saveAs(path.join(root,'test-results','chapter-map-export.png'));
+    assert.equal(fs.readFileSync(path.join(root,'test-results','chapter-map-export.png')).subarray(1,4).toString(),'PNG');
+    await page.locator('#map-range').selectOption('all');
     for(const appearance of ['classic','halloween'])for(const width of [320,390,1280]){
       await page.setViewportSize({width,height:844});await page.evaluate(a=>{e2e.setAppearance(a);e2e.render();},appearance);
       await page.locator('#journal-rating-map').scrollIntoViewIfNeeded();
@@ -100,12 +107,48 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
       await page.screenshot({path:path.join(root,'test-results',`journal-composer-${appearance}-${width}.png`),animations:'disabled'});
       await page.locator('#chapter-sheet-close').click();
     }
+    // Reduced visible area, like a phone keyboard: the footer stays reachable.
+    await page.setViewportSize({width:390,height:420});await page.locator('#journal-quick').click();
+    await page.locator('#chapter-text').focus();
+    const shortFooter=await page.locator('.mt-chapter-submit').boundingBox();assert.ok(shortFooter.y>=0&&shortFooter.y+shortFooter.height<=420);
+    await page.screenshot({path:path.join(root,'test-results','composer-short-viewport.png'),animations:'disabled'});
+    await page.locator('#chapter-sheet-close').click();await page.setViewportSize({width:390,height:844});
     const item=await page.evaluate(()=>{e2e.state.selectedId=null;e2e.state.tab='profile';e2e.state.shopOpen=true;e2e.state.totalXp=10000;e2e.saveXp();const item=e2e.Features.shopItems.find(i=>!i.exclusive&&!i.eventOnly&&i.kind==='theme');e2e.buyShopItem(item.id);e2e.state.shopPreview=item.id;e2e.render();return item;});
     assert.match(await page.locator('.mt-preview-composition').innerText(),new RegExp(item.name));await page.locator('#shop-edit-profile').click();assert.equal(await page.evaluate(()=>e2e.state.profileDraft.style.theme),item.id);await page.locator('#prof-save').click();await page.waitForSelector('#prof-edit');await page.reload();await page.waitForSelector('#data-status');assert.equal(await page.evaluate(()=>e2e.state.profile.style.theme),item.id);
     let fail=true,queries=[];await page.route('https://graphql.anilist.co',r=>{queries.push(r.request().postDataJSON().variables);return fail?r.fulfill({status:503,body:'{}'}):r.fulfill({contentType:'application/json',body:JSON.stringify({data:{Page:{pageInfo:{hasNextPage:false},media:[]}}})});});
     await page.locator('[data-tab="catalog"]').click();await page.locator('#catalog-search').fill('My story');await page.locator('#catalog-search-form').evaluate(el=>el.requestSubmit());await page.locator('#catalog-retry').waitFor();fail=false;await page.locator('#catalog-retry').click();await page.getByText('Эта история пока не нашлась',{exact:true}).waitFor();assert.equal(queries.at(-1).search,'My story');await page.reload();await page.waitForSelector('#data-status');await page.locator('[data-tab="catalog"]').click();assert.equal(await page.locator('#catalog-search').inputValue(),'My story');
     await page.locator('[data-tab="awards"]').click();assert.match(await page.locator('.mt-award-help').innerText(),/одна правка|правка.*использована/i);
     for(const appearance of ['classic','halloween'])for(const width of [320,390,1280]){await page.setViewportSize({width,height:844});await page.evaluate(a=>{e2e.setAppearance(a);e2e.render();},appearance);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
+    // Backup preview must not mutate data until explicitly confirmed.
+    await page.setViewportSize({width:390,height:480});
+    await page.locator('[data-tab="journey"]').click();
+    await page.evaluate(()=>window.scrollTo(0,300));
+    const remembered=await page.evaluate(()=>window.scrollY);assert.ok(remembered>50);
+    await page.locator('[data-tab="library"]').click();
+    await page.locator('[data-tab="journey"]').click();
+    assert.ok(Math.abs(await page.evaluate(()=>window.scrollY)-remembered)<2,'tab restores previous scroll position');
+    await page.evaluate(()=>{e2e.state.tab='profile';e2e.state.accountSettings=true;e2e.render();});
+    assert.match(await page.locator('#data-health').innerText(),/На этом устройстве/);
+    await page.evaluate(()=>{window.AMSync={getStatus:()=>({signedIn:true,phase:'offline',pending:3,lastSync:1720000000000})};e2e.patchDataStatus();});
+    assert.match(await page.locator('#data-health').innerText(),/Нет сети/);assert.match(await page.locator('#data-health').innerText(),/3/);
+    await page.evaluate(()=>{delete window.AMSync;e2e.patchDataStatus();});
+    const originalTitle=await page.evaluate(()=>e2e.state.manhwas[0].title);
+    const backup=await page.evaluate(()=>({format:'am-tracker-backup',version:7,exportedAt:new Date().toISOString(),manhwas:[{...e2e.state.manhwas[0],title:'Из тестовой копии'}]}));
+    const upload=()=>page.locator('#import-file-input').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});
+    await upload();await page.locator('.mt-backup-preview').waitFor();
+    assert.equal(await page.locator('#backup-accept').isEnabled(),false);
+    assert.equal(await page.evaluate(()=>e2e.state.manhwas[0].title),originalTitle);
+    await page.locator('.mt-backup-preview button[value="cancel"]').click();
+    assert.equal(await page.evaluate(()=>e2e.state.manhwas[0].title),originalTitle);
+    await upload();await page.locator('#backup-ack').check();
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:560});
+      const bounds=await page.locator('.mt-backup-preview').boundingBox();assert.ok(bounds.width<=width&&bounds.height<=560);
+      assert.ok(await page.locator('.mt-backup-preview').evaluate(el=>el.scrollWidth<=el.clientWidth));
+      if(width===390)await page.screenshot({path:path.join(root,'test-results','backup-preview-mobile.png'),animations:'disabled'});
+    }
+    await page.locator('#backup-accept').click();await page.waitForFunction(()=>e2e.state.manhwas[0].title==='Из тестовой копии');
+    await page.reload();await page.waitForSelector('#data-status');assert.equal(await page.evaluate(()=>e2e.state.manhwas[0].title),'Из тестовой копии');
     assert.deepEqual(errors,[]);await context.close();
     // Real service worker update, isolated origin and data; no Firebase account.
     const pwa=await browser.newContext({serviceWorkers:'allow'}),p=await pwa.newPage();await p.goto(base);await p.waitForSelector('#data-status');await p.evaluate(()=>navigator.serviceWorker.ready);await p.reload();await p.waitForFunction(()=>navigator.serviceWorker.controller);

@@ -1422,6 +1422,55 @@ dialog.mt-chapter-sheet[open]{display:flex;flex-direction:column;}
 .mt-chapter-sheet .mt-chapter-stepper input:focus-visible{outline:none;}
 
 /* Personal chapter ratings: compact, readable heatmap. */
+/* Shared type, spacing and controls across the two appearances. */
+:root{--ui-font:'Manrope',sans-serif;--ui-radius:14px;--ui-panel-radius:22px;--ui-control-height:44px;--ui-space:20px;}
+:root body{font-family:var(--ui-font);line-height:1.55;}
+:root body :is(button,input,textarea,select){font-family:var(--ui-font);}
+:root body :is(.mt-primary-btn,.mt-ghost-btn){min-height:var(--ui-control-height);border-radius:var(--ui-radius);font-size:14px;line-height:1.4;padding:11px 16px;}
+:root body .mt-input{border-radius:12px;min-height:44px;font-size:15px;line-height:1.5;}
+:root body :is(.mt-settings-card,.mt-journey-panel,.mt-profile-backup){border-radius:var(--ui-panel-radius);padding:var(--ui-space);}
+:root body :is(.mt-settings-card,.mt-journey-panel,.mt-profile-backup) h2{font-family:var(--ui-font);font-size:24px;font-weight:700;line-height:1.25;letter-spacing:-.5px;}
+:root body :is(.mt-feature-hint,.mt-backup-text,.mt-settings-card>p){font-size:13px;line-height:1.65;}
+:root body :is(.mt-panel-title,.mt-detail-nav button){font-family:var(--ui-font);font-size:14px;line-height:1.5;}
+:root body :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--pink,#c4b2ed);outline-offset:3px;}
+.mt-map-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0;}
+.mt-map-summary>div{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px 8px;border:1px solid var(--diary-line,#8883);border-radius:12px;}
+.mt-map-summary strong{font-size:21px;line-height:1.25;overflow-wrap:anywhere;}
+.mt-map-summary span{font-size:12px;color:var(--text-muted);}
+.mt-map-tools{display:flex;gap:12px;align-items:end;flex-wrap:wrap;}
+.mt-map-tools label{display:grid;gap:6px;font-size:12px;flex:1;min-width:120px;}
+.mt-rating-block[hidden]{display:none;}
+.mt-data-health{margin:0;display:grid;gap:0;}
+.mt-data-health>div{padding:14px 0;border-bottom:1px solid #8883;}
+.mt-data-health dt{font-size:12px;color:var(--text-muted);}
+.mt-data-health dd{margin:5px 0 0;font-size:14px;font-weight:600;overflow-wrap:anywhere;}
+dialog.mt-backup-preview{width:min(560px,calc(100% - 24px));max-height:calc(var(--app-visible-height,100dvh) - 24px);padding:24px;border-radius:22px;background:var(--card-bg,#22212a);color:var(--text,#eee);border:1px solid #8885;overflow:auto;overscroll-behavior:contain;}
+.mt-backup-preview::backdrop{background:#080710bb;backdrop-filter:blur(5px);}
+.mt-backup-preview h2{font-size:24px;line-height:1.25;}
+.mt-backup-preview p,.mt-backup-preview li{font-size:14px;line-height:1.65;overflow-wrap:anywhere;}
+.mt-backup-preview header p{margin-bottom:4px;}
+.mt-backup-preview small{color:var(--text-muted);}
+.mt-backup-preview details{margin:18px 0;}
+.mt-backup-preview details ul{max-height:180px;overflow:auto;}
+.mt-restore-check{display:flex;gap:10px;align-items:start;margin:20px 0;font-size:14px;}
+.mt-restore-check input{width:20px;height:20px;flex-shrink:0;}
+.mt-backup-preview footer{display:flex;justify-content:flex-end;gap:10px;}
+:root body button:disabled{cursor:not-allowed;opacity:.5;}
+html{scroll-padding-top:90px;scroll-padding-bottom:100px;}
+[id^="journal-entry-"],.mt-rating-block{scroll-margin-top:100px;}
+.mt-composer-fields{overscroll-behavior:contain;scroll-padding-block:16px;-webkit-overflow-scrolling:touch;}
+:root body dialog.mt-chapter-sheet{max-height:calc(var(--app-visible-height,100dvh) - 24px);}
+@media(max-width:600px){
+  :root{--ui-space:16px;--ui-panel-radius:18px;}
+  :root body :is(input.mt-input,textarea.mt-input,select.mt-input){font-size:16px;}
+  :root body .mt-detail-nav button{min-height:44px;}
+  .mt-map-summary strong{font-size:18px;}
+  .mt-map-summary span{font-size:11px;}
+  .mt-backup-preview footer{flex-wrap:wrap;}
+  .mt-backup-preview footer button{flex:1;}
+  html.mt-keyboard-open .mt-tabbar{visibility:hidden;pointer-events:none;}
+  html.mt-keyboard-open dialog.mt-chapter-sheet{position:fixed;top:var(--app-visible-top,0px);bottom:auto;margin:12px auto;}
+}
 .mt-chapter-journal .mt-map-toggle{margin-top:8px;border-style:dashed;}
 .mt-rating-map{margin-top:16px;padding:22px;border:1px solid var(--diary-line);border-radius:20px;background:var(--diary-wash);}
 .mt-rating-map[hidden]{display:none;}

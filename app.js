@@ -645,6 +645,7 @@
     '<circle cx="12" cy="7" r="4"/></svg>';
 
   var lastViewKey = null;
+  var tabScrollPositions={};
 
   var state = {
     manhwas: [],
@@ -3288,8 +3289,26 @@
   }
   function loadUiSettings(){return readKey(UI_SETTINGS_KEY).then(function(raw){uiSettings={reduceMotion:!!(raw&&raw.reduceMotion),largeText:!!(raw&&raw.largeText),appearance:raw&&['auto','classic','halloween'].includes(raw.appearance)?raw.appearance:'auto'};applyUiSettings();});}
   function renderAppearanceSettings(){return '<section class="mt-settings-card"><h2>Облик приложения</h2><p>Выбери атмосферу для всех разделов. Хэллоуинское оформление доступно и после события. Выбор сохраняется на этом устройстве.</p><div class="mt-appearance-options">'+[['auto','◐','По сезону','Хэллоуин во время ивента, обычный вид после.'],['classic','✦','Классический','Привычная лавандовая палитра и спокойные панели.'],['halloween','☾','Ночь историй','Лунный особняк, медные акценты и свет фонарей.']].map(function(x){return '<button type="button" data-appearance="'+x[0]+'" aria-pressed="'+(uiSettings.appearance===x[0])+'"><span class="mt-appearance-art '+x[0]+'" aria-hidden="true">'+x[1]+'</span><span><strong>'+x[2]+'</strong><small>'+x[3]+'</small></span><b aria-hidden="true">'+(uiSettings.appearance===x[0]?'✓':'')+'</b></button>';}).join('')+'</div></section>';}
+  function patchDataHealth(st){
+    var el=document.getElementById('data-health');if(!el)return;
+    var local=Object.keys(failedWrites).length?'Есть ошибки сохранения':pendingStorageWrites?'Сохранение…':'Все изменения сохранены';
+    el.innerHTML='<dl class="mt-data-health"><div><dt>На этом устройстве</dt><dd>'+local+'</dd></div><div><dt>Облако</dt><dd>'+escapeHtml(st.signedIn?acctStatusShort(st):'Не подключено — данные только на этом устройстве')+'</dd></div><div><dt>Ждут отправки</dt><dd>'+(st.signedIn?Number(st.pending)||0:'—')+'</dd></div><div><dt>Последняя синхронизация</dt><dd>'+escapeHtml(st.lastSync?new Date(st.lastSync).toLocaleString('ru-RU'):'Ещё не было')+'</dd></div></dl><p class="mt-feature-hint">Резервная копия — отдельный файл. Облако синхронизирует изменения, в том числе удаления.</p>';
+  }
+  function previewBackup(filename,parsed,list,skipped,message){
+    return new Promise(function(resolve){
+      var dialog=document.createElement('dialog');dialog.className='mt-backup-preview';dialog.setAttribute('aria-labelledby','backup-preview-title');
+      var entries=list.reduce(function(n,m){return n+Features.journal(m.journal).length;},0);
+      var date=parsed.exportedAt&&Number.isFinite(Date.parse(parsed.exportedAt))?new Date(parsed.exportedAt).toLocaleString('ru-RU'):'Дата неизвестна · старый формат';
+      dialog.innerHTML='<form method="dialog"><header><span class="mt-section-eyebrow">ПРОВЕРЬ ПЕРЕД ВОССТАНОВЛЕНИЕМ</span><h2 id="backup-preview-title">Содержимое копии</h2><p>'+escapeHtml(filename)+'</p><small>'+escapeHtml(date)+'</small></header><div class="mt-map-summary"><div><strong>'+list.length+'</strong><span>тайтлов</span></div><div><strong>'+entries+'</strong><span>записей глав</span></div><div><strong>'+skipped+'</strong><span>пропущено</span></div></div><p>'+escapeHtml(message)+'</p><details><summary>Тайтлы в файле</summary><ul>'+list.slice(0,100).map(function(m){return '<li>'+escapeHtml(displayTitle(m))+'</li>';}).join('')+'</ul>'+(list.length>100?'<p>И ещё '+(list.length-100)+' тайтлов</p>':'')+'</details><button type="button" id="backup-before-restore" class="mt-ghost-btn">Скачать текущую копию</button><label class="mt-restore-check"><input type="checkbox" id="backup-ack"> Я понимаю, что текущая библиотека будет заменена</label><footer><button class="mt-ghost-btn" value="cancel">Отмена</button><button class="mt-primary-btn" id="backup-accept" value="restore" disabled>Восстановить</button></footer></form>';
+      document.body.appendChild(dialog);
+      dialog.querySelector('#backup-ack').onchange=function(e){dialog.querySelector('#backup-accept').disabled=!e.target.checked;};
+      dialog.querySelector('#backup-before-restore').onclick=function(){var btn=document.getElementById('export-btn');if(btn)btn.click();};
+      dialog.addEventListener('close',function(){var accepted=dialog.returnValue==='restore'&&dialog.querySelector('#backup-ack').checked;dialog.remove();resolve(accepted);});
+      dialog.showModal();
+    });
+  }
   function renderBackupSettings(){
-    return '<div class="mt-paper mt-profile-backup"><div class="mt-panel-title">Резервная копия</div>' +
+    return '<section class="mt-settings-card"><h2>Сохранение и синхронизация</h2><div id="data-health"></div></section><div class="mt-paper mt-profile-backup"><div class="mt-panel-title">Резервная копия</div>' +
       '<div class="mt-backup-text">Сохрани файл с оценками себе на телефон — так данные ' +
       'не потеряются при очистке браузера, и их можно перенести на другое устройство.</div>' +
       '<div class="mt-form-row">' +
@@ -4240,12 +4259,45 @@
     function y(e){return 120-(e.rating-1)*10;}
     return '<section class="mt-chapter-chart"><h3>Динамика оценок</h3><p>Оценки по номеру главы · нажми на точку, чтобы открыть запись.</p><div class="mt-chart-scroll"><svg viewBox="0 0 340 154" role="group" aria-label="График оценок глав">'+[1,5,10].map(function(n){var yy=120-(n-1)*10;return '<line x1="30" x2="310" y1="'+yy+'" y2="'+yy+'" class="mt-chart-grid"/><text x="7" y="'+(yy+4)+'">'+n+'</text>';}).join('')+'<polygon points="'+x(entries[0])+',130 '+entries.map(function(e){return x(e)+','+y(e);}).join(' ')+' '+x(entries[entries.length-1])+',130" class="mt-chart-area"/><polyline points="'+entries.map(function(e){return x(e)+','+y(e);}).join(' ')+'" class="mt-chart-line"/>'+entries.map(function(e){return '<a href="#journal-entry-'+escapeHtml(e.id)+'" data-journal-jump="'+escapeHtml(e.id)+'" aria-label="Глава '+e.chapter+': '+e.rating+' из 10"><circle cx="'+x(e)+'" cy="'+y(e)+'" r="10" fill="transparent"/><circle class="mt-chart-dot" cx="'+x(e)+'" cy="'+y(e)+'" r="4"/><title>Глава '+e.chapter+' · '+e.rating+' / 10</title></a>';}).join('')+'<text x="30" y="148">Гл. '+min+'</text>'+(entries.length>1?'<text x="310" y="148" text-anchor="end">Гл. '+max+'</text>':'')+'</svg></div><details><summary>Все точки графика · '+entries.length+'</summary><div class="mt-chart-points">'+entries.map(function(e){return '<button class="mt-ghost-btn" data-journal-jump="'+escapeHtml(e.id)+'">Глава '+e.chapter+' · '+e.rating+'/10</button>';}).join('')+'</div></details></section>';
   }
+  function ratingMapSummary(scores){
+    var best=scores.reduce(function(a,e){return !a||e.rating>a.rating?e:a;},null);
+    return '<div class="mt-map-summary"><div><strong>'+(scores.length?(scores.reduce(function(n,e){return n+e.rating;},0)/scores.length).toFixed(1):'—')+'</strong><span>средняя оценка</span></div><div><strong>'+(best?'Гл. '+best.chapter:'—')+'</strong><span>'+(best?'лучшая · '+best.rating+'/10':'лучшая глава')+'</span></div><div><strong>'+scores.length+'</strong><span>оценено глав</span></div></div>';
+  }
+  async function downloadRatingMap(m,button){
+    var range=document.getElementById('map-range').value;
+    var scores=Features.chapterScores(runJournal(m,viewedRun(m))).filter(function(e){return range==='all'||String(Math.floor(Math.max(0,e.chapter-1)/50))===range;});
+    if(!scores.length)return;
+    if(scores.length>1000){showToast('Для большой истории выбери диапазон глав перед сохранением.');return;}
+    button.disabled=true;button.textContent='Готовим картинку…';
+    try{
+      var canvas=document.createElement('canvas');canvas.width=1000;canvas.height=340+Math.ceil(scores.length/10)*82;
+      var ctx=canvas.getContext('2d');ctx.fillStyle='#15151e';ctx.fillRect(0,0,canvas.width,canvas.height);
+      var cover=null;
+      if(m.coverUrl)cover=await new Promise(function(resolve){var img=new Image(),done=false;function finish(v){if(!done){done=true;resolve(v);}}img.crossOrigin='anonymous';img.onload=function(){finish(img);};img.onerror=function(){finish(null);};img.src=m.coverUrl;setTimeout(function(){finish(null);},2500);});
+      ctx.fillStyle='#302b40';ctx.fillRect(32,32,112,158);
+      if(cover)ctx.drawImage(cover,32,32,112,158);
+      else{ctx.fillStyle='#c4b2ed';ctx.font='bold 30px sans-serif';ctx.fillText('AM',62,120);}
+      ctx.fillStyle='#c4b2ed';ctx.font='bold 14px sans-serif';ctx.fillText('AM TRACKER · МОИ ОЦЕНКИ ГЛАВ',170,53);
+      ctx.fillStyle='#f4f0fa';ctx.font='bold 28px sans-serif';
+      var words=displayTitle(m).split(/\s+/),line='',y=92;
+      words.forEach(function(word){if(ctx.measureText(line+word).width>780&&line){if(y<=130)ctx.fillText(line,170,y);y+=34;line='';}line+=word+' ';});
+      if(y<=160)ctx.fillText(line,170,y);
+      ctx.fillStyle='#c2bacd';ctx.font='17px sans-serif';ctx.fillText('Прочтение №'+viewedRun(m)+' · '+scores.length+' глав · средняя '+(scores.reduce(function(n,e){return n+e.rating;},0)/scores.length).toFixed(1),170,195);
+      var colors=['#bc9add','#eb8585','#f0ac64','#f0d46d','#8bd071','#36ba91'];
+      ['1–2','3–4','5–6','7','8','9–10'].forEach(function(t,i){ctx.fillStyle=colors[i];ctx.fillRect(32+i*150,228,12,12);ctx.fillStyle='#c2bacd';ctx.fillText(t,52+i*150,241);});
+      scores.forEach(function(e,i){var x=32+i%10*94,y=270+Math.floor(i/10)*82;ctx.fillStyle=colors[e.rating>=9?5:e.rating>=8?4:e.rating>=7?3:e.rating>=5?2:e.rating>=3?1:0];ctx.fillRect(x,y,86,70);ctx.fillStyle='#18231e';ctx.textAlign='center';ctx.font='14px sans-serif';ctx.fillText('Гл. '+e.chapter,x+43,y+22);ctx.font='bold 26px sans-serif';ctx.fillText(e.rating.toFixed(1),x+43,y+53);});
+      ctx.textAlign='left';ctx.fillStyle='#c2bacd';ctx.font='14px sans-serif';ctx.fillText('Личные оценки · '+new Date().toLocaleDateString('ru-RU'),32,canvas.height-22);
+      var blob=await new Promise(function(resolve){canvas.toBlob(resolve,'image/png');});if(!blob)throw new Error('PNG');
+      var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='am-chapter-ratings-'+viewedRun(m)+'-'+range+'.png';a.click();setTimeout(function(){URL.revokeObjectURL(url);},10000);
+    }catch(e){showToast('Не удалось сохранить картинку. Попробуй ещё раз.');}
+    finally{button.disabled=false;button.textContent='Сохранить в PNG';}
+  }
   function chapterRatingMap(m){
     var scores=Features.chapterScores(runJournal(m,viewedRun(m))),groups={};
     var bands=[['masterpiece','9–10','Великолепно'],['great','8','Отлично'],['good','7','Хорошо'],['mixed','5–6','Неплохо'],['weak','3–4','Слабо'],['poor','1–2','Не понравилось']];
     function band(n){return n>=9?'masterpiece':n>=8?'great':n>=7?'good':n>=5?'mixed':n>=3?'weak':'poor';}
     scores.forEach(function(e){var block=Math.floor(Math.max(0,e.chapter-1)/50);(groups[block]||(groups[block]=[])).push(e);});
-    return '<section id="journal-rating-map" class="mt-rating-map"'+(journalSettings(m).mapOpen?'':' hidden')+' aria-label="Карта оценок глав"><header><span class="mt-section-eyebrow">ИСТОРИЯ В ЦВЕТЕ</span><h3>Карта оценок</h3><p>Твои оценки · прочтение №'+viewedRun(m)+'. Нажми на главу, чтобы открыть запись.</p></header><ul class="mt-rating-legend">'+bands.map(function(b){return '<li><i class="mt-rating-'+b[0]+'" aria-hidden="true"></i><span><b>'+b[1]+'</b> '+b[2]+'</span></li>';}).join('')+'</ul>'+(scores.length?Object.keys(groups).map(function(key){var start=Number(key)*50+1;return '<section class="mt-rating-block"><h4>Главы '+start+'–'+(start+49)+'</h4><div class="mt-rating-grid">'+groups[key].map(function(e){return '<button type="button" class="mt-rating-tile mt-rating-'+band(e.rating)+'" data-journal-jump="'+escapeHtml(e.id)+'" aria-label="Глава '+e.chapter+': '+e.rating+' из 10. Открыть запись"><span>Гл. '+e.chapter+'</span><strong>'+Number(e.rating).toFixed(1)+'</strong></button>';}).join('')+'</div></section>';}).join(''):'<p class="mt-journal-empty">Пока нет оценённых глав. Поставь первую оценку — она появится здесь.</p>')+'<p class="mt-rating-map-footnote">Только оценённые главы, по порядку. Цвет обозначает оценку, а не рейтинг других читателей.</p></section>';
+    return '<section id="journal-rating-map" class="mt-rating-map"'+(journalSettings(m).mapOpen?'':' hidden')+' aria-label="Карта оценок глав"><header><span class="mt-section-eyebrow">ИСТОРИЯ В ЦВЕТЕ</span><h3>Карта оценок</h3><p>Твои оценки · прочтение №'+viewedRun(m)+'. Нажми на главу, чтобы открыть запись.</p></header>'+ratingMapSummary(scores)+(scores.length?'<div class="mt-map-tools"><label>Диапазон глав<select id="map-range" class="mt-input"><option value="all">Все главы</option>'+Object.keys(groups).map(function(k){var n=Number(k)*50+1;return '<option value="'+k+'">'+n+'–'+(n+49)+'</option>';}).join('')+'</select></label><button type="button" id="map-download" class="mt-ghost-btn">Сохранить в PNG</button></div>':'')+'<ul class="mt-rating-legend">'+bands.map(function(b){return '<li><i class="mt-rating-'+b[0]+'" aria-hidden="true"></i><span><b>'+b[1]+'</b> '+b[2]+'</span></li>';}).join('')+'</ul>'+(scores.length?Object.keys(groups).map(function(key){var start=Number(key)*50+1;return '<section class="mt-rating-block" data-map-block="'+key+'"><h4>Главы '+start+'–'+(start+49)+'</h4><div class="mt-rating-grid">'+groups[key].map(function(e){return '<button type="button" class="mt-rating-tile mt-rating-'+band(e.rating)+'" data-journal-jump="'+escapeHtml(e.id)+'" aria-label="Глава '+e.chapter+': '+e.rating+' из 10. Открыть запись"><span>Гл. '+e.chapter+'</span><strong>'+Number(e.rating).toFixed(1)+'</strong></button>';}).join('')+'</div></section>';}).join(''):'<p class="mt-journal-empty">Пока нет оценённых глав. Поставь первую оценку — она появится здесь.</p>')+'<p class="mt-rating-map-footnote">Только оценённые главы, по порядку. Цвет обозначает оценку, а не рейтинг других читателей.</p></section>';
   }
   function chapterComposerHtml(){
     return '<form id="chapter-form"><div class="mt-composer-fields"><div class="mt-chapter-number-row"><label for="chapter-number">Глава</label><div class="mt-chapter-stepper"><button type="button" data-chapter-step="-1" aria-label="Предыдущая глава">−</button><input id="chapter-number" class="mt-input" type="number" inputmode="decimal" min="0" step="0.1" max="1000000" required placeholder="Номер" /><button type="button" data-chapter-step="1" aria-label="Следующая глава">+</button></div><span id="chapter-run-label"></span></div>'+chapterRatingSlider(null)+'<label class="mt-chapter-note-label">Заметка <span>необязательно</span><textarea id="chapter-text" class="mt-input" maxlength="2000" rows="3" placeholder="Что хочется запомнить?"></textarea></label><details class="mt-quick-notes"><summary>Быстрые заметки</summary><p>Несколько слов, чтобы запомнить главное.</p><div>'+CHAPTER_QUICK_NOTES.map(function(note,i){return '<button type="button" data-quick-note="'+i+'">'+note+'</button>';}).join('')+'</div></details><label class="mt-spoiler-check"><input id="chapter-spoiler" type="checkbox" /> Спрятать текст под спойлер</label><p class="mt-composer-hint">Черновик сохраняется на устройстве. Сохранённую оценку можно только удалить вместе с записью.</p><p id="chapter-error" role="alert"></p></div><footer class="mt-chapter-submit"><button class="mt-primary-btn" type="submit">Сохранить</button><button class="mt-ghost-btn" type="submit" name="next" value="1">Сохранить и следующая →</button></footer></form>';
@@ -4299,6 +4351,8 @@
     }
     document.getElementById('app').querySelectorAll('[data-journal-jump]').forEach(function(el){el.addEventListener('click',function(e){e.preventDefault();jumpJournal(el.getAttribute('data-journal-jump'));});});
     bind('journal-quick','click',function(){if(selected)openChapterSheet(selected.id);});
+    bind('map-range','change',function(e){document.querySelectorAll('[data-map-block]').forEach(function(el){el.hidden=e.target.value!=='all'&&el.dataset.mapBlock!==e.target.value;});});
+    bind('map-download','click',function(e){if(selected)downloadRatingMap(findManhwa(selected.id),e.currentTarget);});
     bind('journal-map-toggle','click',function(){if(!selected)return;var m=findManhwa(selected.id),v=journalSettings(m);v.mapOpen=!v.mapOpen;document.getElementById('journal-rating-map').hidden=!v.mapOpen;var btn=document.getElementById('journal-map-toggle');btn.setAttribute('aria-expanded',String(v.mapOpen));btn.textContent=(v.mapOpen?'Скрыть карту оценок':'Карта оценок глав')+' · '+Features.chapterScores(runJournal(m,viewedRun(m))).length;});
     bind('journal-records-toggle','click',function(){if(!selected)return;var m=findManhwa(selected.id),v=journalSettings(m);v.entriesOpen=!v.entriesOpen;document.getElementById('journal-records').hidden=!v.entriesOpen;var btn=document.getElementById('journal-records-toggle');btn.setAttribute('aria-expanded',String(v.entriesOpen));btn.textContent=(v.entriesOpen?'Скрыть записи':'Все оценки и заметки')+' · '+runJournal(m,viewedRun(m)).length;});
     ['journal-search','journal-sort'].forEach(function(id){bind(id,id==='journal-search'?'input':'change',function(e){var m=selected&&findManhwa(selected.id);if(!m)return;journalSettings(m)[id==='journal-search'?'query':'sort']=e.target.value;document.getElementById('journal-list').innerHTML=journalEntriesHtml(m);});});
@@ -4612,9 +4666,11 @@
     // tabs
     app.querySelectorAll("[data-tab]").forEach(function (btn) {
       btn.addEventListener("click", function () {
+        tabScrollPositions[state.tab]=window.scrollY||0;
         state.tab = btn.getAttribute("data-tab");
         state.addingManhwa = false;
         render();
+        window.scrollTo(0,tabScrollPositions[state.tab]||0);
       });
     });
 
@@ -5310,6 +5366,7 @@
       var backup = {
         format: "am-tracker-backup",
         version: 7,
+        exportedAt: new Date().toISOString(),
         shop: state.shop,
         manhwas: state.manhwas,
         awardWinners: state.awardWinners,
@@ -5356,8 +5413,9 @@
       importInput.addEventListener("change", function () {
         var file = importInput.files && importInput.files[0];
         if (!file) return;
+        if(file.size>25*1024*1024){state.error='Файл слишком большой. Максимум — 25 МБ.';render();return;}
         var reader = new FileReader();
-        reader.onload = function () {
+        reader.onload = async function () {
           try {
             var parsed = JSON.parse(reader.result);
             var manhwas, awardWinners, awardCandidates, awardEditUsed, hasAwards;
@@ -5414,9 +5472,13 @@
               confirmMsg += " В этом файле нет XP и достижений (более старый бэкап) — они останутся как есть.";
             }
 
-            var replace = state.manhwas.length === 0 || window.confirm(confirmMsg);
+            var replace = await previewBackup(file.name,parsed,manhwas,cleaned.skipped,confirmMsg);
+            if (!replace) return;
             if (replace) {
               state.ratingDrafts = {};
+              saveRatingDrafts();
+              chapterDrafts=Object.create(null);persistChapterDrafts();
+              journalView={};
               state.manhwas = manhwas;
               if (hasAwards) {
                 state.awardWinners = normalizeWinners(awardWinners);
@@ -5442,13 +5504,16 @@
                 saveXp();
                 saveAchievements();
               }
+              await Promise.all(Object.keys(storageWrites).map(function(k){return storageWrites[k].catch(function(){});}));
               render();
+              if(!Object.keys(failedWrites).length)showToast('Резервная копия восстановлена на устройстве');
             }
           } catch (e) {
             state.error = "Не удалось прочитать файл — проверь, что это резервная копия из этого приложения.";
             render();
           }
         };
+        reader.onerror=function(){state.error='Не удалось прочитать файл. Попробуй выбрать его ещё раз.';render();};
         reader.readAsText(file);
         importInput.value = "";
       });
@@ -5604,6 +5669,7 @@
     var text=Object.keys(failedWrites).length?'Не всё сохранено — повтори сохранение в уведомлении':pendingStorageWrites?'Сохраняем на устройстве…':'Сохранено на устройстве';
     if(st.signedIn)text+=' · '+acctStatusShort(st);
     el.textContent=text;
+    patchDataHealth(st);
   }
   function patchUpdateNotice(){
     var el=document.getElementById('update-notice');if(!el)return;
@@ -5618,6 +5684,17 @@
     updateRequested=true;waitingWorker.postMessage({type:'SKIP_WAITING'});
   }
   /* ---------- boot ---------- */
+  if(window.visualViewport){
+    function updateVisibleViewport(){
+      var viewport=window.visualViewport,root=document.documentElement;
+      root.style.setProperty('--app-visible-height',viewport.height+'px');
+      root.style.setProperty('--app-visible-top',viewport.offsetTop+'px');
+      root.classList.toggle('mt-keyboard-open',window.innerHeight-viewport.height>140&&viewport.scale===1);
+    }
+    window.visualViewport.addEventListener('resize',updateVisibleViewport);
+    window.visualViewport.addEventListener('scroll',updateVisibleViewport);
+    updateVisibleViewport();
+  }
   window.addEventListener('beforeunload',function(e){if(profileIsDirty()){e.preventDefault();e.returnValue='';}});
   loadUsability();
   loadCatalogFilters();
