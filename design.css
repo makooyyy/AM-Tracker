@@ -865,22 +865,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-journal-list header{align-items:center;padding-bottom:14px;border-bottom:1px solid #ffffff0c;}
 .mt-journal-list header b{font-size:14px;font-weight:600;}
 .mt-journal-list time{font-size:10px;white-space:nowrap;}
-.mt-saved-chapter-rating{display:flex;align-items:center;gap:16px;margin:18px 0;}
-.mt-chapter-score-ring{flex:0 0 76px;width:76px;height:76px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(var(--chapter-accent) calc(var(--chapter-score)*10%),#ffffff0d 0);position:relative;}
-.mt-chapter-score-ring:before{content:"";position:absolute;inset:3px;border-radius:50%;background:#201d28;}
-.mt-chapter-score-ring strong{position:relative;font-size:18px;letter-spacing:-.5px;color:var(--chapter-accent);font-variant-numeric:tabular-nums;}
-.mt-chapter-score-copy{flex:1;min-width:0;display:grid;gap:7px;}
-.mt-chapter-score-copy>span{font-size:8px;letter-spacing:1.6px;color:#a99bb8;}
-.mt-chapter-score-copy>b{font-size:13px;line-height:1.45;font-weight:600;}
-.mt-chapter-score-copy>small{font-size:9px;line-height:1.5;color:#a99bb8;}
-.mt-chapter-score-bars{display:flex;gap:3px;margin:2px 0;}
-.mt-chapter-score-bars i{flex:1;height:4px;border-radius:3px;background:#ffffff0d;}
-.mt-chapter-score-bars .is-filled{background:var(--chapter-accent);}
 .mt-journal-list p{font-size:13px;line-height:1.7;}
 .mt-journal-list p:empty{display:none;}
 .mt-journal-list [data-journal-delete]{display:block;margin:14px 0 0 auto;padding:6px 0;font-size:10px;min-height:36px;opacity:.65;}
 .mt-journal-list [data-journal-delete]:hover{opacity:1;color:#f2a8ac;}
-@media(max-width:359px){.mt-chapter-journal #chapter-form,.mt-journal-list article{padding:13px;}.mt-saved-chapter-rating{gap:10px;}.mt-chapter-score-ring{flex-basis:64px;width:64px;height:64px;}.mt-chapter-score-ring strong{font-size:16px;}}
+@media(max-width:359px){.mt-chapter-journal #chapter-form,.mt-journal-list article{padding:13px;}}
 /* Reading workspace: compact navigation and a connected chapter diary. */
 .mt-reading-card {flex:0 0 94%;min-width:0;overflow:hidden;border:1px solid #c4b2ed26;border-radius:20px;background:#232029;}
 .mt-reading-card:only-child {flex-basis:100%;}
@@ -1168,9 +1157,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-detail-overview>div:last-child {display:grid;gap:9px;}
 .mt-detail-overview strong {font:30px/1.2 Georgia,serif;}
 .mt-detail-overview small {color:var(--text-muted);font-size:11px;}
-.mt-detail-nav {display:flex;position:sticky;top:10px;z-index:12;gap:5px;padding:6px;margin:20px 0;background:#25212ef5;border:1px solid #c4b2ed30;border-radius:16px;backdrop-filter:blur(14px);}
-.mt-detail-nav button {flex:1;min-width:0;padding:12px 4px;background:none;border:0;border-radius:11px;color:var(--text-muted);font:600 12px Manrope,sans-serif;cursor:pointer;}
-.mt-detail-nav button[aria-pressed=true] {background:#c4b2ed;color:#22182c;}
+.mt-detail-nav {display:flex;position:relative;gap:5px;padding:4px;margin:16px 0;background:var(--card-bg,#25212e);border:1px solid var(--diary-line,#8883);border-radius:14px;}
+.mt-detail-nav button {flex:1;min-width:0;min-height:44px;padding:10px 4px;background:none;border:0;border-radius:10px;color:var(--text-muted);font:600 14px/1.5 Manrope,sans-serif;cursor:pointer;}
+.mt-detail-nav button[aria-pressed=true] {background:var(--pink,#c4b2ed);color:#22182c;}
 [data-detail-panel][hidden] {display:none!important;}
 [data-detail-panel] {min-width:0;animation:mt-soft-appear .22s ease;}
 .mt-action-sheet {width:min(440px,calc(100% - 24px));max-height:85dvh;overflow:auto;margin:auto auto 18px;padding:24px;border:1px solid #c4b2ed45;border-radius:26px;background:#211d29;color:var(--text-primary);box-shadow:0 25px 100px #0009;}
@@ -1226,7 +1215,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-library-list .mt-cover {grid-row:1/3;}
 .mt-journey-nav {overflow:visible!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));}
 .mt-journey-nav button {width:100%!important;min-width:0;padding:12px 5px!important;font-size:11px!important;}
-.mt-detail-nav button[aria-pressed=true] {background:var(--pink,#c4b2ed);}
 
 /* v110: compact library, equal journey tabs and monthly award details. */
 .mt-library-intro.mt-library-intro-compact {padding:12px 0 0;margin:0;}
@@ -1318,10 +1306,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-score-picker legend{padding:0;font-size:13px;font-weight:600;margin-bottom:12px;}
 .mt-score-picker-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin-bottom:14px;}
 .mt-score-picker-heading output{font-size:24px;font-weight:600;color:var(--pink);}.mt-score-picker .mt-chapter-mood{font-size:11px;margin:0;color:var(--text-muted);}
-.mt-score-buttons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;}
-.mt-score-buttons button{min-width:0;min-height:48px;border:1px solid #ffffff26;border-radius:12px;background:#ffffff05;color:var(--text-primary);font-size:19px;font-weight:600;cursor:pointer;}
-.mt-score-buttons button[aria-pressed=true]{background:var(--pink);color:#17151c;border-color:var(--pink);box-shadow:0 0 0 2px var(--card-bg),0 0 0 3px var(--pink);}
-.mt-score-ends{display:flex;justify-content:space-between;gap:8px;margin:9px 0;font-size:10px;color:var(--text-muted);}
 .mt-note-only{min-height:44px;padding:8px 0;background:none;border:0;color:var(--text-muted);font-size:12px;text-align:left;text-decoration:underline;text-underline-offset:4px;cursor:pointer;}
 .mt-note-only[aria-pressed=true]{color:var(--pink);}.mt-score-picker #chapter-existing{font-size:12px;line-height:1.5;color:var(--amber);margin:8px 0 0;}.mt-score-picker #chapter-existing:empty{display:none;}
 .mt-chapter-note-label{display:block!important;font-size:13px!important;}.mt-chapter-note-label>span{font-size:11px;color:var(--text-muted);margin-left:6px;}
@@ -1422,12 +1406,21 @@ dialog.mt-chapter-sheet[open]{display:flex;flex-direction:column;}
 .mt-chapter-sheet .mt-chapter-stepper input:focus-visible{outline:none;}
 
 /* Personal chapter ratings: compact, readable heatmap. */
+.mt-map-highlight{display:grid;gap:7px;margin:18px 0;padding:16px;border:1px solid var(--diary-line);border-radius:14px;background:var(--diary-wash);text-align:center;}
+.mt-map-highlight strong{font-size:23px;line-height:1.3;}
+.mt-map-highlight span{font-size:12px;color:var(--text-muted);}
+.mt-chart-range{display:grid;gap:6px;margin:16px 0;font-size:12px;}
+.mt-chart-selection{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;min-height:48px;padding:10px;border:1px solid var(--diary-line);border-radius:12px;}
+dialog.mt-export-preview{box-sizing:border-box;width:min(680px,calc(100% - 24px));max-height:calc(var(--app-visible-height,100dvh) - 24px);overflow:auto;padding:20px;border:1px solid #8884;border-radius:22px;background:var(--card-bg,#222);color:var(--text-primary);overscroll-behavior:contain;}
+.mt-export-preview::backdrop{background:#080710bb;backdrop-filter:blur(5px);}
+.mt-export-preview header,.mt-export-preview footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.mt-export-preview h2{font:700 23px/1.3 Manrope,sans-serif;margin:0;}
+.mt-export-preview label{display:grid;gap:8px;margin:16px 0;font-size:13px;}
+.mt-export-preview img{display:block;width:100%;height:auto;border-radius:12px;margin:16px 0;}
+.mt-export-preview footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;}
+.mt-export-preview footer>button{min-width:0;margin:0;display:flex;align-items:center;justify-content:center;}
+.mt-export-preview #export-status{font-size:13px;line-height:1.5;}
 :root body .mt-journey-panel.mt-chapter-journal{width:100%;box-sizing:border-box;padding:24px 0;margin:0;}
-.mt-rating-map .mt-map-summary{gap:10px;}
-.mt-rating-map .mt-map-summary>div{align-items:center;justify-content:center;text-align:center;gap:8px;min-height:94px;padding:14px 8px;background:linear-gradient(145deg,var(--diary-wash),transparent);border-radius:15px;box-shadow:inset 0 1px 0 #ffffff08;}
-.mt-rating-map .mt-map-summary strong{color:var(--text-primary);font-size:23px;font-weight:800;line-height:1.2;letter-spacing:-.5px;font-variant-numeric:tabular-nums;}
-.mt-rating-map .mt-map-summary span{display:flex;align-items:center;justify-content:center;min-height:2.8em;font-size:12px;line-height:1.4;}
-@media(max-width:359px){.mt-rating-map .mt-map-summary{gap:7px;}.mt-rating-map .mt-map-summary>div{padding:12px 5px;}.mt-rating-map .mt-map-summary strong{font-size:20px;}}
 /* Shared type, spacing and controls across the two appearances. */
 :root{--ui-font:'Manrope',sans-serif;--ui-radius:14px;--ui-panel-radius:22px;--ui-control-height:44px;--ui-space:20px;}
 :root body{font-family:var(--ui-font);line-height:1.55;}
@@ -1437,7 +1430,7 @@ dialog.mt-chapter-sheet[open]{display:flex;flex-direction:column;}
 :root body :is(.mt-settings-card,.mt-journey-panel,.mt-profile-backup){border-radius:var(--ui-panel-radius);padding:var(--ui-space);}
 :root body :is(.mt-settings-card,.mt-journey-panel,.mt-profile-backup) h2{font-family:var(--ui-font);font-size:24px;font-weight:700;line-height:1.25;letter-spacing:-.5px;}
 :root body :is(.mt-feature-hint,.mt-backup-text,.mt-settings-card>p){font-size:13px;line-height:1.65;}
-:root body :is(.mt-panel-title,.mt-detail-nav button){font-family:var(--ui-font);font-size:14px;line-height:1.5;}
+:root body :is(.mt-panel-title){font-family:var(--ui-font);font-size:14px;line-height:1.5;}
 :root body :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--pink,#c4b2ed);outline-offset:3px;}
 .mt-map-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0;}
 .mt-map-summary>div{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px 8px;border:1px solid var(--diary-line,#8883);border-radius:12px;}
@@ -1470,7 +1463,7 @@ html{scroll-padding-top:90px;scroll-padding-bottom:100px;}
 @media(max-width:600px){
   :root{--ui-space:16px;--ui-panel-radius:18px;}
   :root body :is(input.mt-input,textarea.mt-input,select.mt-input){font-size:16px;}
-  :root body .mt-detail-nav button{min-height:44px;}
+
   .mt-map-summary strong{font-size:18px;}
   .mt-map-summary span{font-size:11px;}
   .mt-backup-preview footer{flex-wrap:wrap;}
