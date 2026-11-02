@@ -2122,13 +2122,13 @@
       months.map(function (key) { return '<button class="mt-award-month' + (key === monthKey ? ' active' : '') +
         '" data-awards-month="' + key + '" aria-pressed="' + (key === monthKey ? 'true' : 'false') + '"><strong>' +
         escapeHtml(monthLabel(key)) + '</strong><span>' + (key === lastCompletedMonthKey() ? 'Подводим итоги' : 'Архив') + '</span></button>'; }).join('') + '</div>';
-    html += '<details class="mt-award-help"><summary>'+ (monthKey===lastCompletedMonthKey()?(state.awardEditUsed[monthKey]?'Правка победителей уже использована':'Доступна одна правка победителей'):'Архив · только просмотр')+'</summary><p>Выбор победителей доступен за последний завершённый месяц: '+escapeHtml(monthLabel(lastCompletedMonthKey()))+'. После выбора всех победителей их можно сбросить и выбрать заново один раз.</p><p>Участвуют тайтлы с сохранённой оценкой или переоценкой за выбранный месяц. В номинации критерия нужен соответствующий критерий; для обложки — изображение. Сначала отметь кандидатов, затем выбери победителя.</p></details>';
+    var awardHelp = '<details class="mt-award-help"><summary>'+ (monthKey===lastCompletedMonthKey()?(state.awardEditUsed[monthKey]?'Правка победителей уже использована':'Доступна одна правка победителей'):'Архив · только просмотр')+'</summary><p>Выбор победителей доступен за последний завершённый месяц: '+escapeHtml(monthLabel(lastCompletedMonthKey()))+'. После выбора всех победителей их можно сбросить и выбрать заново один раз.</p><p>Участвуют тайтлы с сохранённой оценкой или переоценкой за выбранный месяц. В номинации критерия нужен соответствующий критерий; для обложки — изображение. Сначала отметь кандидатов, затем выбери победителя.</p></details>';
     if (monthKey < lastCompletedMonthKey()) {
       var archived = AWARD_CATEGORY_KEYS.filter(function (ck) { return !!getWinner(monthKey, ck); });
       html += '<div class="mt-section-eyebrow">АРХИВ ПРЕМИИ</div>' +
         (archived.length ? '<div class="mt-winner-carousel">' + archived.map(function (ck) { return winnerCardHtml(ck, getWinner(monthKey, ck)); }).join('') + '</div>' :
           '<div class="mt-paper mt-empty"><div class="mt-empty-title">Победители не выбраны</div><p class="mt-feature-hint">За этот месяц нет сохранённых победителей.</p></div>');
-      return html + '</div>';
+      return html + awardHelp + '</div>';
     }
 
     var availableCategories = availableCategoriesForMonth(monthKey);
@@ -2137,7 +2137,7 @@
       html +=
         '<div class="mt-paper mt-empty"><div class="mt-empty-title">Пока нечего вручать</div>' +
         '<div class="mt-empty-text">Награды появятся, когда закончится месяц с хотя бы одним оценённым тайтлом.</div></div>' +
-        "</div>";
+        awardHelp + "</div>";
       return html;
     }
 
@@ -2170,7 +2170,7 @@
           "Правка победителей в этом месяце уже использована</div>";
       }
 
-      html += "</div>";
+      html += awardHelp + "</div>";
       return html;
     }
 
@@ -2257,7 +2257,7 @@
         "</div>";
     }
 
-    html += "</div>";
+    html += awardHelp + "</div>";
     return html;
   }
 
