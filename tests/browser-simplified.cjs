@@ -63,17 +63,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await page.setViewportSize({width,height:844});
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'detail width '+width);
       const radar=await page.locator('.mt-radar-panel').boundingBox();
-      const bars=await page.locator('.mt-criteria-panel').boundingBox();
-      assert.ok(bars.y-radar.y-radar.height>=16,'rating panels need spacing');
-      assert.ok(Math.abs(bars.width-radar.width)<1,'matching panel widths');
-      assert.ok(await page.locator('.mt-criteria-panel .mt-bar-row').evaluateAll(rows=>rows.every(row=>{
-        const name=row.querySelector('.mt-bar-name').getBoundingClientRect(),track=row.querySelector('.mt-bar-track').getBoundingClientRect();
-        return name.bottom<=track.top;
-      })),'labels do not overlap bars');
+      assert.equal(await page.locator('.mt-criteria-panel,.mt-bar-row').count(),0,'radar carries the scores, no duplicate bars');
+      assert.equal(await page.locator('.mt-radar-panel svg text').count(),10,'radar shows name and value for every criterion');
+      const gap=await page.evaluate(()=>{const r=document.querySelector('.mt-radar-panel'),a=document.querySelector('.mt-view-actions');return a.offsetTop-(r.offsetTop+r.offsetHeight);});
+      assert.ok(gap>=8&&gap<=40,'edit/re-rate buttons sit right under the radar (layout gap '+gap+')');
+      assert.equal(await page.locator('#unlock-rating-btn,#rerate-btn').count(),2);
       const copy=await page.locator('#copy-scores-btn').boundingBox(),share=await page.locator('#share-rating-card').boundingBox();
       assert.ok(Math.abs(copy.width-share.width)<1,'matching button widths');
       assert.ok(share.y-copy.y-copy.height>=16,'button spacing');
-      await page.locator('.mt-criteria-panel').scrollIntoViewIfNeeded();
+      await page.locator('.mt-radar-panel').scrollIntoViewIfNeeded();
       await page.screenshot({path:path.join(root,'test-results','simplified-rating-'+width+'.png'),animations:'disabled'});
     }
     await page.setViewportSize({width:390,height:844});

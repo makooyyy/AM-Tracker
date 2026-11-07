@@ -697,3 +697,25 @@ test('failed profile save keeps the editor and selection available for retry', a
   assert.equal(api.state.profileDraft.library.showcase.titles[0],'favorite');
   assert.match(elements.get('prof-msg').textContent,/Не удалось сохранить/);
 });
+
+test('list import helpers: MAL xml, statuses and duplicates', () => {
+  const f = require('../features.js');
+  const xml = '<myanimelist><manga><manga_mangadb_id>1</manga_mangadb_id><manga_title><![CDATA[Solo &amp; Leveling]]></manga_title><my_read_chapters>12</my_read_chapters><my_score>9</my_score><my_status>On-Hold</my_status></manga><manga><manga_title>Berserk</manga_title><my_status>Completed</my_status></manga><manga><manga_title></manga_title></manga></myanimelist>';
+  const parsed = f.parseMalXml(xml);
+  assert.equal(parsed.error, '');
+  assert.equal(parsed.entries.length, 2);
+  assert.equal(parsed.entries[0].title, 'Solo & Leveling');
+  assert.equal(parsed.entries[0].status, 'reading');
+  assert.equal(parsed.entries[0].progress, 12);
+  assert.equal(parsed.entries[1].status, 'done');
+  assert.equal(f.parseMalXml('<html></html>').error, 'format');
+  assert.equal(f.parseMalXml('<myanimelist></myanimelist>').error, 'empty');
+  assert.deepEqual(['CURRENT', 'PLANNING', 'DROPPED', 'PAUSED', 'unknown'].map(f.listStatusToApp), ['reading', 'plan', 'dropped', 'reading', 'plan']);
+  const split = f.splitKnownEntries(
+    [{ title: 'Berserk!' }, { title: 'New', anilistId: 7 }, { title: 'new again', anilistId: 7 }, { title: 'Other', altTitles: ['SOLO leveling'] }],
+    [{ title: 'berserk', altTitles: {} }, { title: 'Solo Leveling', altTitles: { en: '' } }]
+  );
+  assert.deepEqual(split.fresh.map(e => e.title), ['New']);
+  assert.equal(split.known.length, 3);
+  assert.equal(f.importNote('AniList', { progress: 5, score: 8 }), 'Перенесено из AniList · прочитано глав: 5 · там оценка: 8/10');
+});

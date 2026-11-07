@@ -384,7 +384,64 @@
     return new Promise(function(resolve,reject){canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('PNG unavailable'));},'image/png');});
   }
 
-  var api = {readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  /* ---------- import of reading lists from other services ---------- */
+  // App statuses: reading / done / dropped / plan. «On hold» has no twin in
+  // the app, so it lands in «Читаю» (the story is still in progress).
+  function listStatusToApp(raw){
+    var k=String(raw==null?'':raw).trim().toLowerCase().replace(/[\s_-]+/g,'');
+    var map={current:'reading',repeating:'reading',reading:'reading','1':'reading',onhold:'reading',paused:'reading','3':'reading',
+      completed:'done','2':'done',dropped:'dropped','4':'dropped',planning:'plan',plantoread:'plan','6':'plan'};
+    return map[k]||'plan';
+  }
+  function xmlText(block,tag){
+    var m=new RegExp('<'+tag+'>\\s*(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))\\s*</'+tag+'>','i').exec(block);
+    if(!m)return '';
+    var v=m[1]!==undefined?m[1]:m[2];
+    return String(v).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&').trim();
+  }
+  // MyAnimeList / AniList «export to MAL XML». Reads only the manga entries.
+  function parseMalXml(text){
+    var src=String(text||'');
+    if(!/<myanimelist[\s>]/i.test(src)&&!/<manga>/i.test(src))return {entries:[],error:'format'};
+    var blocks=src.match(/<manga>[\s\S]*?<\/manga>/gi)||[];
+    var entries=[];
+    blocks.forEach(function(b){
+      var title=xmlText(b,'manga_title');
+      if(!title)return;
+      var progress=Number(xmlText(b,'my_read_chapters'));
+      var score=Number(xmlText(b,'my_score'));
+      entries.push({title:title,malId:xmlText(b,'manga_mangadb_id'),status:listStatusToApp(xmlText(b,'my_status')),
+        progress:Number.isFinite(progress)&&progress>0?Math.floor(progress):0,score:Number.isFinite(score)&&score>0?score:0});
+    });
+    return {entries:entries,error:entries.length?'':'empty'};
+  }
+  // Splits candidates into new ones and ones the library already has, by
+  // AniList id or any matching title. Duplicates inside the file count as known.
+  function splitKnownEntries(entries,list){
+    var ids=new Set(),names=new Set();
+    list.forEach(function(m){
+      if(m.anilistId)ids.add(String(m.anilistId));
+      [m.title].concat(Object.values(m.altTitles||{})).forEach(function(t){if(titleKey(t))names.add(titleKey(t));});
+    });
+    var fresh=[],known=[];
+    entries.forEach(function(e){
+      var keys=[e.title].concat(e.altTitles||[]).map(titleKey).filter(Boolean);
+      var dup=(e.anilistId&&ids.has(String(e.anilistId)))||keys.some(function(k){return names.has(k);});
+      if(dup){known.push(e);return;}
+      if(e.anilistId)ids.add(String(e.anilistId));
+      keys.forEach(function(k){names.add(k);});
+      fresh.push(e);
+    });
+    return {fresh:fresh,known:known};
+  }
+  function importNote(source,e){
+    var parts=['Перенесено из '+source];
+    if(e.progress>0)parts.push('прочитано глав: '+e.progress);
+    if(e.score>0)parts.push('там оценка: '+e.score+'/10');
+    return parts.join(' · ');
+  }
+
+  var api = {listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

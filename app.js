@@ -1777,7 +1777,7 @@
       return [center + r * Math.cos(angle), center + r * Math.sin(angle)];
     });
 
-    var svg = '<svg width="' + size + '" height="' + size + '" style="overflow:visible">';
+    var svg = '<svg width="' + size + '" height="' + size + '" style="overflow:visible' + (opts.showValues ? ';margin-top:16px' : '') + '">';
 
     [0.25, 0.5, 0.75, 1].forEach(function (s) {
       svg +=
@@ -1806,9 +1806,15 @@
       var lx = center + (maxR + 20) * Math.cos(angle);
       var ly = center + (maxR + 20) * Math.sin(angle);
       var label = c.name.length > 10 ? c.name.slice(0, 9) + "…" : c.name;
-      svg += '<text x="' + lx + '" y="' + ly + '" text-anchor="middle" dominant-baseline="middle" ' +
+      var dy = opts.showValues ? -7 : 0;
+      svg += '<text x="' + lx + '" y="' + (ly + dy) + '" text-anchor="middle" dominant-baseline="middle" ' +
         'font-family="Manrope, sans-serif" font-weight="700" font-size="11" fill="#B8B6B8">' +
         escapeHtml(label) + "</text>";
+      if (opts.showValues) {
+        svg += '<text x="' + lx + '" y="' + (ly + 8) + '" text-anchor="middle" dominant-baseline="middle" ' +
+          'font-family="Manrope, sans-serif" font-weight="800" font-size="13" fill="' + criterionColor(c.score) + '">' +
+          Number(c.score).toFixed(1) + "</text>";
+      }
     });
 
     svg += "</svg>";
@@ -2627,11 +2633,23 @@
         '<span class="mt-emotion-recap-label">' + escapeHtml(EMOTION_LABELS[m.emotionRating - 1]) + "</span></div>";
     }
 
+    // In view mode the radar already carries every score, so the bar list
+    // below it would only repeat the same numbers. Fewer than 3 criteria have
+    // no radar, so the bars stay as the only display there.
+    var hideBars = !editable && shownCriteria.length >= 3;
+    var viewActions = editable ? "" :
+      '<div class="mt-form-row mt-view-actions">' +
+      '<button class="mt-ghost-btn" id="unlock-rating-btn" data-manhwa-id="' + m.id + '" style="flex:1">✎ Изменить</button>' +
+      '<button class="mt-primary-btn" id="rerate-btn" data-manhwa-id="' + m.id + '" style="flex:1">🔄 Оценить заново</button>' +
+      "</div>" +
+      '<div class="mt-ceremony-hint" style="text-align:center;margin-top:8px">' +
+      "Прочитал новые главы? «Оценить заново» сохранит старую оценку в историю и добавит новую в премию этого месяца</div>";
+
     var html = emotionPicker + ratingTabs + '<div class="mt-paper mt-radar-panel"><div class="mt-rating-summary"><span class="mt-section-eyebrow">ТВОЯ ОЦЕНКА</span><div class="mt-editorial-score" style="--score-color:' + scoreColor(shownAvg) + '">' +
       (shownAvg === null ? '—' : Math.round(shownAvg)) + '<small>/ 100</small></div><span class="mt-rating-summary-caption">' + (snapView ? 'Из истории впечатлений' : 'Твой взгляд на эту историю') + '</span></div>' +
-      (shownCriteria.length ? radarSvg(shownCriteria, {}) : "") +
-      emotionRecap + "</div>" +
-      '<div class="mt-paper mt-criteria-panel">';
+      (shownCriteria.length ? radarSvg(shownCriteria, { showValues: !editable }) : "") +
+      emotionRecap + "</div>" + viewActions +
+      (hideBars ? "" : '<div class="mt-paper mt-criteria-panel">');
 
     if (editable) {
       html += rerateSnap
@@ -2654,7 +2672,7 @@
           '" data-slider-crit="' + c.id + '" />' +
           "</div>";
       });
-    } else {
+    } else if (!hideBars) {
       shownCriteria.forEach(function (c) {
         var color = criterionColor(c.score);
         html +=
@@ -2665,7 +2683,7 @@
       });
     }
 
-    html += "</div>";
+    if (!hideBars) html += "</div>";
 
     html += '<button class="mt-ghost-btn" id="copy-scores-btn" data-manhwa-id="' + m.id +
       '" style="width:100%">📋 Копировать оценки</button>';
@@ -2929,15 +2947,6 @@
           '" style="width:100%">' + (rerateSnap ? 'Сохранить переоценку' : 'Готово') + '</button>';
         if (rerateSnap) html += '<button class="mt-ghost-btn" id="cancel-rerate-btn" data-manhwa-id="' + m.id + '">Отменить переоценку</button>';
       }
-    } else {
-      html += '<div class="mt-form-row">' +
-        '<button class="mt-ghost-btn" id="unlock-rating-btn" data-manhwa-id="' + m.id +
-        '" style="flex:1">✎ Изменить</button>' +
-        '<button class="mt-primary-btn" id="rerate-btn" data-manhwa-id="' + m.id +
-        '" style="flex:1">🔄 Оценить заново</button>' +
-        "</div>" +
-        '<div class="mt-ceremony-hint" style="text-align:center;margin-top:8px">' +
-        "Прочитал новые главы? «Оценить заново» сохранит старую оценку в историю и добавит новую в премию этого месяца</div>";
     }
 
     html += '</section><section data-detail-panel="journal"><button class="mt-primary-btn mt-journal-add" id="journal-quick">'+(chapterDrafts[m.id]?'Продолжить черновик':'Оценить главу')+'</button>'+renderChapterJournal(m);
@@ -3307,6 +3316,33 @@
       dialog.showModal();
     });
   }
+  /* ---------- import of reading lists (AniList username / MAL XML) ---------- */
+  var LIST_IMPORT_LIMIT = 1500;
+  var listImport = { user: "", loading: false, error: "", source: "", fresh: [], known: 0, cut: false };
+  var LIST_IMPORT_QUERY = "query($u:String){MediaListCollection(userName:$u,type:MANGA){lists{entries{status progress score(format:POINT_10) media{id title{romaji english native} synonyms coverImage{large} genres countryOfOrigin}}}}}";
+
+  function renderListImport() {
+    var li = listImport;
+    var summary = "";
+    if (li.fresh.length || li.known) {
+      summary = '<div class="mt-list-import-summary" role="status"><strong>' + li.source + ': найдено ' + (li.fresh.length + li.known) + '</strong>' +
+        '<span>Новых: ' + li.fresh.length + ' · уже в библиотеке: ' + li.known + (li.cut ? ' · взяты первые ' + LIST_IMPORT_LIMIT : '') + '</span>' +
+        (li.fresh.length
+          ? '<div class="mt-form-row"><button class="mt-primary-btn" id="list-import-confirm" style="flex:1">Добавить ' + li.fresh.length + '</button><button class="mt-ghost-btn" id="list-import-cancel">Отмена</button></div>' +
+            '<small>Ничего не заменяется и не удаляется. Оценки не переносятся — они запишутся в заметку к тайтлу, а оценить его можно по своим критериям.</small>'
+          : '<button class="mt-ghost-btn" id="list-import-cancel">Закрыть</button>') +
+        '</div>';
+    }
+    return '<div class="mt-paper mt-profile-backup mt-list-import"><div class="mt-panel-title">Перенос списка из других сервисов</div>' +
+      '<div class="mt-backup-text">Добавь тайтлы из AniList или MyAnimeList в свою библиотеку: статусы сохранятся, существующие записи не тронем.</div>' +
+      '<label class="mt-field-label" for="list-import-user">Ник на AniList (профиль должен быть открытым)</label>' +
+      '<div class="mt-form-row"><input class="mt-input" id="list-import-user" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="Например, Artem" value="' + escapeHtml(li.user) + '" style="flex:1" />' +
+      '<button class="mt-ghost-btn" id="list-import-fetch"' + (li.loading ? ' disabled' : '') + '>' + (li.loading ? 'Загружаю…' : 'Загрузить') + '</button></div>' +
+      '<button class="mt-ghost-btn" id="list-import-file-btn" style="width:100%">⭱ Файл MAL или AniList (XML)</button>' +
+      '<input type="file" id="list-import-file" accept=".xml,text/xml,application/xml" style="display:none" />' +
+      (li.error ? '<p class="mt-list-import-error" role="alert">' + escapeHtml(li.error) + '</p>' : '') + summary + '</div>';
+  }
+
   function renderBackupSettings(){
     return '<section class="mt-settings-card"><h2>Сохранение и синхронизация</h2><div id="data-health"></div></section><div class="mt-paper mt-profile-backup"><div class="mt-panel-title">Резервная копия</div>' +
       '<div class="mt-backup-text">Сохрани файл с оценками себе на телефон — так данные ' +
@@ -3316,7 +3352,7 @@
       '<button class="mt-ghost-btn" id="import-btn" style="flex:1">⭱ Загрузить из файла</button>' +
       "</div>" +
       '<input type="file" id="import-file-input" accept="application/json" style="display:none" />' +
-      "</div>";
+      "</div>" + renderListImport();
   }
   function renderSettings(){
     return '<section class="mt-account-settings mt-settings-page"><button class="mt-ghost-btn" id="account-settings-back">← Назад</button><header><span class="mt-section-eyebrow">ПОД ТЕБЯ</span><h1>Настройки</h1><p>Твой профиль, удобный интерфейс и сохранность коллекции.</p></header>'+
@@ -3346,7 +3382,6 @@
       '<section class="mt-profile-page"><div class="mt-header"><div class="mt-section-eyebrow">ИСТОРИЯ ТВОИХ ВПЕЧАТЛЕНИЙ</div><h1 class="mt-page-title">Профиль читателя</h1></div>' + renderProfileHero() + renderErrorBanner() +
       '<div class="mt-list" style="padding-top:16px">' +
       renderShopEntry() +
-      renderRankPanel() +
       '<div class="mt-chip-row">' +
       '<div class="mt-chip"><div class="mt-chip-value">' + state.manhwas.length + '</div><div class="mt-chip-label">манхв в списке</div></div>' +
       '<div class="mt-chip"><div class="mt-chip-value" style="color:#C9BFA8">' +
@@ -4172,7 +4207,7 @@
     var data=journeyData(),ui=state.journeyUI;
     if(!['achievements','goals','halloween'].includes(ui.section))ui.section='achievements';
     var genres=Array.from(new Set(state.manhwas.filter(function(m){return m.rated;}).flatMap(function(m){return m.genres||[];}))).sort();
-    var html='<div class="mt-journey-page"><header class="mt-journey-heading"><div class="mt-journey-orbit" aria-hidden="true">✦</div><span class="mt-section-eyebrow">ТВОЁ ПРОСТРАНСТВО ЧТЕНИЯ</span><h1>Для тебя<span aria-hidden="true"> ✦</span></h1><p>Твои достижения, цели и события.</p></header><nav class="mt-journey-nav" aria-label="Разделы для тебя">'+[['achievements','01','Достижения'],['goals','02','Цели'],['halloween','☾','Ивент']].map(function(x){return '<button data-journey-section="'+x[0]+'" aria-pressed="'+(ui.section===x[0])+'"><small>'+x[1]+'</small>'+x[2]+'</button>';}).join('')+'</nav><div class="mt-journey-stage">';
+    var html='<div class="mt-journey-page"><header class="mt-journey-heading"><div class="mt-journey-orbit" aria-hidden="true">✦</div><span class="mt-section-eyebrow">ТВОЁ ПРОСТРАНСТВО ЧТЕНИЯ</span><h1>Прогресс<span aria-hidden="true"> ✦</span></h1><p>Твои достижения, цели и события.</p></header><nav class="mt-journey-nav" aria-label="Разделы прогресса">'+[['achievements','01','Достижения'],['goals','02','Цели'],['halloween','☾','Ивент']].map(function(x){return '<button data-journey-section="'+x[0]+'" aria-pressed="'+(ui.section===x[0])+'"><small>'+x[1]+'</small>'+x[2]+'</button>';}).join('')+'</nav><div class="mt-journey-stage">';
     if(ui.section==='achievements')html+=renderAchievementsTab();
     if(ui.section==='halloween')html+=renderHalloween();
     if(ui.section==='goals')html+=
@@ -4501,7 +4536,7 @@
     var tabs = [
       ["library", "Библиотека", ICON_BOOK],
       ["catalog", "Каталог", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg>'],
-      ["journey", "Для тебя", ICON_BOOK],
+      ["journey", "Прогресс", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/><path d="M19 3v3M17.5 4.5h3M5 17v3M3.5 18.5h3"/></svg>'],
       ["awards", "Премия", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm0 2H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4M12 13v5m-4 3h8m-6-3h4v3h-4z"/></svg>'],
       ["profile", "Профиль", ICON_USER]
     ];
@@ -5423,6 +5458,109 @@
       // Revoking right away can cancel the download in some browsers.
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     });
+
+    // import of reading lists from AniList (by username) or a MAL/AniList XML file
+    var liUser = document.getElementById("list-import-user");
+    if (liUser) liUser.addEventListener("input", function () { listImport.user = liUser.value; });
+    function liFinish(source, entries) {
+      var split = Features.splitKnownEntries(entries, state.manhwas);
+      var cut = split.fresh.length > LIST_IMPORT_LIMIT;
+      listImport.source = source; listImport.known = split.known.length; listImport.cut = cut;
+      listImport.fresh = cut ? split.fresh.slice(0, LIST_IMPORT_LIMIT) : split.fresh;
+      listImport.loading = false;
+      listImport.error = entries.length ? "" : "В этом списке нет тайтлов.";
+      render();
+    }
+    function liFail(message) { listImport.loading = false; listImport.fresh = []; listImport.known = 0; listImport.error = message; render(); }
+    var liFetch = document.getElementById("list-import-fetch");
+    if (liFetch) liFetch.addEventListener("click", function () {
+      var name = String(listImport.user || "").trim().replace(/^@/, "");
+      if (!name) { liFail("Введи ник на AniList."); return; }
+      if (navigator.onLine === false) { liFail("Нет интернета. Подключись к сети и попробуй ещё раз."); return; }
+      listImport.loading = true; listImport.error = ""; listImport.fresh = []; listImport.known = 0; render();
+      var controller = new AbortController();
+      var timer = setTimeout(function () { controller.abort(); }, 25000);
+      fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, signal: controller.signal, body: JSON.stringify({ query: LIST_IMPORT_QUERY, variables: { u: name } }) })
+        .then(function (r) {
+          if (r.status === 429) throw new Error("AniList просит подождать. Повтори примерно через минуту.");
+          return r.json().catch(function () { throw new Error("AniList временно недоступен. Попробуй ещё раз."); });
+        })
+        .then(function (r) {
+          if (r && r.errors && r.errors.length) {
+            var msg = String(r.errors[0].message || "");
+            if (/private/i.test(msg)) throw new Error("Профиль закрыт. Открой список в настройках AniList или загрузи XML-файл.");
+            if (/not found/i.test(msg)) throw new Error("Пользователь «" + name + "» не найден на AniList.");
+            throw new Error("AniList не отдал список. Попробуй ещё раз.");
+          }
+          var lists = r && r.data && r.data.MediaListCollection && r.data.MediaListCollection.lists;
+          if (!Array.isArray(lists)) throw new Error("AniList не отдал список. Попробуй ещё раз.");
+          var seen = {}, entries = [];
+          lists.forEach(function (list) {
+            (list && list.entries || []).forEach(function (en) {
+              var media = en && en.media;
+              if (!media || !Number.isInteger(media.id) || seen[media.id] || !media.title) return;
+              seen[media.id] = true;
+              var t = media.title, title = t.english || t.romaji || t.native || "";
+              if (!title) return;
+              entries.push({
+                anilistId: media.id, title: title,
+                altTitles: [t.romaji, t.english, t.native].concat(media.synonyms || []).filter(Boolean),
+                alt: { en: t.english || t.romaji || "", ja: media.countryOfOrigin === "JP" ? t.native || "" : "", ko: media.countryOfOrigin === "KR" ? t.native || "" : "", ru: "" },
+                type: typeFromCountryOfOrigin(media.countryOfOrigin) || "manga",
+                coverUrl: media.coverImage && media.coverImage.large || "",
+                genres: (media.genres || []).map(translateAniListGenre),
+                status: Features.listStatusToApp(en.status),
+                progress: Math.max(0, Math.floor(Number(en.progress) || 0)),
+                score: Number(en.score) > 0 ? Number(en.score) : 0
+              });
+            });
+          });
+          liFinish("AniList", entries);
+        })
+        .catch(function (e) { liFail(e && e.name === "AbortError" ? "AniList долго не отвечает. Попробуй ещё раз." : (e && e.message) || "Не удалось загрузить список."); })
+        .then(function () { clearTimeout(timer); });
+    });
+    var liFileBtn = document.getElementById("list-import-file-btn");
+    var liFile = document.getElementById("list-import-file");
+    if (liFileBtn && liFile) {
+      liFileBtn.addEventListener("click", function () { liFile.click(); });
+      liFile.addEventListener("change", function () {
+        var file = liFile.files && liFile.files[0];
+        if (!file) return;
+        if (file.size > 25 * 1024 * 1024) { liFail("Файл слишком большой. Максимум — 25 МБ."); return; }
+        var reader = new FileReader();
+        reader.onload = function () {
+          var parsed = Features.parseMalXml(String(reader.result || ""));
+          if (parsed.error === "format") { liFail("Это не похоже на экспорт MyAnimeList или AniList (XML)."); return; }
+          if (parsed.error === "empty") { liFail("В файле нет манги. Выгрузи именно список манги, а не аниме."); return; }
+          liFinish("Файл", parsed.entries.map(function (e) { return { title: e.title, altTitles: [], type: "manga", status: e.status, progress: e.progress, score: e.score, genres: [], coverUrl: "", alt: null, anilistId: null }; }));
+        };
+        reader.onerror = function () { liFail("Не удалось прочитать файл."); };
+        reader.readAsText(file);
+      });
+    }
+    var liConfirm = document.getElementById("list-import-confirm");
+    if (liConfirm) liConfirm.addEventListener("click", function () {
+      var source = listImport.source === "AniList" ? "AniList" : "файла MAL/AniList";
+      var now = Date.now(), added = 0;
+      listImport.fresh.forEach(function (e, i) {
+        var m = newManhwa(e.title, e.type, e.coverUrl);
+        m.status = STATUSES.some(function (st) { return st.id === e.status; }) ? e.status : "plan";
+        m.createdAt = now - i;
+        if (m.status === "done") m.completedAt = now;
+        if (e.anilistId) m.anilistId = e.anilistId;
+        if (e.genres && e.genres.length) m.genres = e.genres;
+        if (e.alt) m.altTitles = e.alt;
+        m.notes = Features.importNote(source, e);
+        state.manhwas.push(m); added++;
+      });
+      listImport.fresh = []; listImport.known = 0; listImport.error = ""; listImport.cut = false;
+      save();
+      render();
+      showToast("Добавлено тайтлов: " + added);
+    });
+    var liCancel = document.getElementById("list-import-cancel");
+    if (liCancel) liCancel.addEventListener("click", function () { listImport.fresh = []; listImport.known = 0; listImport.error = ""; render(); });
 
     // import from file
     var importBtn = document.getElementById("import-btn");

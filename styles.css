@@ -968,3 +968,12 @@ select.mt-input { color-scheme: dark; width: 100%; }
 .mt-feature-dialog button, .mt-feature-dialog a { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { .mt-continue-strip { scroll-behavior: auto; } }
 
+
+/* List import card (AniList / MAL) */
+.mt-list-import .mt-field-label{display:block;margin:14px 0 6px}
+.mt-list-import .mt-form-row{margin-top:0}
+.mt-list-import #list-import-file-btn{margin-top:10px}
+.mt-list-import-summary{display:grid;gap:10px;margin-top:14px;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(255,255,255,.04)}
+.mt-list-import-summary strong{font-size:15px}
+.mt-list-import-summary span,.mt-list-import-summary small{font-size:13px;line-height:1.45;opacity:.82}
+.mt-list-import-error{margin:12px 0 0;color:#e7a0a8;font-size:13.5px;line-height:1.45}
