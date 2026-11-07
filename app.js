@@ -656,6 +656,7 @@
     filterGenre: "all",
     showGenreFilter: false,
     showChangelog: false,
+    notifTab: "notifications",
     showSearch: false,
     changelogSeenVersion: null,
     awardWinners: {},
@@ -2267,7 +2268,139 @@
     return html;
   }
 
+  /* ---------- notification center (bell): «Уведомления» + «Журнал обновлений» ---------- */
+  // Notifications are computed from the library on this device — nothing is
+  // sent anywhere. Only «seen», «dismissed» and the last backup time are kept.
+  var NOTIF_KEY = "mt-notifications-v1";
+  var NOTIF_DAY = 86400000;
+  var notifState = { seen: {}, dismissed: {}, lastBackupAt: 0 };
+  var notifFresh = {};
+  function loadNotifState() {
+    try {
+      var p = JSON.parse(window.localStorage.getItem(NOTIF_KEY) || "{}");
+      notifState.seen = isPlainObject(p.seen) ? p.seen : {};
+      notifState.dismissed = isPlainObject(p.dismissed) ? p.dismissed : {};
+      notifState.lastBackupAt = Number.isFinite(p.lastBackupAt) ? p.lastBackupAt : 0;
+    } catch (e) {}
+  }
+  function saveNotifState() {
+    ["seen", "dismissed"].forEach(function (k) {
+      var keys = Object.keys(notifState[k]);
+      if (keys.length > 200) keys.sort(function (a, b) { return notifState[k][a] - notifState[k][b]; }).slice(0, keys.length - 200).forEach(function (id) { delete notifState[k][id]; });
+    });
+    try { window.localStorage.setItem(NOTIF_KEY, JSON.stringify(notifState)); } catch (e) {}
+  }
+  function notifPlural(n, forms) {
+    var a = Math.abs(n) % 100, b = a % 10;
+    return a > 10 && a < 20 ? forms[2] : b === 1 ? forms[0] : b > 1 && b < 5 ? forms[1] : forms[2];
+  }
+  function titleLastActivity(m, lastByTitle) {
+    var t = Math.max(m.createdAt || 0, m.lastRatedAt || 0, m.completedAt || 0, lastByTitle[m.id] || 0);
+    (m.journal || []).forEach(function (e) { if (e && Number.isFinite(e.ts) && e.ts > t) t = e.ts; });
+    return t;
+  }
+  function buildNotifications() {
+    var now = Date.now(), list = [];
+    function add(n) { list.push(n); }
+    if (!state.manhwas.length) {
+      add({ id: "welcome", icon: "✦", title: "Добро пожаловать", text: "Добавь первый тайтл — здесь появятся напоминания о черновиках, итогах месяца и забытых историях.", action: "add", label: "Добавить тайтл" });
+      return list.filter(function (n) { return !notifState.dismissed[n.id]; });
+    }
+    state.manhwas.forEach(function (m) {
+      var d = chapterDrafts[m.id];
+      if (d && isPlainObject(d)) {
+        var num = d.chapter != null && d.chapter !== "" ? d.chapter : d.number;
+        add({ id: "chdraft:" + m.id, icon: "✎", title: "Незаконченная запись главы", text: "У «" + displayTitle(m) + "» есть черновик" + (num ? " главы " + num : " записи") + ". Он ждёт сохранения.", action: "title-journal", arg: m.id, label: "Продолжить" });
+      }
+    });
+    Object.keys(state.ratingDrafts || {}).forEach(function (id) {
+      var m = findManhwa(id);
+      if (m && state.ratingDrafts[id]) add({ id: "ratedraft:" + id, icon: "★", title: "Оценка не сохранена", text: "Черновик оценки «" + displayTitle(m) + "» лежит на этом устройстве. Вернись и нажми «Готово».", action: "title", arg: id, label: "Открыть тайтл" });
+    });
+    try {
+      var mk = lastCompletedMonthKey();
+      if (eligibleForMonth(mk).length && AWARD_CATEGORY_KEYS.some(function (ck) { return !getWinner(mk, ck) && eligiblePoolForCategory(mk, ck).length; })) {
+        add({ id: "awards:" + mk, icon: "🏆", title: "Итоги месяца ждут", text: "Итоги " + monthLabel(mk) + " готовы: выбери победителей. Выбранную награду потом уже не изменить, так что не торопись.", action: "awards", arg: mk, label: "К премии" });
+      }
+    } catch (e) {}
+    var unrated = state.manhwas.filter(function (m) { return m.status === "done" && !m.rated; });
+    if (unrated.length) {
+      unrated.sort(function (a, b) { return (b.completedAt || 0) - (a.completedAt || 0); });
+      add({ id: "unrated:" + unrated[0].id, icon: "☆", title: "Завершено без оценки", text: "«" + displayTitle(unrated[0]) + "»" + (unrated.length > 1 ? " и ещё " + (unrated.length - 1) : "") + " — оцени, пока впечатления свежие.", action: "title", arg: unrated[0].id, label: "Оценить" });
+    }
+    var lastByTitle = {};
+    (state.activityLog || []).forEach(function (e) { if (e && e.manhwaId && Number.isFinite(e.ts) && e.ts > (lastByTitle[e.manhwaId] || 0)) lastByTitle[e.manhwaId] = e.ts; });
+    var stalled = state.manhwas.filter(function (m) { return m.status === "reading"; }).map(function (m) { return { m: m, t: titleLastActivity(m, lastByTitle) }; })
+      .filter(function (x) { return x.t && now - x.t >= 21 * NOTIF_DAY; }).sort(function (a, b) { return a.t - b.t; });
+    if (stalled.length) {
+      var days = Math.floor((now - stalled[0].t) / NOTIF_DAY);
+      add({ id: "stalled:" + stalled[0].m.id + ":" + Math.floor(stalled[0].t / NOTIF_DAY), icon: "☾", title: "Пора вернуться к чтению", text: "«" + displayTitle(stalled[0].m) + "» без новых глав уже " + days + " " + notifPlural(days, ["день", "дня", "дней"]) + (stalled.length > 1 ? ". Ещё " + (stalled.length - 1) + " в таком же положении." : "."), action: "title", arg: stalled[0].m.id, label: "Открыть тайтл" });
+    }
+    try {
+      var metrics = achievementMetrics(), best = null;
+      ACHIEVEMENTS.forEach(function (a) {
+        var pr = achievementProgress(a, metrics);
+        if (pr.unlocked || !pr.measured || pr.fraction < 0.8 || pr.fraction >= 1) return;
+        if (!best || pr.fraction > best.p.fraction) best = { a: a, p: pr };
+      });
+      if (best) add({ id: "ach:" + best.a.id, icon: best.a.icon || "✦", title: "Почти получено", text: "«" + best.a.name + "»: " + best.p.current + " из " + best.p.target + ".", action: "achievements", label: "К достижениям" });
+    } catch (e) {}
+    if (state.manhwas.length >= 3 && (!notifState.lastBackupAt || now - notifState.lastBackupAt > 30 * NOTIF_DAY)) {
+      var ago = notifState.lastBackupAt ? Math.floor((now - notifState.lastBackupAt) / NOTIF_DAY) : 0;
+      add({ id: "backup:" + monthKeyOf(now), icon: "⭳", title: "Сохрани резервную копию", text: (ago ? "Последний файл был " + ago + " " + notifPlural(ago, ["день", "дня", "дней"]) + " назад. " : "Файл с копией ещё не сохраняли. ") + "Он защитит оценки при очистке браузера.", action: "settings", label: "Открыть настройки" });
+    }
+    return list.filter(function (n) { return !notifState.dismissed[n.id]; });
+  }
+  function unseenNotificationCount() {
+    return buildNotifications().filter(function (n) { return !notifState.seen[n.id]; }).length;
+  }
+  function hasUnseenChangelog() { return CHANGELOG.length > 0 && CHANGELOG[0].version !== state.changelogSeenVersion; }
+  function bellHasBadge() { return hasUnseenChangelog() || unseenNotificationCount() > 0; }
+  function markChangelogSeen() {
+    if (hasUnseenChangelog()) {
+      state.changelogSeenVersion = CHANGELOG[0].version;
+      persistChangelogSeen(CHANGELOG[0].version);
+    }
+  }
+  function markNotificationsSeen() {
+    var now = Date.now(), changed = false;
+    buildNotifications().forEach(function (n) { if (!notifState.seen[n.id]) { notifState.seen[n.id] = now; changed = true; } });
+    if (changed) saveNotifState();
+  }
+
+  function renderNotificationCards() {
+    var items = buildNotifications();
+    if (!items.length) {
+      return '<div class="mt-paper mt-notif-empty"><strong>Пока всё спокойно</strong><p>Когда появятся черновики, итоги месяца или забытые истории — напоминания будут здесь.</p></div>';
+    }
+    return items.map(function (n) {
+      var fresh = !!notifFresh[n.id];
+      return '<article class="mt-paper mt-notif-card' + (fresh ? ' is-new' : '') + '" data-notif-id="' + escapeHtml(n.id) + '">' +
+        '<div class="mt-notif-head"><span class="mt-notif-icon" aria-hidden="true">' + escapeHtml(n.icon) + '</span>' +
+        '<div class="mt-notif-body"><div class="mt-notif-title">' + escapeHtml(n.title) + (fresh ? ' <span class="mt-notif-new">новое</span>' : '') + '</div>' +
+        '<p class="mt-notif-text">' + escapeHtml(n.text) + '</p></div></div>' +
+        '<div class="mt-notif-actions"><button class="mt-primary-btn" data-notif-go="' + escapeHtml(n.action) + '" data-notif-arg="' + escapeHtml(n.arg || "") + '">' + escapeHtml(n.label) + '</button>' +
+        '<button class="mt-ghost-btn" data-notif-dismiss="' + escapeHtml(n.id) + '">Скрыть</button></div></article>';
+    }).join("");
+  }
+
   function renderChangelog() {
+    var tab = state.notifTab === "changelog" ? "changelog" : "notifications";
+    var freshCount = Object.keys(notifFresh).length;
+    var tabs = [["notifications", "Уведомления", freshCount > 0], ["changelog", "Журнал обновлений", false]].map(function (t) {
+      return '<button data-notif-tab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + (t[2] ? '<i class="mt-tab-dot" aria-label="есть новые"></i>' : '') + '</button>';
+    }).join("");
+    return (
+      '<div class="mt-detail-head">' +
+      '<button class="mt-icon-btn on-dark" id="changelog-back-btn" aria-label="Назад">←</button>' +
+      '<div class="mt-detail-title">УВЕДОМЛЕНИЯ</div>' +
+      "</div>" +
+      '<div class="mt-list"><nav class="mt-detail-nav mt-notif-tabs" aria-label="Разделы уведомлений">' + tabs + '</nav>' +
+      (tab === "changelog" ? renderChangelogList() : renderNotificationCards()) + "</div>"
+    );
+  }
+
+  function renderChangelogList() {
     var entries = CHANGELOG.map(function (entry) {
       var meta = changelogTypeMeta(entry.type);
       var items = entry.items.map(function (it) {
@@ -2286,13 +2419,7 @@
       );
     }).join("");
 
-    return (
-      '<div class="mt-detail-head">' +
-      '<button class="mt-icon-btn on-dark" id="changelog-back-btn" aria-label="Назад">←</button>' +
-      '<div class="mt-detail-title">ЖУРНАЛ ОБНОВЛЕНИЙ</div>' +
-      "</div>" +
-      '<div class="mt-list">' + entries + "</div>"
-    );
+    return entries;
   }
 
   function renderHeader() {
@@ -2336,7 +2463,7 @@
       genrePanel = '<div class="mt-genre-filter-row">' + genreChips + "</div>";
     }
 
-    var hasUnseen = CHANGELOG.length > 0 && CHANGELOG[0].version !== state.changelogSeenVersion;
+    var hasUnseen = bellHasBadge();
     var searchPanel = state.showSearch
       ? '<div class="mt-search-wrap">' +
         '<input class="mt-input mt-search-input" id="search-input" placeholder="Поиск по названию или жанру…" value="' +
@@ -2348,7 +2475,7 @@
       '<div class="mt-header">' +
       (halloweenAppearance() ? '' : '<div class="mt-title-row">' +
       '<div class="mt-brand"><img class="mt-brand-mark" src="icons/mark.svg" alt="" /><div><div class="mt-title">AM TRACKER</div><div class="mt-brand-caption">Твой дневник историй</div></div></div>' +
-      '<button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL +
+      '<button class="mt-icon-round" id="open-changelog" aria-label="Уведомления и журнал обновлений">' + ICON_BELL +
       (hasUnseen ? '<span class="mt-notify-dot"></span>' : "") + "</button>" +
       "</div>") +
       '<div class="mt-library-intro mt-library-intro-compact">' +
@@ -4639,7 +4766,7 @@
 
     var showTabs = !selected && !state.showChangelog;
     var revealManhwa = state.revealManhwaId ? findManhwa(state.revealManhwaId) : null;
-    var seasonHeader=showTabs&&halloweenAppearance()?'<aside class="mt-season-header"><button id="season-event-open"><span aria-hidden="true">☾</span><span><small>AM TRACKER · ОСОБЫЙ ОБЛИК</small><strong>Ночь историй</strong></span></button><div class="mt-season-actions"><button class="mt-icon-round" id="open-changelog" aria-label="Журнал обновлений">' + ICON_BELL + (CHANGELOG.length&&CHANGELOG[0].version!==state.changelogSeenVersion?'<span class="mt-notify-dot"></span>':'') + '</button><button id="season-settings-open" aria-label="Настройки оформления" title="Изменить оформление"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.6-2 3.4 1.5 1.4v3.2L2.5 15l2 3.4 2-.6 2 1.2.5 2h6l.5-2 2-1.2 2 .6 2-3.4-1.5-1.4v-3.2L21.5 9l-2-3.4-2 .6-2-1.2L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></aside>':'';
+    var seasonHeader=showTabs&&halloweenAppearance()?'<aside class="mt-season-header"><button id="season-event-open"><span aria-hidden="true">☾</span><span><small>AM TRACKER · ОСОБЫЙ ОБЛИК</small><strong>Ночь историй</strong></span></button><div class="mt-season-actions"><button class="mt-icon-round" id="open-changelog" aria-label="Уведомления и журнал обновлений">' + ICON_BELL + (bellHasBadge()?'<span class="mt-notify-dot"></span>':'') + '</button><button id="season-settings-open" aria-label="Настройки оформления" title="Изменить оформление"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.6-2 3.4 1.5 1.4v3.2L2.5 15l2 3.4 2-.6 2 1.2.5 2h6l.5-2 2-1.2 2 .6 2-3.4-1.5-1.4v-3.2L21.5 9l-2-3.4-2 .6-2-1.2L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></aside>':'';
     app.innerHTML = '<div class="mt-shell' + (showTabs ? ' mt-shell-tabs' : ' mt-shell-detail') + '"><div id="storage-notice"></div>' + seasonHeader + extrasUndoHtml() + body + '<div id="data-status" class="mt-data-status" role="status"></div><div id="update-notice"></div>' + "</div>" + (showTabs ? renderTabbar() : "") +
       (selected?'<dialog id="chapter-quick-dialog" class="mt-chapter-sheet" aria-labelledby="chapter-sheet-title"><header><div><span class="mt-composer-eyebrow">МАЛЕНЬКАЯ ИСТОРИЯ · ТВОЯ ОЦЕНКА</span><h2 id="chapter-sheet-title">Оценить главу</h2></div><button class="mt-ghost-btn" id="chapter-sheet-close" aria-label="Закрыть">×</button></header><div id="chapter-sheet-body"></div></dialog>':'')+
       (revealManhwa ? renderRevealOverlay(revealManhwa) : "") + renderAwardPreview() + renderShareCard() + renderUsabilityDialogs();
@@ -4993,11 +5120,51 @@
     var openChangelogBtn = document.getElementById("open-changelog");
     if (openChangelogBtn) openChangelogBtn.addEventListener("click", function () {
       state.showChangelog = true;
-      if (CHANGELOG.length > 0) {
-        state.changelogSeenVersion = CHANGELOG[0].version;
-        persistChangelogSeen(CHANGELOG[0].version);
-      }
+      state.notifTab = "notifications";
+      // Remember which cards are new for this visit, then mark them seen.
+      notifFresh = {};
+      buildNotifications().forEach(function (n) { if (!notifState.seen[n.id]) notifFresh[n.id] = true; });
+      markNotificationsSeen();
       render();
+      window.scrollTo(0, 0);
+    });
+    document.getElementById("app").querySelectorAll("[data-notif-tab]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.notifTab = btn.getAttribute("data-notif-tab") === "changelog" ? "changelog" : "notifications";
+        if (state.notifTab === "changelog") markChangelogSeen();
+        render();
+      });
+    });
+    document.getElementById("app").querySelectorAll("[data-notif-dismiss]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-notif-dismiss");
+        notifState.dismissed[id] = Date.now();
+        delete notifFresh[id];
+        saveNotifState();
+        render();
+      });
+    });
+    document.getElementById("app").querySelectorAll("[data-notif-go]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var act = btn.getAttribute("data-notif-go"), arg = btn.getAttribute("data-notif-arg");
+        state.showChangelog = false;
+        notifFresh = {};
+        if (act === "title" || act === "title-journal") {
+          state.accountSettings = false;
+          openTitle(arg);
+          if (act === "title-journal" && state.selectedId === arg) selectDetailSection("journal");
+        } else if (act === "awards") {
+          state.tab = "awards"; state.awardsView = "month"; state.awardsMonth = arg; render(); window.scrollTo(0, 0);
+        } else if (act === "achievements") {
+          state.tab = "journey"; state.journeyUI.section = "achievements"; render(); window.scrollTo(0, 0);
+        } else if (act === "settings") {
+          openAccountSettings();
+        } else if (act === "add") {
+          state.tab = "library"; state.addingManhwa = true; render(); window.scrollTo(0, 0);
+        } else {
+          render();
+        }
+      });
     });
 
     var changelogBackBtn = document.getElementById("changelog-back-btn");
@@ -5413,6 +5580,7 @@
 
     // export to file
     var exportBtn = document.getElementById("export-btn");
+    if (exportBtn) exportBtn.addEventListener("click", function () { notifState.lastBackupAt = Date.now(); saveNotifState(); });
     if (exportBtn) exportBtn.addEventListener("click", function () {
       // Wrapped format carries award history, the activity diary, XP and
       // achievements too — a plain array (old exports) still imports fine,
@@ -5854,6 +6022,7 @@
   }
   window.addEventListener('beforeunload',function(e){if(profileIsDirty()){e.preventDefault();e.returnValue='';}});
   loadUsability();
+  loadNotifState();
   loadCatalogFilters();
   load().then(loadUiSettings).then(loadProfile).then(loadShop).then(loadRatingDrafts).then(loadRecentOpened).then(loadChapterDrafts).then(render).catch(function () { render(); }).then(function () {
     if (!window.AMSync) return;
