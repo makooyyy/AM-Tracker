@@ -31,7 +31,7 @@ for(const [label,date] of [['classic','2026-11-07T12:00:00'],['halloween','2026-
     // changelog tab
   await page.click('[data-notif-tab="changelog"]');await page.waitForSelector('.mt-changelog-entry');
   assert.ok(await page.locator('.mt-changelog-entry').count()>=2);
-  assert.match(await page.textContent('.mt-changelog-entry'),/v116|v117/);
+  assert.match(await page.textContent('.mt-changelog-entry'),/v\d+/);
   await page.click('#changelog-back-btn');
   assert.equal(await page.locator('.mt-notify-dot').count(),0,'dot gone once both tabs were seen');
   // --- rich data

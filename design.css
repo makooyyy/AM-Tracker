@@ -697,6 +697,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-journey-stage .mt-achievement-page>.mt-list{padding-left:0;padding-right:0;}
 .mt-journey-nav [data-journey-section=halloween]{grid-column:1/-1;background:linear-gradient(100deg,#4e2d30,#30233c);color:#efc18b;border:1px solid #c98b5844;}
 .mt-journey-nav [data-journey-section=halloween][aria-pressed=true]{background:linear-gradient(100deg,#e5ae74,#d3b1df);color:#2e1b29;}
+/* Event archive */
+.mt-archive-back,.mt-archive-link{width:100%;margin:0 0 16px;}
+.mt-archive-link{margin:18px 0 0;}
+.mt-event-list{display:grid;gap:14px;margin-top:20px;}
+.mt-event-card{display:grid;gap:14px;padding:20px;border-radius:20px;border:1px solid #c98b5844;background:linear-gradient(135deg,#3a2530,#241d33);}
+.mt-event-card-top{display:flex;align-items:center;gap:14px;min-width:0;}
+.mt-event-card-top>div{min-width:0;}
+.mt-event-icon{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:14px;font-size:22px;color:#efc18b;background:#ffffff12;}
+.mt-event-card small{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#efc18b;opacity:.9;}
+.mt-event-card h3{margin:2px 0 0;font-size:20px;line-height:1.2;overflow-wrap:anywhere;}
+.mt-event-dates{margin:0;font-size:13.5px;color:var(--text-muted);}
+.mt-event-stats{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;}
+.mt-event-stats strong{font-size:26px;line-height:1;}
+.mt-event-stats span{font-size:13.5px;color:var(--text-muted);}
+.mt-event-card progress{width:100%;height:8px;accent-color:#e5ae74;}
+.mt-event-card .mt-primary-btn{width:100%;min-height:46px;}
+.mt-event-empty{margin-top:20px;padding:26px 18px;text-align:center;border:1px dashed #ffffff2e;border-radius:18px;}
+.mt-event-empty strong{display:block;margin-bottom:6px;font-size:16px;}
+.mt-event-empty p{margin:0;font-size:13.5px;line-height:1.45;color:var(--text-muted);}
 .mt-halloween{--h-gold:#edbd82;--h-mist:#b2cadb;min-width:0;padding:0 22px;}
 .mt-halloween-hero{position:relative;overflow:hidden;isolation:isolate;border:1px solid #ce9b6440;border-radius:26px;padding:30px 24px;background:linear-gradient(90deg,#19131ce8,#19131c55),url('assets/shop/halloween-harvest.svg') center/cover;}
 .mt-halloween-hero h2{font:clamp(46px,8vw,76px)/.96 Georgia,serif;margin:36px 0 20px;letter-spacing:-2px;}
