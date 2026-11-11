@@ -281,9 +281,10 @@ test('achievement progress measures targets, preserves earned medals and never g
 });
 
 test('40 new achievements use consistent metrics and award XP only once', async () => {
+  const f = require('../features.js');
   const {api:a} = harness();
-  assert.equal(a.ACHIEVEMENTS.length,107);
-  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,107);
+  assert.equal(a.ACHIEVEMENTS.length,107+f.goalOptions.length-5);
+  assert.equal(new Set(a.ACHIEVEMENTS.map(x=>x.id)).size,107+f.goalOptions.length-5);
   const m = addRated(a); m.notes = '   '; m.coverUrl = 'https://example.com/cover.png';
   m.ratingHistory = [{ts:1700000000000,avg:70,criteria:m.criteria}];
   a.state.activityLog = [{ts:1700000000000,type:'add'},{ts:1700000001000,type:'rated'}];
@@ -718,4 +719,51 @@ test('list import helpers: MAL xml, statuses and duplicates', () => {
   assert.deepEqual(split.fresh.map(e => e.title), ['New']);
   assert.equal(split.known.length, 3);
   assert.equal(f.importNote('AniList', { progress: 5, score: 8 }), 'Перенесено из AniList · прочитано глав: 5 · там оценка: 8/10');
+});
+
+test('goal catalog: many unique goals, three at a time, finished ones are not offered again', () => {
+  const f = require('../features.js');
+  const ids = f.goalOptions.map(o => o.id);
+  assert.ok(ids.length >= 40);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(f.GOAL_LIMIT, 3);
+  ['finish3', 'finish12', 'notes10', 'reviews5', 'genres3'].forEach(id => assert.ok(ids.includes(id), 'historic goal id kept: ' + id));
+  f.goalOptions.forEach(o => {
+    assert.ok(f.goalGroups.some(g => g.id === o.group), 'group for ' + o.id);
+    assert.ok(o.target >= 1 && o.reward > 0 && o.name && o.text);
+    assert.ok(Array.isArray(f.goalKeys([], o.metric, () => 0)), 'metric supported: ' + o.metric);
+  });
+  const day = 86400000, now = 1760000000000;
+  const list = [
+    { id: 'a', rated: true, status: 'done', type: 'manga', genres: ['x'], tags: ['t'], emotionRating: 4, notes: 'n', journal: [{ id: '1', chapter: 1, ts: now, rating: 8, text: 'hi' }, { id: '2', chapter: 2, ts: now - day, rating: 0, text: 'two' }] },
+    { id: 'b', rated: true, status: 'plan', type: 'manhwa', genres: [], tags: [], notes: '', journal: [] },
+  ];
+  const keys = m => f.goalKeys(list, m, t => (t.id === 'a' ? 95 : 70));
+  assert.deepEqual(keys('rated'), ['a', 'b']);
+  assert.deepEqual(keys('added'), ['a', 'b']);
+  assert.deepEqual(keys('plan'), ['b']);
+  assert.deepEqual(keys('types').sort(), ['manga', 'manhwa']);
+  assert.deepEqual(keys('high'), ['a']);
+  assert.deepEqual(keys('chapterrated'), ['a:1']);
+  assert.equal(keys('chapternotes').length, 2);
+  assert.equal(keys('days').length, 2);
+  assert.deepEqual(keys('emotion'), ['a']);
+  assert.deepEqual(keys('tagged'), ['a']);
+  const opt = f.goalOptions.find(o => o.id === 'rate3');
+  assert.equal(f.goalDone({ earned: ['a', 'b'] }, opt, {}), false);
+  assert.equal(f.goalDone({ earned: ['a', 'b', 'c'] }, opt, {}), true);
+  assert.equal(f.goalDone(null, opt, { goal_reward_rate3: 1 }), true);
+  const journey = f.cleanJourney({ goals: f.goalOptions.map(o => ({ id: o.id, started: 1, baseline: [], earned: [] })) });
+  assert.equal(journey.goals.length, f.goalOptions.length, 'finished goals are kept in the record');
+});
+
+test('goals: titles from the list import do not count as new additions', () => {
+  const f = require('../features.js');
+  const list = [
+    { id: 'own', status: 'plan', notes: '' },
+    { id: 'imp', status: 'plan', notes: 'Перенесено из AniList · прочитано глав: 3' },
+  ];
+  assert.deepEqual(f.goalKeys(list, 'added'), ['own']);
+  assert.deepEqual(f.goalKeys(list, 'plan'), ['own']);
+  assert.ok(f.goalOptions.filter(o => o.metric === 'days').every(o => /в течение \d+ разных дней$/.test(o.text)));
 });

@@ -716,6 +716,38 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mt-event-empty{margin-top:20px;padding:26px 18px;text-align:center;border:1px dashed #ffffff2e;border-radius:18px;}
 .mt-event-empty strong{display:block;margin-bottom:6px;font-size:16px;}
 .mt-event-empty p{margin:0;font-size:13.5px;line-height:1.45;color:var(--text-muted);}
+/* Goals: slots, picker and finished list */
+.mt-goal-slots{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:18px 0 6px;font-size:13.5px;color:var(--text-muted);}
+.mt-goal-slots strong{color:var(--text,#f3eef8);font-size:14px;}
+.mt-goal-pips{display:inline-flex;gap:6px;}
+.mt-goal-pip{width:22px;height:8px;border-radius:6px;background:#ffffff1f;}
+.mt-goal-pip.on{background:#c4a5ef;}
+.mt-goal-grid{margin-top:14px;}
+.mt-goal-free{display:grid;gap:2px;margin-top:14px;padding:14px 16px;border-radius:16px;border:1px dashed #c4a5ef66;background:#c4a5ef0f;font-size:13.5px;}
+.mt-goal-free strong{font-size:14.5px;}
+.mt-goal-free span{color:var(--text-muted);}
+.mt-goal-library{margin-top:18px;}
+.mt-goal-groups{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px;}
+.mt-goal-groups button{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid #ffffff22;background:transparent;color:inherit;font:600 13.5px/1 inherit;cursor:pointer;}
+.mt-goal-groups button small{font-size:11px;opacity:.65;}
+.mt-goal-groups button[aria-pressed=true]{background:#d9c3ef;color:#291b38;border-color:transparent;}
+.mt-goal-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;}
+.mt-goal-card.compact{padding:16px;gap:0;}
+.mt-goal-compact-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.mt-goal-compact-reward{font-size:12px;font-weight:700;color:#ead09b;white-space:nowrap;}
+.mt-goal-card.compact h3{font-size:19px;margin:8px 0 0;}
+.mt-goal-card.compact p{margin:6px 0 14px;font-size:13.5px;line-height:1.45;}
+.mt-goal-card.compact button{width:100%;min-height:44px;}
+.mt-goal-card.compact button[disabled]{opacity:.55;cursor:not-allowed;}
+.mt-goal-done{margin-top:18px;}
+.mt-goal-done summary{cursor:pointer;font-weight:700;font-size:15px;list-style-position:inside;}
+.mt-goal-done ul{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:10px;}
+.mt-goal-done li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:#ffffff08;}
+.mt-goal-done li>span{flex:none;color:#7fbf9b;font-weight:800;}
+.mt-goal-done li strong{display:block;font-size:14.5px;}
+.mt-goal-done li small{display:block;margin-top:2px;color:var(--text-muted);font-size:12.5px;line-height:1.4;}
+@media(max-width:599px){.mt-goal-list{grid-template-columns:1fr;}}
+.mt-goal-more{width:100%;margin-top:12px;min-height:46px;}
 .mt-halloween{--h-gold:#edbd82;--h-mist:#b2cadb;min-width:0;padding:0 22px;}
 .mt-halloween-hero{position:relative;overflow:hidden;isolation:isolate;border:1px solid #ce9b6440;border-radius:26px;padding:30px 24px;background:linear-gradient(90deg,#19131ce8,#19131c55),url('assets/shop/halloween-harvest.svg') center/cover;}
 .mt-halloween-hero h2{font:clamp(46px,8vw,76px)/.96 Georgia,serif;margin:36px 0 20px;letter-spacing:-2px;}

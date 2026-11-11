@@ -2306,6 +2306,14 @@
       add({ id: "welcome", icon: "✦", title: "Добро пожаловать", text: "Добавь первый тайтл — здесь появятся напоминания о черновиках, итогах месяца и забытых историях.", action: "add", label: "Добавить тайтл" });
       return list.filter(function (n) { return !notifState.dismissed[n.id]; });
     }
+    // 0. Goals finished recently (the reward unlock time is the finish time)
+    var gsn = goalState();
+    Features.goalOptions.map(function (o) { return { o: o, ts: state.unlockedAchievements['goal_reward_' + o.id] }; })
+      .filter(function (x) { return Number.isFinite(x.ts) && now - x.ts < 14 * NOTIF_DAY; })
+      .sort(function (a, b) { return b.ts - a.ts; }).slice(0, 3)
+      .forEach(function (x) {
+        add({ id: "goaldone:" + x.o.id, icon: "🎯", title: "Цель выполнена", text: "Ты выполнил цель «" + x.o.name + "». Награда: +" + x.o.reward + " XP и " + x.o.reward + " монет." + (gsn.free > 0 && gsn.left.length ? " Освободилось место — выбери новую цель." : ""), action: "goals", label: gsn.free > 0 && gsn.left.length ? "Выбрать новую цель" : "К целям" });
+      });
     state.manhwas.forEach(function (m) {
       var d = chapterDrafts[m.id];
       if (d && isPlainObject(d)) {
@@ -4314,13 +4322,59 @@
     each('[data-reread]','click',function(el){var m=findManhwa(el.dataset.reread);if(!m||currentRun(m)>=10000)return;if(!window.confirm('Начать новое прочтение? Прогресс начнётся с 0, прежние записи и оценки останутся в истории.'))return;var run=currentRun(m),p=Features.readingProgress(m);m.readingRuns=(m.readingRuns||[]).concat({run:run,ended:Date.now(),chapter:p.chapter,score:ratedScore(m)}).slice(-100);m.readingRun=run+1;m.reading={chapter:0,url:p.url,updatedAt:Date.now()};m.status='reading';delete chapterDrafts[m.id];persistChapterDrafts();journalView[m.id]={query:'',sort:'recent'};save();render();});
   }
   function journeyData() { return Features.cleanJourney(state.profile.journey); }
+  function goalScoreOf(m){return average(m.criteria);}
   function updateGoals() {
     var data=journeyData(), changed=false;
-    data.goals.forEach(function(g){var o=Features.goalOptions.find(function(o){return o.id===g.id;}); var keys=Features.goalKeys(state.manhwas,o.metric).filter(function(k){return !g.baseline.includes(k);});
+    data.goals.forEach(function(g){var o=Features.goalOptions.find(function(o){return o.id===g.id;});
+      if(Features.goalDone(g,o,state.unlockedAchievements))return;
+      var keys=Features.goalKeys(state.manhwas,o.metric,goalScoreOf).filter(function(k){return !g.baseline.includes(k);});
       keys.forEach(function(k){if(!g.earned.includes(k)){g.earned.push(k);changed=true;}});
     });
     if(changed){state.profile.journey=data;saveProfile();}
-    if(data.goals.some(function(g){var o=Features.goalOptions.find(function(o){return o.id===g.id;});return new Set(g.earned).size>=o.target&&!state.unlockedAchievements['goal_reward_'+g.id];}))checkAchievements();
+    if(data.goals.some(function(g){var o=Features.goalOptions.find(function(o){return o.id===g.id;});return new Set(g.earned).size>=o.target&&!state.unlockedAchievements['goal_reward_'+g.id];})){
+      var finished=checkAchievements().filter(function(a){return a.id.indexOf('goal_reward_')===0;});
+      if(finished.length)setTimeout(function(){showToast(finished.length===1?'Цель выполнена: '+finished[0].name:'Выполнено целей: '+finished.length);},350);
+    }
+  }
+  // Slots and lists shared by the goals screen and the notifications.
+  function goalState(){
+    var data=journeyData(),byId={},done=new Set(),active=[];
+    Features.goalOptions.forEach(function(o){byId[o.id]=o;if(state.unlockedAchievements['goal_reward_'+o.id])done.add(o.id);});
+    data.goals.forEach(function(g){var o=byId[g.id];if(!o)return;if(Features.goalDone(g,o,state.unlockedAchievements))done.add(o.id);else active.push({g:g,o:o});});
+    var activeIds=new Set(active.map(function(x){return x.o.id;}));
+    var left=Features.goalOptions.filter(function(o){return !done.has(o.id)&&!activeIds.has(o.id);});
+    return {active:active,done:done,activeIds:activeIds,left:left,free:Math.max(0,Features.GOAL_LIMIT-active.length)};
+  }
+  function renderGoals(){
+    var ui=state.journeyUI,gs=goalState(),group=ui.goalGroup||'all',LIMIT=Features.GOAL_LIMIT,total=Features.goalOptions.length;
+    var pips='';for(var i=0;i<LIMIT;i++)pips+='<i class="mt-goal-pip'+(i<gs.active.length?' on':'')+'"></i>';
+    var html='<section class="mt-journey-panel"><div class="mt-section-eyebrow">ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери до '+LIMIT+' целей одновременно. Когда цель выполнена, она уходит в список выполненных, а на её место можно взять новую. Учитываются новые результаты после выбора, без дедлайнов. Награда за каждую цель выдаётся один раз.</p>'+
+      '<div class="mt-goal-slots" role="status"><span class="mt-goal-pips" aria-hidden="true">'+pips+'</span><strong>'+(gs.active.length>LIMIT?'Активных: '+gs.active.length+' (лимит — '+LIMIT+')':'Активных: '+gs.active.length+' / '+LIMIT)+'</strong><span>Выполнено: '+gs.done.size+' из '+total+'</span></div>';
+    if(gs.active.length){
+      html+='<div class="mt-goal-grid">'+gs.active.map(function(x){var g=x.g,o=x.o,n=Math.min(o.target,new Set(g.earned).size);return '<article class="mt-goal-card selected"><span class="mt-section-eyebrow">'+(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p><div class="mt-goal-reward">Награда: +'+o.reward+' XP · +'+o.reward+' монет</div><div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button></article>';}).join('')+'</div>';
+    }
+    if(gs.free>0&&gs.left.length)html+='<div class="mt-goal-free" role="status"><strong>'+(gs.free===1?'Есть 1 свободное место':'Свободных мест: '+gs.free)+'</strong><span>Выбери новую цель из списка ниже.</span></div>';
+    html+='</section>';
+    html+='<section class="mt-journey-panel mt-goal-library"><div class="mt-section-eyebrow">НОВЫЕ ЦЕЛИ</div><h2>Выбери следующую</h2>';
+    if(!gs.left.length){
+      html+='<div class="mt-event-empty"><strong>Ты выполнил все цели!</strong><p>Новые цели появятся в следующих обновлениях.</p></div>';
+    }else{
+      var groups=[{id:'all',name:'Все'}].concat(Features.goalGroups.filter(function(gr){return gs.left.some(function(o){return o.group===gr.id;});}));
+      if(!groups.some(function(gr){return gr.id===group;}))group='all';
+      html+='<div class="mt-goal-groups" role="group" aria-label="Тип цели">'+groups.map(function(gr){var n=gr.id==='all'?gs.left.length:gs.left.filter(function(o){return o.group===gr.id;}).length;return '<button data-goal-group="'+gr.id+'" aria-pressed="'+(group===gr.id)+'">'+gr.name+' <small>'+n+'</small></button>';}).join('')+'</div>';
+      var shown=gs.left.filter(function(o){return group==='all'||o.group===group;}),hidden=0;
+      if(group==='all'&&!ui.goalAll){shown=shown.slice().sort(function(a,b){return a.reward-b.reward;});hidden=Math.max(0,shown.length-6);shown=shown.slice(0,6);}
+      html+='<div class="mt-goal-list">'+shown.map(function(o){
+        var grp=Features.goalGroups.find(function(gr){return gr.id===o.group;});
+        return '<article class="mt-goal-card compact"><div class="mt-goal-compact-top"><span class="mt-section-eyebrow">'+(grp?grp.name.toUpperCase():'')+'</span><span class="mt-goal-compact-reward">+'+o.reward+' XP · '+o.reward+' ◈</span></div><h3>'+o.name+'</h3><p>'+o.text+'</p>'+
+          (gs.free>0?'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>':'<button class="mt-ghost-btn" disabled aria-disabled="true">Нет свободных мест</button>')+'</article>';}).join('')+'</div>'+
+        (hidden?'<button class="mt-ghost-btn mt-goal-more" data-goal-all="1">Показать все цели · ещё '+hidden+'</button>':(group==='all'&&ui.goalAll&&gs.left.length>6?'<button class="mt-ghost-btn mt-goal-more" data-goal-all="0">Свернуть список</button>':''));
+    }
+    html+='</section>';
+    if(gs.done.size){
+      html+='<details class="mt-journey-panel mt-goal-done"><summary>Выполненные цели · '+gs.done.size+'</summary><ul>'+Features.goalOptions.filter(function(o){return gs.done.has(o.id);}).map(function(o){return '<li><span aria-hidden="true">✓</span><div><strong>'+o.name+'</strong><small>'+o.text+' · +'+o.reward+' XP</small></div></li>';}).join('')+'</ul></details>';
+    }
+    return html;
   }
   function journeyCover(m) {return m.coverUrl ? '<img loading="lazy" src="'+escapeHtml(m.coverUrl)+'" alt="" />' : '<span class="mt-journey-placeholder">AM</span>';}
   /* ---------- seasonal events: live tab while running, archive afterwards ---------- */
@@ -4366,8 +4420,7 @@
     if(ui.section==='achievements')html+=renderAchievementsTab();
     if(ui.section==='halloween')html+=renderHalloween()+(endedEvents().length?'<button class="mt-ghost-btn mt-archive-link" data-journey-section="archive">Архив событий →</button>':'');
     if(ui.section==='archive')html+=renderEventArchive();
-    if(ui.section==='goals')html+=
-      '<section class="mt-journey-panel"><div class="mt-section-eyebrow">ТВОЙ ТЕМП</div><h2>Маленькие шаги, большие истории</h2><p>Выбери одну или несколько целей. Учитываются новые результаты после выбора, без дедлайнов. Награда за каждый вид цели выдаётся один раз.</p><div class="mt-goal-grid">'+Features.goalOptions.map(function(o){var g=data.goals.find(function(g){return g.id===o.id;}),n=g?Math.min(o.target,g.earned.length):0;return '<article class="mt-goal-card'+(g?' selected':'')+'"><span class="mt-section-eyebrow">'+(g?(n===o.target?'ЦЕЛЬ ДОСТИГНУТА ✓':'В ПУТИ'):'НОВЫЙ МАРШРУТ')+'</span><h3>'+o.name+'</h3><p>'+o.text+'</p><div class="mt-goal-reward">'+(state.unlockedAchievements['goal_reward_'+o.id]?'Награда получена ✓':'Награда: +'+o.reward+' XP · +'+o.reward+' монет')+'</div>'+(g?'<div class="mt-goal-count">'+n+' <span>/ '+o.target+'</span></div><progress value="'+n+'" max="'+o.target+'" aria-label="'+o.text+'"></progress><button class="mt-ghost-btn" data-goal-remove="'+o.id+'">Убрать цель</button>':'<button class="mt-primary-btn" data-goal-add="'+o.id+'">Выбрать цель</button>')+'</article>';}).join('')+'</div></section>'; 
+    if(ui.section==='goals')html+=renderGoals();
     return html+'</div></div>';
   }
   var CHAPTER_QUICK_NOTES=['Раскрытие прошлого ГГ','Ничего не произошло','Неожиданный поворот','Развитие отношений','Сильная сцена боя','Новый персонаж','Важная подсказка','Красивые кадры','Смешной момент','Трогательная сцена','Много объяснений','Интригующий финал'];
@@ -4574,7 +4627,11 @@
     document.getElementById('app').querySelectorAll('[data-journey-section]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.section=el.getAttribute('data-journey-section');state.journeyUI.archiveEvent=null;usability.journey=state.journeyUI.section;saveUsability();render();});});
     document.getElementById('app').querySelectorAll('[data-archive-open]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.archiveEvent=el.getAttribute('data-archive-open');render();window.scrollTo(0,0);});});
     document.getElementById('app').querySelectorAll('[data-archive-back]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.archiveEvent=null;render();window.scrollTo(0,0);});});
-    document.getElementById('app').querySelectorAll('[data-goal-add]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),o=Features.goalOptions.find(function(o){return o.id===el.getAttribute('data-goal-add');});if(d.goals.some(function(g){return g.id===o.id;}))return;d.goals.push({id:o.id,started:Date.now(),baseline:Features.goalKeys(state.manhwas,o.metric),earned:[]});state.profile.journey=d;saveProfile();render();});});
+    document.getElementById('app').querySelectorAll('[data-goal-add]').forEach(function(el){el.addEventListener('click',function(){var d=journeyData(),o=Features.goalOptions.find(function(o){return o.id===el.getAttribute('data-goal-add');});if(!o||d.goals.some(function(g){return g.id===o.id;}))return;
+      if(goalState().free<1){showToast('Можно выбрать максимум '+Features.GOAL_LIMIT+' цели. Заверши или убери одну.');return;}
+      d.goals.push({id:o.id,started:Date.now(),baseline:Features.goalKeys(state.manhwas,o.metric,goalScoreOf),earned:[]});state.profile.journey=d;saveProfile();render();});});
+    document.getElementById('app').querySelectorAll('[data-goal-all]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.goalAll=el.getAttribute('data-goal-all')==='1';render();});});
+    document.getElementById('app').querySelectorAll('[data-goal-group]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.goalGroup=el.getAttribute('data-goal-group');state.journeyUI.goalAll=false;render();});});
     document.getElementById('app').querySelectorAll('[data-goal-remove]').forEach(function(el){el.addEventListener('click',function(){if(!window.confirm('Убрать цель? При повторном выборе прогресс начнётся заново.'))return;var d=journeyData();d.goals=d.goals.filter(function(g){return g.id!==el.getAttribute('data-goal-remove');});state.profile.journey=d;saveProfile();render();});});
     document.getElementById('app').querySelectorAll('.mt-chapter-slider input').forEach(function(el){el.addEventListener('input',function(){
       var caption=Number(el.value)?el.value+' / 10':'Без оценки';
@@ -5186,6 +5243,8 @@
           if (act === "title-journal" && state.selectedId === arg) selectDetailSection("journal");
         } else if (act === "awards") {
           state.tab = "awards"; state.awardsView = "month"; state.awardsMonth = arg; render(); window.scrollTo(0, 0);
+        } else if (act === "goals") {
+          state.tab = "journey"; state.journeyUI.section = "goals"; usability.journey = "goals"; saveUsability(); render(); window.scrollTo(0, 0);
         } else if (act === "achievements") {
           state.tab = "journey"; state.journeyUI.section = "achievements"; render(); window.scrollTo(0, 0);
         } else if (act === "settings") {

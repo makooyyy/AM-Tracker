@@ -194,12 +194,53 @@
     Object.keys(categories).forEach(function (c) { var rows = rank(categories[c]); categoryLeaders[c] = rows.filter(function (r) { return r.place === 1; }); });
     return {ranking:leaders, leaders:leaders.filter(function (r) { return r.place === 1; }), categories:categoryLeaders, months:months, awardCount:count};
   }
+  // Goals are grouped for the picker. Ids of the first five are historic and
+  // must never change: saved profiles and reward achievements refer to them.
+  var GOAL_LIMIT = 3;
+  var goalGroups = [{id:'read',name:'Чтение'},{id:'rate',name:'Оценки'},{id:'diary',name:'Дневник'},{id:'library',name:'Библиотека'},{id:'taste',name:'Вкус'}];
   var goalOptions = [
-    {id:'finish3',reward:150,name:'Три истории до финала',text:'Заверши 3 тайтла',metric:'done',target:3},
-    {id:'finish12',reward:600,name:'Большое путешествие',text:'Заверши 12 тайтлов',metric:'done',target:12},
-    {id:'notes10',reward:200,name:'Летописец',text:'Сделай 10 записей по главам',metric:'journal',target:10},
-    {id:'reviews5',reward:250,name:'Своё мнение',text:'Напиши рецензии к 5 тайтлам',metric:'reviews',target:5},
-    {id:'genres3',reward:150,name:'За пределами привычного',text:'Оцени тайтлы 3 новых для тебя жанров',metric:'genres',target:3}
+    {id:'finish1',group:'read',reward:60,name:'Первый финал',text:'Заверши 1 тайтл',metric:'done',target:1},
+    {id:'finish3',group:'read',reward:150,name:'Три истории до финала',text:'Заверши 3 тайтла',metric:'done',target:3},
+    {id:'finish5',group:'read',reward:250,name:'Пятёрка финалов',text:'Заверши 5 тайтлов',metric:'done',target:5},
+    {id:'finish12',group:'read',reward:600,name:'Большое путешествие',text:'Заверши 12 тайтлов',metric:'done',target:12},
+    {id:'finish20',group:'read',reward:1000,name:'Марафонец',text:'Заверши 20 тайтлов',metric:'done',target:20},
+    {id:'finish30',group:'read',reward:1500,name:'Легенда финалов',text:'Заверши 30 тайтлов',metric:'done',target:30},
+    {id:'days3',group:'read',reward:100,name:'Три вечера',text:'Отмечай главы в течение 3 разных дней',metric:'days',target:3},
+    {id:'days7',group:'read',reward:250,name:'Неделя историй',text:'Отмечай главы в течение 7 разных дней',metric:'days',target:7},
+    {id:'days14',group:'read',reward:550,name:'Две недели с книгой',text:'Отмечай главы в течение 14 разных дней',metric:'days',target:14},
+    {id:'days30',group:'read',reward:1200,name:'Месяц в историях',text:'Отмечай главы в течение 30 разных дней',metric:'days',target:30},
+    {id:'rate3',group:'rate',reward:120,name:'Первые оценки',text:'Оцени 3 тайтла',metric:'rated',target:3},
+    {id:'rate5',group:'rate',reward:200,name:'Пятёрка оценок',text:'Оцени 5 тайтлов',metric:'rated',target:5},
+    {id:'rate10',group:'rate',reward:450,name:'Десятка',text:'Оцени 10 тайтлов',metric:'rated',target:10},
+    {id:'rate25',group:'rate',reward:1100,name:'Дегустатор',text:'Оцени 25 тайтлов',metric:'rated',target:25},
+    {id:'reviews1',group:'rate',reward:60,name:'Первое слово',text:'Напиши рецензию к 1 тайтлу',metric:'reviews',target:1},
+    {id:'reviews5',group:'rate',reward:250,name:'Своё мнение',text:'Напиши рецензии к 5 тайтлам',metric:'reviews',target:5},
+    {id:'reviews10',group:'rate',reward:500,name:'Критик',text:'Напиши рецензии к 10 тайтлам',metric:'reviews',target:10},
+    {id:'high1',group:'rate',reward:100,name:'Шедевр',text:'Поставь тайтлу оценку от 90',metric:'high',target:1},
+    {id:'high5',group:'rate',reward:500,name:'Пятёрка шедевров',text:'Поставь 5 тайтлам оценку от 90',metric:'high',target:5},
+    {id:'emo5',group:'rate',reward:150,name:'Первые впечатления',text:'Выбери эмоцию-впечатление для 5 тайтлов',metric:'emotion',target:5},
+    {id:'emo15',group:'rate',reward:400,name:'Читатель-эмпат',text:'Выбери эмоцию-впечатление для 15 тайтлов',metric:'emotion',target:15},
+    {id:'journal5',group:'diary',reward:100,name:'Первые строки',text:'Сделай 5 записей по главам',metric:'journal',target:5},
+    {id:'notes10',group:'diary',reward:200,name:'Летописец',text:'Сделай 10 записей по главам',metric:'journal',target:10},
+    {id:'journal25',group:'diary',reward:400,name:'Хроникёр',text:'Сделай 25 записей по главам',metric:'journal',target:25},
+    {id:'journal50',group:'diary',reward:700,name:'Страж глав',text:'Сделай 50 записей по главам',metric:'journal',target:50},
+    {id:'journal100',group:'diary',reward:1200,name:'Архивариус',text:'Сделай 100 записей по главам',metric:'journal',target:100},
+    {id:'chrate10',group:'diary',reward:200,name:'Строгий критик',text:'Оцени 10 глав',metric:'chapterrated',target:10},
+    {id:'chrate30',group:'diary',reward:500,name:'Оценка каждой главы',text:'Оцени 30 глав',metric:'chapterrated',target:30},
+    {id:'chrate75',group:'diary',reward:1000,name:'Глаз-алмаз',text:'Оцени 75 глав',metric:'chapterrated',target:75},
+    {id:'chnote5',group:'diary',reward:150,name:'Слово о главе',text:'Напиши текстовые заметки к 5 главам',metric:'chapternotes',target:5},
+    {id:'chnote20',group:'diary',reward:450,name:'Автор заметок',text:'Напиши текстовые заметки к 20 главам',metric:'chapternotes',target:20},
+    {id:'chnote50',group:'diary',reward:900,name:'Редактор',text:'Напиши текстовые заметки к 50 главам',metric:'chapternotes',target:50},
+    {id:'add3',group:'library',reward:100,name:'Новые страницы',text:'Добавь 3 тайтла в библиотеку',metric:'added',target:3},
+    {id:'add10',group:'library',reward:350,name:'Растущая полка',text:'Добавь 10 тайтлов в библиотеку',metric:'added',target:10},
+    {id:'add25',group:'library',reward:800,name:'Целая библиотека',text:'Добавь 25 тайтлов в библиотеку',metric:'added',target:25},
+    {id:'plan5',group:'library',reward:150,name:'Список желаний',text:'Добавь 5 тайтлов в «В планах»',metric:'plan',target:5},
+    {id:'plan15',group:'library',reward:400,name:'Читать — не перечитать',text:'Добавь 15 тайтлов в «В планах»',metric:'plan',target:15},
+    {id:'tag5',group:'library',reward:150,name:'Метки порядка',text:'Добавь теги к 5 тайтлам',metric:'tagged',target:5},
+    {id:'genres3',group:'taste',reward:150,name:'За пределами привычного',text:'Оцени тайтлы 3 новых для тебя жанров',metric:'genres',target:3},
+    {id:'genres5',group:'taste',reward:300,name:'Вкусовые горизонты',text:'Оцени тайтлы 5 новых для тебя жанров',metric:'genres',target:5},
+    {id:'genres8',group:'taste',reward:500,name:'Без границ',text:'Оцени тайтлы 8 новых для тебя жанров',metric:'genres',target:8},
+    {id:'types3',group:'taste',reward:250,name:'Три мира',text:'Оцени тайтлы всех трёх видов: манга, манхва и маньхуа',metric:'types',target:3}
   ];
   function goalRewardXp(achievements){return goalOptions.reduce(function(sum,o){return sum+(achievements&&achievements['goal_reward_'+o.id]?o.reward:0);},0)+halloweenQuests.reduce(function(sum,q){return sum+(achievements&&achievements[q.id]?q.xp:0);},0);}
   var halloweenQuests=[
@@ -234,14 +275,31 @@
       return entry;
     }).filter(function(e){return e.text.trim()||e.rating;}).slice(-1000);
   }
-  function goalKeys(list, metric) {
+  // Titles brought in by the list import are not «new additions» of the reader.
+  function isImportedTitle(m){return /^Перенесено из /.test(String(m&&m.notes||''));}
+  function goalKeys(list, metric, scoreOf) {
     if(metric==='journal') return list.flatMap(function(m){ return journal(m.journal).map(function(e){return m.id+':'+e.id;}); });
     if(metric==='genres') return Array.from(new Set(list.filter(function(m){return m.rated;}).flatMap(function(m){return m.genres||[];})));
+    if(metric==='chapterrated') return list.flatMap(function(m){ return journal(m.journal).filter(function(e){return e.rating>0;}).map(function(e){return m.id+':'+e.id;}); });
+    if(metric==='chapternotes') return list.flatMap(function(m){ return journal(m.journal).filter(function(e){return String(e.text||'').trim();}).map(function(e){return m.id+':'+e.id;}); });
+    if(metric==='days') return Array.from(new Set(list.flatMap(function(m){ return journal(m.journal).filter(function(e){return Number.isFinite(e.ts);}).map(function(e){var d=new Date(e.ts);return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();}); })));
+    if(metric==='rated') return list.filter(function(m){return m.rated;}).map(function(m){return m.id;});
+    if(metric==='added') return list.filter(function(m){return !isImportedTitle(m);}).map(function(m){return m.id;});
+    if(metric==='plan') return list.filter(function(m){return m.status==='plan'&&!isImportedTitle(m);}).map(function(m){return m.id;});
+    if(metric==='types') return Array.from(new Set(list.filter(function(m){return m.rated&&m.type;}).map(function(m){return m.type;})));
+    if(metric==='emotion') return list.filter(function(m){return Number(m.emotionRating)>0;}).map(function(m){return m.id;});
+    if(metric==='tagged') return list.filter(function(m){return Array.isArray(m.tags)&&m.tags.length;}).map(function(m){return m.id;});
+    if(metric==='high') return list.filter(function(m){return m.rated&&typeof scoreOf==='function'&&scoreOf(m)>=90;}).map(function(m){return m.id;});
     return list.filter(function(m){return metric==='done' ? m.status==='done' : m.rated && String(m.notes||'').trim();}).map(function(m){return m.id;});
+  }
+  // A goal is finished when enough new results were collected, or when its
+  // one-time reward was already granted (the record may have been removed).
+  function goalDone(goal, option, achievements){
+    return !!(achievements && achievements['goal_reward_'+option.id]) || (!!goal && new Set(goal.earned).size>=option.target);
   }
   function cleanJourney(raw) {
     raw = raw && typeof raw==='object' ? raw : {};
-    return {feedback:cleanFeedback(raw.feedback),goals:(Array.isArray(raw.goals)?raw.goals:[]).filter(function(g){return g && goalOptions.some(function(o){return o.id===g.id;}) && Number.isFinite(g.started);}).slice(0,5).map(function(g){return {id:g.id,started:g.started,baseline:Array.isArray(g.baseline)?g.baseline.filter(function(s){return typeof s==='string';}):[],earned:Array.isArray(g.earned)?g.earned.filter(function(s){return typeof s==='string';}):[]};}),
+    return {feedback:cleanFeedback(raw.feedback),goals:(Array.isArray(raw.goals)?raw.goals:[]).filter(function(g){return g && goalOptions.some(function(o){return o.id===g.id;}) && Number.isFinite(g.started);}).slice(0,80).map(function(g){return {id:g.id,started:g.started,baseline:Array.isArray(g.baseline)?g.baseline.filter(function(s){return typeof s==='string';}):[],earned:Array.isArray(g.earned)?g.earned.filter(function(s){return typeof s==='string';}):[]};}),
       duels:(Array.isArray(raw.duels)?raw.duels:[]).filter(function(d){return d && typeof d.a==='string' && typeof d.b==='string' && d.a!==d.b && (d.winner===d.a||d.winner===d.b);}).slice(-2000).map(function(d){return {a:d.a,b:d.b,winner:d.winner};})};
   }
   function duelPair(list, history, genre, previous, random) {
@@ -441,7 +499,7 @@
     return parts.join(' · ');
   }
 
-  var api = {listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {goalGroups:goalGroups,GOAL_LIMIT:GOAL_LIMIT,goalDone:goalDone,listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;
