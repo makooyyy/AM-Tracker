@@ -1,4 +1,4 @@
-var CACHE_NAME = "manhwa-tracker-v143";
+var CACHE_NAME = "manhwa-tracker-v144";
 
 // The Firebase SDK files are versioned, immutable URLs, so they get their own
 // long-lived cache (surviving app updates) and are served cache-first. That lets

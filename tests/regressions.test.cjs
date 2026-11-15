@@ -626,8 +626,8 @@ test('goal reward merge deduplicates same goals and preserves different offline 
 test('chapter ratings accept rating-only records and preserve legacy notes',()=>{
  const old={id:'old',text:'Note',chapter:1,ts:100,spoiler:true};
  assert.deepEqual(J.journal([old]),[old]);
- const records=J.journal([{id:'score',chapter:2,ts:200,rating:9},{id:'bad',chapter:3,ts:300,rating:11},{id:'fraction',chapter:4,ts:400,rating:2.5}]);
- assert.equal(records.length,1);assert.equal(records[0].rating,9);assert.equal(records[0].text,'');
+ const records=J.journal([{id:'score',chapter:2,ts:200,rating:9},{id:'bad',chapter:3,ts:300,rating:11},{id:'tooLow',chapter:4,ts:400,rating:0.4},{id:'tenth',chapter:5,ts:500,rating:2.5}]);
+ assert.equal(records.length,2);assert.deepEqual(records.map(r=>r.rating),[9,2.5]);assert.equal(records[0].text,'');
  const {api}=harness();const m=api.newManhwa('Chapter test');m.journal=records;
  assert.equal(api.sanitizeImportedManhwa(m,{}).journal[0].rating,9);
 });
@@ -766,4 +766,23 @@ test('goals: titles from the list import do not count as new additions', () => {
   assert.deepEqual(f.goalKeys(list, 'added'), ['own']);
   assert.deepEqual(f.goalKeys(list, 'plan'), ['own']);
   assert.ok(f.goalOptions.filter(o => o.metric === 'days').every(o => /в течение \d+ разных дней$/.test(o.text)));
+});
+
+test('chapter ratings accept whole points and tenths only', () => {
+  const f = require('../features.js');
+  assert.equal(f.chapterRating(8), 8);
+  assert.equal(f.chapterRating(8.7), 8.7);
+  assert.equal(f.chapterRating(9.95), 10);
+  assert.equal(f.chapterRating(8.75), 8.8);
+  for (const bad of [0, 0.9, 10.1, -3, NaN, Infinity, '9', null, undefined]) assert.equal(f.chapterRating(bad), null, String(bad));
+  assert.equal(f.formatChapterRating(9), '9');
+  assert.equal(f.formatChapterRating(8.7), '8.7');
+  assert.equal(f.formatChapterRating(0), '');
+  const kept = f.journal([
+    { id: 'a', ts: 1, chapter: 1, text: '', rating: 9.9 },
+    { id: 'b', ts: 2, chapter: 2, text: '', rating: 8 },
+    { id: 'c', ts: 3, chapter: 3, text: 'note', rating: 10.5 },
+    { id: 'd', ts: 4, chapter: 4, text: '', rating: 0.5 },
+  ]);
+  assert.deepEqual(kept.map(e => [e.chapter, e.rating]), [[1, 9.9], [2, 8], [3, undefined]]);
 });

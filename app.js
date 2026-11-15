@@ -4425,15 +4425,17 @@
   }
   var CHAPTER_QUICK_NOTES=['Раскрытие прошлого ГГ','Ничего не произошло','Неожиданный поворот','Развитие отношений','Сильная сцена боя','Новый персонаж','Важная подсказка','Красивые кадры','Смешной момент','Трогательная сцена','Много объяснений','Интригующий финал'];
   function chapterRatingSlider(value){
-    var n=value||0;
-    return '<fieldset class="mt-score-picker mt-chapter-slider"><legend>Как тебе глава?</legend><div class="mt-score-picker-heading"><output>'+(n?n+' / 10':'Без оценки')+'</output><p class="mt-chapter-mood">'+chapterRatingMood(n)+'</p></div><input type="range" id="chapter-rating" min="0" max="10" step="1" value="'+n+'" aria-label="Оценка главы" aria-valuetext="'+(n?n+' из 10. '+chapterRatingMood(n):'Без оценки')+'" /><div class="mt-score-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div><button type="button" class="mt-note-only" data-chapter-score="0" aria-pressed="'+(!n)+'">Без оценки · только заметка</button><p id="chapter-existing" role="status"></p></fieldset>';
+    var n=value||0,txt=Features.formatChapterRating(n);
+    return '<fieldset class="mt-score-picker mt-chapter-slider"><legend>Как тебе глава?</legend><div class="mt-score-picker-heading"><output>'+(n?txt+' / 10':'Без оценки')+'</output><p class="mt-chapter-mood">'+chapterRatingMood(n)+'</p></div><input type="range" id="chapter-rating" min="0" max="10" step="0.1" value="'+n+'" aria-label="Оценка главы" aria-valuetext="'+(n?txt+' из 10. '+chapterRatingMood(n):'Без оценки')+'" /><div class="mt-score-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div>'+
+      '<div class="mt-chapter-fine" role="group" aria-label="Точная оценка"><button type="button" class="mt-ghost-btn" data-chapter-fine="-0.1" aria-label="Уменьшить оценку на 0,1">−0,1</button><input type="text" class="mt-input" id="chapter-rating-exact" inputmode="decimal" autocomplete="off" maxlength="4" placeholder="8,7" value="'+(n?txt:'')+'" aria-label="Точная оценка от 1 до 10, например 8,7" /><button type="button" class="mt-ghost-btn" data-chapter-fine="0.1" aria-label="Увеличить оценку на 0,1">+0,1</button></div>'+
+      '<button type="button" class="mt-note-only" data-chapter-score="0" aria-pressed="'+(!n)+'">Без оценки · только заметка</button><p id="chapter-existing" role="status"></p></fieldset>';
   }
   function chapterRatingMood(value){
-    return ['Как тебе эта глава?','Совсем не понравилась','Слабая глава','Не зацепила','Ниже ожиданий','Смешанные чувства','Неплохая глава','Хорошая глава','Очень понравилась','Потрясающая глава','Незабываемая глава'][Number(value)||0]||'Как тебе эта глава?';
+    return ['Как тебе эта глава?','Совсем не понравилась','Слабая глава','Не зацепила','Ниже ожиданий','Смешанные чувства','Неплохая глава','Хорошая глава','Очень понравилась','Потрясающая глава','Незабываемая глава'][Math.max(0,Math.min(10,Math.round(Number(value))||0))]||'Как тебе эта глава?';
   }
   function savedChapterRating(value){
     var n=value||0;
-    return '<div class="mt-entry-score"><strong>'+(n?n+'<small> / 10</small>':'Заметка')+'</strong><span>'+(n?chapterRatingMood(n):'Без оценки')+'</span></div>';
+    return '<div class="mt-entry-score"><strong>'+(n?Features.formatChapterRating(n)+'<small> / 10</small>':'Заметка')+'</strong><span>'+(n?chapterRatingMood(n):'Без оценки')+'</span></div>';
   }
   var journalView={};
   var chapterSaveNotice='';
@@ -4572,9 +4574,9 @@
     var picker=rating.closest('.mt-score-picker');if(!picker)return;
     var n=Number(rating.value),existing=runJournal(m).find(function(e){return input.value!==''&&e.chapter===Number(input.value)&&e.rating;});
     picker.querySelectorAll('[data-chapter-score]').forEach(function(btn){btn.setAttribute('aria-pressed',String(Number(btn.dataset.chapterScore)===n));});
-    var output=rating.closest('.mt-score-picker').querySelector('output');output.textContent=n?n+' / 10':'Выбери оценку';
+    var output=rating.closest('.mt-score-picker').querySelector('output');output.textContent=n?Features.formatChapterRating(n)+' / 10':'Выбери оценку';
     rating.closest('.mt-score-picker').querySelector('.mt-chapter-mood').textContent=chapterRatingMood(n);
-    document.getElementById('chapter-existing').textContent=existing?'У этой главы уже есть оценка '+existing.rating+' / 10. Выбери «Без оценки», чтобы добавить заметку.':'';
+    document.getElementById('chapter-existing').textContent=existing?'У этой главы уже есть оценка '+Features.formatChapterRating(existing.rating)+' / 10. Выбери «Без оценки», чтобы добавить заметку.':'';
     document.getElementById('chapter-run-label').textContent='Прочтение №'+currentRun(m);
   }
   function attachJourneyHandlers(selected) {
@@ -4589,7 +4591,7 @@
         el.addEventListener('input',remember);el.addEventListener('change',remember);
       });
       var rating=document.getElementById('chapter-rating'),slider=rating&&rating.closest('.mt-chapter-slider');
-      if(slider){var caption=Number(rating.value)?rating.value+' / 10':'Без оценки';slider.querySelector('output').textContent=caption;rating.setAttribute('aria-valuetext',caption);slider.style.setProperty('--chapter-fill',(Number(rating.value)*10)+'%');slider.querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(rating.value));}
+      if(slider){var caption=Number(rating.value)?Features.formatChapterRating(Number(rating.value))+' / 10':'Без оценки';var exactBox=document.getElementById('chapter-rating-exact');if(exactBox)exactBox.value=Number(rating.value)?Features.formatChapterRating(Number(rating.value)):'';slider.querySelector('output').textContent=caption;rating.setAttribute('aria-valuetext',caption);slider.style.setProperty('--chapter-fill',(Number(rating.value)*10)+'%');slider.querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(rating.value));}
     }
     if(chapterForm&&selected){
       var liveTitle=findManhwa(selected.id)||selected;
@@ -4633,16 +4635,49 @@
     document.getElementById('app').querySelectorAll('[data-goal-all]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.goalAll=el.getAttribute('data-goal-all')==='1';render();});});
     document.getElementById('app').querySelectorAll('[data-goal-group]').forEach(function(el){el.addEventListener('click',function(){state.journeyUI.goalGroup=el.getAttribute('data-goal-group');state.journeyUI.goalAll=false;render();});});
     document.getElementById('app').querySelectorAll('[data-goal-remove]').forEach(function(el){el.addEventListener('click',function(){if(!window.confirm('Убрать цель? При повторном выборе прогресс начнётся заново.'))return;var d=journeyData();d.goals=d.goals.filter(function(g){return g.id!==el.getAttribute('data-goal-remove');});state.profile.journey=d;saveProfile();render();});});
-    document.getElementById('app').querySelectorAll('.mt-chapter-slider input').forEach(function(el){el.addEventListener('input',function(){
-      var caption=Number(el.value)?el.value+' / 10':'Без оценки';
-      el.closest('.mt-chapter-slider').querySelector('output').textContent=caption;el.setAttribute('aria-valuetext',caption);
-      el.closest('.mt-chapter-slider').style.setProperty('--chapter-fill',(Number(el.value)*10)+'%');el.closest('.mt-chapter-slider').querySelector('.mt-chapter-mood').textContent=chapterRatingMood(Number(el.value));el.setAttribute('aria-valuetext',caption+'. '+chapterRatingMood(Number(el.value)));if(selected)refreshChapterComposer(findManhwa(selected.id)||selected);
-    });});
+    document.getElementById('app').querySelectorAll('#chapter-rating').forEach(function(el){
+      el.addEventListener('input',function(){
+        // Only whole points and tenths exist; values between 0 and 1 snap to "no rating" or 1.
+        var raw=Number(el.value),snapped=raw>0&&raw<1?(raw<0.5?0:1):Math.round(raw*10)/10;
+        if(snapped!==raw){el.value=String(snapped);if(selected&&chapterDrafts[selected.id]){chapterDrafts[selected.id]['chapter-rating']=el.value;persistChapterDrafts();}}
+        var n=Number(el.value),txt=Features.formatChapterRating(n),caption=n?txt+' / 10':'Без оценки';
+        var exactBox=document.getElementById('chapter-rating-exact');if(exactBox&&document.activeElement!==exactBox)exactBox.value=n?txt:'';
+        el.closest('.mt-chapter-slider').querySelector('output').textContent=caption;
+        el.closest('.mt-chapter-slider').style.setProperty('--chapter-fill',(n*10)+'%');el.closest('.mt-chapter-slider').querySelector('.mt-chapter-mood').textContent=chapterRatingMood(n);el.setAttribute('aria-valuetext',n?txt+' из 10. '+chapterRatingMood(n):caption);if(selected)refreshChapterComposer(findManhwa(selected.id)||selected);
+      });
+      // Arrow keys keep moving by a whole point; Shift+arrow moves by a tenth.
+      el.addEventListener('keydown',function(ev){
+        var k=ev.key;if(k!=='ArrowLeft'&&k!=='ArrowRight'&&k!=='ArrowUp'&&k!=='ArrowDown')return;
+        ev.preventDefault();var v=Number(el.value)||0,up=k==='ArrowRight'||k==='ArrowUp';
+        var next=ev.shiftKey?(v===0?(up?1:0):Math.round((v+(up?0.1:-0.1))*10)/10):(up?Math.floor(v+1e-9)+1:Math.ceil(v-1e-9)-1);
+        el.value=String(Math.max(0,Math.min(10,next)));el.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+    });
+    var fineRating=document.getElementById('chapter-rating'),fineExact=document.getElementById('chapter-rating-exact');
+    function setChapterRating(v){fineRating.value=String(v);fineRating.dispatchEvent(new Event('input',{bubbles:true}));}
+    if(fineRating){
+      document.getElementById('app').querySelectorAll('[data-chapter-fine]').forEach(function(btn){btn.addEventListener('click',function(){
+        var v=Number(fineRating.value)||0,d=Number(btn.dataset.chapterFine);
+        setChapterRating(v===0?(d>0?1:0):Math.max(1,Math.min(10,Math.round((v+d)*10)/10)));document.getElementById('chapter-error').textContent='';
+      });});
+    }
+    if(fineRating&&fineExact){
+      fineExact.addEventListener('input',function(){
+        var t=fineExact.value.replace(',','.').trim();document.getElementById('chapter-error').textContent='';
+        if(t===''){setChapterRating(0);return;}
+        var v=parseFloat(t);if(Number.isFinite(v)&&v>=1&&v<=10)setChapterRating(Math.round(v*10)/10);
+      });
+      fineExact.addEventListener('blur',function(){
+        var t=fineExact.value.replace(',','.').trim(),v=parseFloat(t);
+        if(t!==''&&!(Number.isFinite(v)&&v>=1&&v<=10))document.getElementById('chapter-error').textContent='Оценка — число от 1 до 10, например 8,7.';
+        var n=Number(fineRating.value);fineExact.value=n?Features.formatChapterRating(n):'';
+      });
+    }
     bind('chapter-form','submit',async function(e){
       e.preventDefault();if(chapterSubmitting)return;var next=e.submitter&&e.submitter.name==='next';var m=selected&&findManhwa(selected.id),text=document.getElementById('chapter-text').value.trim(),rawChapter=document.getElementById('chapter-number').value,chapter=Number(rawChapter),rating=Number(document.getElementById('chapter-rating').value)||null;
       if(!m||!rawChapter||!Number.isFinite(chapter)||chapter<0||chapter>1000000)return;
       if(!text&&!rating){document.getElementById('chapter-error').textContent='Поставь оценку или напиши заметку.';return;}
-      if(rating!==null&&(!Number.isInteger(rating)||rating<1||rating>10))return;
+      if(rating!==null){var fixedRating=Features.chapterRating(rating);if(fixedRating===null)return;rating=fixedRating;}
       if(rating!==null&&Features.hasChapterRating(runJournal(m),chapter)){document.getElementById('chapter-error').textContent='У главы '+chapter+' уже есть оценка. Можно добавить заметку без оценки или удалить прежнюю запись.';journalSettings(m).query=String(chapter);document.getElementById('journal-search').value=String(chapter);document.getElementById('journal-list').innerHTML=journalEntriesHtml(m);return;}
       m.journal=Features.journal(m.journal);var entry={id:uid(),ts:Date.now(),chapter:chapter,text:text.slice(0,2000),spoiler:document.getElementById('chapter-spoiler').checked};if(rating!==null)entry.rating=rating;if(currentRun(m)>1)entry.run=currentRun(m);
       var progress=Features.readingProgress(m);progress.chapter=Math.max(progress.chapter,chapter);progress.updatedAt=Date.now();m.reading=progress;

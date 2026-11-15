@@ -266,9 +266,19 @@
     (log||[]).forEach(function(e){if(e.type==='status'&&e.extra&&e.extra.status==='done'&&e.manhwaId&&inside(e.ts)){finished.add(e.manhwaId);day(e.ts);}});
     return {notes:notes.size,ratings:ratingsSet.size,titles:titles.size,dark:dark.size,days:days.size,finished:finished.size,complete:halloweenQuests.slice(0,6).filter(function(q){return !!earned[q.id];}).length};
   }
+  // Chapter ratings are whole points or tenths (8, 8.7, 9.9) from 1 to 10.
+  function chapterRating(v) {
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 1 || v > 10) return null;
+    return Math.round(v * 10) / 10;
+  }
+  function formatChapterRating(v) {
+    var n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  }
   function journal(raw) {
     return (Array.isArray(raw) ? raw : []).filter(function(e) { return e && typeof e.id==='string' && Number.isFinite(e.ts) && Number.isFinite(e.chapter) && e.chapter>=0 && e.chapter<=1000000; }).map(function(e) {
-      var rating=Number.isInteger(e.rating)&&e.rating>=1&&e.rating<=10?e.rating:null;
+      var rating=chapterRating(e.rating);
       var entry={id:e.id,text:typeof e.text==='string'?e.text.slice(0,2000):'',chapter:e.chapter,ts:e.ts,spoiler:!!e.spoiler};
       if(rating!==null)entry.rating=rating;
       if(Number.isInteger(e.run)&&e.run>1&&e.run<=10000)entry.run=e.run;
@@ -499,7 +509,7 @@
     return parts.join(' · ');
   }
 
-  var api = {goalGroups:goalGroups,GOAL_LIMIT:GOAL_LIMIT,goalDone:goalDone,listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {chapterRating:chapterRating,formatChapterRating:formatChapterRating,goalGroups:goalGroups,GOAL_LIMIT:GOAL_LIMIT,goalDone:goalDone,listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;
