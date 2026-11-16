@@ -58,16 +58,60 @@
       notes: m.notes || "", lastRatedAt: m.lastRatedAt || m.createdAt || null,
       month: key, category: category, legacy: !!legacy, awardedAt: legacy ? null : Date.now() };
   }
-  function coverImage(url) {
-    if (!url || !/^(https?:|data:image\/(png|jpeg|webp);)/i.test(url)) return Promise.resolve(null);
+  // Why the last cover could not be drawn: '', 'offline', 'timeout' or 'blocked'
+  // (the image host did not allow its use in a picture).
+  var coverFailure = '';
+  function coverFailureText() {
+    return ({
+      offline: 'Нет интернета: картинка сохранена без обложки.',
+      timeout: 'Обложка не успела загрузиться, поэтому картинка сохранена без неё. Попробуй ещё раз при более быстром соединении.',
+      blocked: 'Сервер обложки не разрешил использовать её в картинке, поэтому она сохранена без обложки.'
+    })[coverFailure] || '';
+  }
+  function blobToImage(blob) {
+    return new Promise(function (resolve, reject) {
+      if (!blob || !/^image\//i.test(blob.type || '')) { reject(new Error('not an image')); return; }
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error('read')); };
+      reader.onload = function () {
+        var img = new Image();
+        img.onload = function () { resolve(img); };
+        img.onerror = function () { reject(new Error('decode')); };
+        img.src = String(reader.result);
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+  // The old way: a plain <img crossorigin>. Only used when fetch() is missing.
+  function coverImageByTag(url, limit) {
     return new Promise(function (resolve) {
       var img = new Image(), finished = false;
-      var timer = setTimeout(function () { done(null); }, 6000);
-      function done(result) { if (finished) return; finished = true; clearTimeout(timer); resolve(result); }
+      var timer = setTimeout(function () { done(null, 'timeout'); }, limit);
+      function done(result, why) { if (finished) return; finished = true; clearTimeout(timer); if (!result) coverFailure = why || 'blocked'; resolve(result); }
       img.crossOrigin = "anonymous";
       img.onload = function () { done(img); };
-      img.onerror = function () { done(null); };
+      img.onerror = function () { done(null, typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'blocked'); };
       img.src = url;
+    });
+  }
+  // Loads a cover so it can be drawn on a canvas without tainting it.
+  // fetch() in CORS mode with cache "reload" asks the image host again, so a copy
+  // that the browser cached earlier for a plain <img> (without CORS headers)
+  // cannot break the request; the slow mobile network gets 10 s instead of 2.5.
+  function coverImage(url, timeoutMs) {
+    coverFailure = '';
+    if (!url || !/^(https?:|data:image\/(png|jpeg|webp);)/i.test(url)) return Promise.resolve(null);
+    var limit = timeoutMs || 10000;
+    if (typeof fetch !== 'function') return coverImageByTag(url, limit);
+    return new Promise(function (resolve) {
+      var finished = false, controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = setTimeout(function () { if (controller) controller.abort(); done(null, 'timeout'); }, limit);
+      function done(result, why) { if (finished) return; finished = true; clearTimeout(timer); if (!result) coverFailure = why || 'blocked'; resolve(result); }
+      fetch(url, { mode: 'cors', credentials: 'omit', cache: 'reload', signal: controller ? controller.signal : undefined })
+        .then(function (response) { if (!response.ok) throw new Error('status ' + response.status); return response.blob(); })
+        .then(blobToImage)
+        .then(function (img) { done(img); })
+        .catch(function () { done(null, typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'blocked'); });
     });
   }
   // Wrap by characters too: long unbroken titles must not escape the card.
@@ -509,7 +553,7 @@
     return parts.join(' · ');
   }
 
-  var api = {chapterRating:chapterRating,formatChapterRating:formatChapterRating,goalGroups:goalGroups,GOAL_LIMIT:GOAL_LIMIT,goalDone:goalDone,listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
+  var api = {coverImage:coverImage,coverFailureText:coverFailureText,chapterRating:chapterRating,formatChapterRating:formatChapterRating,goalGroups:goalGroups,GOAL_LIMIT:GOAL_LIMIT,goalDone:goalDone,listStatusToApp:listStatusToApp,parseMalXml:parseMalXml,splitKnownEntries:splitKnownEntries,importNote:importNote,readingProgress:readingProgress,readingUrl:readingUrl,chapterScores:chapterScores,hasChapterRating:hasChapterRating,cleanFeedback:cleanFeedback,aniListVariables:aniListVariables,halloweenQuests:halloweenQuests,halloweenWindow:halloweenWindow,halloweenProgress:halloweenProgress,shopCollections:shopCollections,monthlyRecap:monthlyRecap,createMonthlyCard:createMonthlyCard,goalRewardXp:goalRewardXp,shopRarities:shopRarities, shopItems:shopItems, shopItem:shopItem, cleanShop:cleanShop, mergeShop:mergeShop, coinBalance:coinBalance, cleanStyle:cleanStyle, recentReading:recentReading, unseenMedia:unseenMedia, goalOptions:goalOptions, journal:journal, goalKeys:goalKeys, cleanJourney:cleanJourney,  duelPair:duelPair,  annualAwards: annualAwards, ratings: ratings, ratingInMonth: ratingInMonth, comparison: comparison, continueReading: continueReading,
     awardSnapshot: awardSnapshot, createShareCard: createShareCard, textLines: textLines };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AMFeatures = api;

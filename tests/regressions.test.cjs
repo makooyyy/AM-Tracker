@@ -786,3 +786,11 @@ test('chapter ratings accept whole points and tenths only', () => {
   ]);
   assert.deepEqual(kept.map(e => [e.chapter, e.rating]), [[1, 9.9], [2, 8], [3, undefined]]);
 });
+
+test('cover loader refuses unsafe addresses and has no failure text by default', async () => {
+  const f = require('../features.js');
+  for (const bad of ['', null, undefined, 'javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,<b>x</b>', 'ftp://example.com/a.png']) {
+    assert.equal(await f.coverImage(bad), null, String(bad));
+    assert.equal(f.coverFailureText(), '');
+  }
+});

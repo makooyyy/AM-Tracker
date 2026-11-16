@@ -4520,7 +4520,7 @@
       var canvas=document.createElement('canvas');canvas.width=1000;canvas.height=340+Math.ceil(scores.length/10)*82;
       var ctx=canvas.getContext('2d');ctx.fillStyle=light?'#faf8f4':'#15151e';ctx.fillRect(0,0,canvas.width,canvas.height);
       var cover=null;
-      if(m.coverUrl)cover=await new Promise(function(resolve){var img=new Image(),done=false;function finish(v){if(!done){done=true;resolve(v);}}img.crossOrigin='anonymous';img.onload=function(){finish(img);};img.onerror=function(){finish(null);};img.src=m.coverUrl;setTimeout(function(){finish(null);},2500);});
+      if(m.coverUrl)cover=await Features.coverImage(m.coverUrl);
       ctx.fillStyle='#302b40';ctx.fillRect(32,32,112,158);
       if(cover){var scale=Math.max(112/cover.width,158/cover.height);ctx.save();ctx.beginPath();ctx.roundRect(32,32,112,158,12);ctx.clip();ctx.drawImage(cover,32+(112-cover.width*scale)/2,32+(158-cover.height*scale)/2,cover.width*scale,cover.height*scale);ctx.restore();}
       else{ctx.fillStyle='#c4b2ed';ctx.font='bold 30px sans-serif';ctx.fillText('AM',62,120);}
@@ -4535,16 +4535,16 @@
       scores.forEach(function(e,i){var x=32+i%10*94,y=270+Math.floor(i/10)*82;ctx.fillStyle=colors[e.rating>=9?5:e.rating>=8?4:e.rating>=7?3:e.rating>=5?2:e.rating>=3?1:0];ctx.beginPath();ctx.roundRect(x,y,86,70,9);ctx.fill();ctx.fillStyle='#18231e';ctx.textAlign='center';ctx.font='14px sans-serif';ctx.fillText('Гл. '+e.chapter,x+43,y+22);ctx.font='bold 26px sans-serif';ctx.fillText(e.rating.toFixed(1),x+43,y+53);});
       ctx.textAlign='left';ctx.fillStyle=muted;ctx.font='14px sans-serif';ctx.fillText('Личные оценки · '+new Date().toLocaleDateString('ru-RU'),32,canvas.height-22);
       var blob=await new Promise(function(resolve){canvas.toBlob(resolve,'image/png');});if(!blob)throw new Error('PNG');
-      openMapPreview(blob,m,theme);
+      openMapPreview(blob,m,theme,m.coverUrl&&!cover?Features.coverFailureText():'');
     }catch(e){showToast('Не удалось сохранить картинку. Попробуй ещё раз.');}
     finally{button.disabled=false;button.textContent='Картинка и экспорт';}
   }
-  function openMapPreview(blob,m,theme){
+  function openMapPreview(blob,m,theme,note){
     var dialog=document.createElement('dialog'),url=URL.createObjectURL(blob);
     var file=new File([blob],'am-chapter-ratings.png',{type:'image/png'});
     dialog.className='mt-export-preview';dialog.setAttribute('aria-label','Предпросмотр карты оценок');
     dialog.innerHTML='<header><h2>Карта для тебя</h2><button type="button" class="mt-ghost-btn" data-export-close>Закрыть</button></header><label>Фон картинки<select class="mt-input" id="export-theme"><option value="dark">Тёмный</option><option value="light">Светлый</option></select></label><img alt="Предпросмотр картинки с оценками глав"><footer><button type="button" class="mt-primary-btn" id="export-save">Скачать PNG</button><button type="button" class="mt-ghost-btn" id="export-share">Поделиться</button></footer><p id="export-status" role="status"></p>';
-    document.body.appendChild(dialog);dialog.querySelector('img').src=url;dialog.querySelector('select').value=theme;
+    document.body.appendChild(dialog);dialog.querySelector('img').src=url;dialog.querySelector('select').value=theme;if(note)dialog.querySelector('#export-status').textContent=note;
     dialog.querySelector('[data-export-close]').onclick=function(){dialog.close();};
     dialog.addEventListener('close',function(){URL.revokeObjectURL(url);dialog.remove();});
     dialog.querySelector('#export-save').onclick=function(){var a=document.createElement('a');a.href=url;a.download=file.name;a.click();};
